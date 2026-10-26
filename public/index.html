@@ -2610,7 +2610,20 @@ const WS_URL=(function(){
     return(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
   }catch(e){return null;}
 })();
-const NET_OK=!!WS_URL&&typeof WebSocket!=='undefined';
+/* Rooms run on the game server when there is one (server.js). With no server (a plain
+   static host like GitHub Pages) the host's own browser runs the room and the others
+   connect to it directly, peer to peer, through PeerJS. ?p2p=1 forces that. */
+const NET_OK=typeof WebSocket!=='undefined'&&(!!WS_URL||typeof RTCPeerConnection!=='undefined');
+let netMode=params&&params.get('server')?'ws':((params&&params.get('p2p')==='1')||!WS_URL?'p2p':null);
+function pickMode(cb){
+  if(netMode)return cb(netMode);
+  let done=false;
+  const fin=function(m,keep){if(done)return;done=true;if(keep)netMode=m;cb(m);};
+  /* no answer at all for a long while: go peer to peer this time, and ask again next time */
+  setTimeout(function(){fin('p2p',false);},15000);
+  try{fetch('/healthz',{cache:'no-store'}).then(function(r){return r.ok?r.text():'';}).then(function(t){fin(String(t).trim()==='ok'?'ws':'p2p',true);},function(){fin('p2p',true);});}
+  catch(e){fin('p2p');}
+}
 const netEl=$('net'),nMsg=$('nMsg'),nName=$('nName'),nCode=$('nCode'),nHost=$('nHost'),nJoin=$('nJoin');
 const toastEl=$('toast'),badge=$('roombadge');
 let toastTimer=0;
@@ -3095,20 +3108,136 @@ function renderRoom(){
   });
 }
 function netBusy(b){nHost.disabled=b;nJoin.disabled=b;}
-function connect(onOpen){
-  if(net.ws){try{net.ws.close();}catch(e){}}
+function netIn(d){let m;try{m=typeof d==='string'?JSON.parse(d):d;}catch(e){return;}if(m)onNet(m);}
+/* the link to the room dropped, or never opened */
+function netLost(t,why){
+  if(net.ws!==t)return;
+  net.ws=null;netBusy(false);
+  if(inRoom())leftRoom('Lost the connection to the room.');
+  else if(why)netMsg(why,true);
+  else if(nMsg.textContent==='Connecting…')netMsg('Could not reach the game server.',true);
+}
+function connect(onOpen,joinCode){
+  if(net.ws){const w=net.ws;net.ws=null;try{w.close();}catch(e){}}
   netBusy(true);netMsg('Connecting…');
+  const t={readyState:0,send:function(){},close:function(){this.readyState=3;}};
+  net.ws=t;/* a placeholder, so a second click replaces this attempt */
+  pickMode(function(mode){
+    if(net.ws!==t)return;
+    if(mode==='ws')wsConnect(onOpen);
+    else p2pConnect(onOpen,joinCode);
+  });
+}
+function wsConnect(onOpen){
   let ws;
-  try{ws=new WebSocket(WS_URL);}catch(e){netBusy(false);netMsg('Could not reach the game server.',true);return;}
+  try{ws=new WebSocket(WS_URL);}catch(e){net.ws=null;netBusy(false);netMsg('Could not reach the game server.',true);return;}
   net.ws=ws;
   ws.onopen=function(){onOpen();};
-  ws.onmessage=function(ev){let m;try{m=JSON.parse(ev.data);}catch(e){return;}onNet(m);};
-  ws.onclose=function(){
-    if(net.ws!==ws)return;
-    net.ws=null;netBusy(false);
-    if(inRoom()){leftRoom('Lost the connection to the room.');}
-    else if(nMsg.textContent==='Connecting…')netMsg('Could not reach the game server.',true);
+  ws.onmessage=function(ev){netIn(ev.data);};
+  ws.onclose=function(){netLost(ws);};
+}
+/* ---------- rooms with no server: PeerJS ---------- */
+const PEER_PREFIX='voxelisle-';
+const PEERJS_URL='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js';
+function loadScript(src,cb){
+  const el=document.createElement('script');el.src=src;el.async=true;
+  el.onload=function(){cb(true);};el.onerror=function(){cb(false);};
+  document.head.appendChild(el);
+}
+function needP2P(cb){
+  if(window.Peer&&window.VoxelHub)return cb(true);
+  if(!window.Peer)return loadScript(PEERJS_URL,function(ok){if(!ok||!window.Peer)return cb(false);needP2P(cb);});
+  loadScript('hub.js',function(ok){cb(ok&&!!window.VoxelHub);});
+}
+function peerOpts(){
+  const o={debug:0};
+  const h=params&&params.get('peerhost');
+  if(h){o.host=h;o.port=parseInt(params.get('peerport'),10)||443;o.path=params.get('peerpath')||'/';o.secure=o.port===443;}
+  return o;
+}
+function newRoomCode(){
+  const C='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=crypto.getRandomValues(new Uint8Array(5));
+  let c='';for(let i=0;i<5;i++)c+=C[r[i]%C.length];return c;
+}
+function p2pConnect(onOpen,joinCode){
+  const t={readyState:0,peer:null,send:function(){},close:function(){}};
+  net.ws=t;
+  needP2P(function(ok){
+    if(net.ws!==t)return;
+    if(!ok)return netLost(t,'Could not load the room code. Check your internet and try again.');
+    if(joinCode)p2pJoin(t,onOpen,joinCode);else p2pHost(t,onOpen);
+  });
+}
+/* The host's browser runs the room: a hub (public/hub.js, the same rules as the server)
+   with the host on a loopback link and each guest on a WebRTC data channel. */
+function p2pHost(t,onOpen){
+  const hub=VoxelHub.createHub({hostCode:true});
+  let tries=0;
+  const attempt=function(){
+    const code=newRoomCode();
+    const peer=new Peer(PEER_PREFIX+code,peerOpts());
+    let opened=false;
+    t.peer=peer;
+    peer.on('open',function(){
+      if(net.ws!==t){peer.destroy();return;}
+      opened=true;
+      const me=hub.newPeer({readyState:1,send:function(s){setTimeout(function(){if(net.ws===t)netIn(s);},0);}});
+      t.readyState=1;
+      t.send=function(s){
+        if(t.readyState!==1)return;
+        let m;try{m=JSON.parse(s);}catch(e){return;}
+        if(m&&m.t==='host')m.code=code;
+        hub.receive(me,m);
+      };
+      t.close=function(){
+        if(t.readyState===3)return;
+        t.readyState=3;me.ws.readyState=3;
+        hub.leave(me);/* tells the guests the room closed */
+        setTimeout(function(){peer.destroy();},600);
+      };
+      peer.on('connection',function(conn){
+        const g=hub.newPeer({get readyState(){return conn.open?1:3;},send:function(s){try{conn.send(s);}catch(e){}}});
+        conn.on('data',function(d){if(t.readyState===1)hub.receive(g,typeof d==='string'?d:String(d));});
+        conn.on('close',function(){hub.leave(g);});
+        conn.on('error',function(){});
+      });
+      onOpen();
+    });
+    peer.on('disconnected',function(){if(t.readyState===1&&!peer.destroyed)try{peer.reconnect();}catch(e){}});
+    peer.on('error',function(e){
+      if(opened||net.ws!==t)return;
+      peer.destroy();
+      if(e&&e.type==='unavailable-id'&&tries++<5)return attempt();
+      netLost(t,'Could not open a room. Check your internet and try again.');
+    });
   };
+  attempt();
+}
+function p2pJoin(t,onOpen,code){
+  const peer=new Peer(peerOpts());
+  let opened=false;
+  t.peer=peer;
+  const fail=function(why){if(net.ws!==t)return;try{peer.destroy();}catch(e){}netLost(t,why);};
+  const timer=setTimeout(function(){if(!opened)fail('Could not reach room '+code+'. Check the code, and that the host still has the game open.');},20000);
+  t.close=function(){
+    if(t.readyState===3)return;
+    t.readyState=3;clearTimeout(timer);
+    setTimeout(function(){peer.destroy();},400);/* lets a last message (leave) go out */
+  };
+  peer.on('open',function(){
+    if(net.ws!==t){peer.destroy();return;}
+    const conn=peer.connect(PEER_PREFIX+code,{reliable:true});
+    t.send=function(s){if(t.readyState===1)try{conn.send(s);}catch(e){}};
+    conn.on('open',function(){if(net.ws!==t)return;opened=true;clearTimeout(timer);t.readyState=1;onOpen();});
+    conn.on('data',function(d){if(net.ws===t)netIn(d);});
+    conn.on('close',function(){if(opened)fail(null);});
+    conn.on('error',function(){});
+  });
+  peer.on('error',function(e){
+    if(opened)return;/* once in, a dropped link shows up as the channel closing */
+    clearTimeout(timer);
+    fail(e&&e.type==='peer-unavailable'?'No room with code '+code+'.':'Could not reach room '+code+'. Check your internet and try again.');
+  });
 }
 function enteredRoom(m,host){
   if(saveTimer){clearTimeout(saveTimer);saveNow();}
@@ -3218,6 +3347,7 @@ function myName(){
 function initNet(){
   if(!NET_OK)return;
   netEl.hidden=false;
+  pickMode(function(){});
   try{nName.value=localStorage.getItem(NAME_KEY)||'';}catch(e){}
   const pre=params&&params.get('room');
   if(pre)nCode.value=pre.toUpperCase().slice(0,5);
@@ -3226,7 +3356,7 @@ function initNet(){
     const code=(nCode.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     if(code.length<5){netMsg('Room codes are 5 letters and numbers.',true);return;}
     if(!ready){netMsg('The island is still loading. Try again in a moment.');return;}
-    connect(function(){netSend({t:'join',code:code,name:myName(),skin:mySkin});});
+    connect(function(){netSend({t:'join',code:code,name:myName(),skin:mySkin});},code);
   };
   nJoin.addEventListener('click',join);
   nCode.addEventListener('keydown',function(e){if(e.key==='Enter')join();});

@@ -29,7 +29,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await play(a); await wait(400);
   await pose(a, 80.5, 13, 96.5); await wait(600);
   await a.keyboard.press('KeyT'); await wait(300);
-  check('without an owl, T just says which pets have powers', !(await lift(a)) && /have powers/.test(await a.textContent('#toast')));
+  check('without an owl, T just says which pets have powers', !(await lift(a)) && /power on T/.test(await a.textContent('#toast')));
   check('adopting Hoot', await adopt(a, 'hoot'));
   await pose(a, 80.5, 13, 96.5); await wait(1500);
   await a.keyboard.press('KeyT'); await wait(300);

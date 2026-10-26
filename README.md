@@ -75,7 +75,7 @@ npm install
 npm start            # http://localhost:8080
 ```
 
-Opened straight from disk (`file://`) the game is single player only, exactly as before. Served by `server.js`, the start card gets a **Play together** section.
+The start card has a **Play together** section wherever the game runs. Served by `server.js`, rooms run on the server. Anywhere else (GitHub Pages, any static host, even opened from disk) rooms run peer to peer: the host's browser runs the room and everyone else connects straight to it. See [Rooms with no server](#rooms-with-no-server).
 
 ## Rooms
 
@@ -96,7 +96,28 @@ Messages: `host` and `join` (both carry `name` and `skin`), `skin`, `seed` (host
 
 Rooms live in memory. Restarting the server closes them (hosts keep their builds locally).
 
+The room rules live in `public/hub.js`, which both `server.js` and the browser load, so a room follows the same rules wherever it runs.
+
+### Rooms with no server
+
+At start-up the page asks for `/healthz`. If the game server answers, rooms use it. If not, rooms go peer to peer with [PeerJS](https://peerjs.com/) (loaded only when you host or join):
+
+- **Hosting** registers the room code with the free public PeerJS server (`voxelisle-CODE`) and runs `hub.js` in the host's browser. The host talks to it directly; guests connect over a WebRTC data channel.
+- **Joining** connects to `voxelisle-CODE`. A wrong code says there's no such room.
+- The PeerJS server only introduces players. Game messages go straight between browsers (through PeerJS's relay when a network blocks direct links).
+- The room lasts while the host has the game open. When the host leaves or closes the tab, the room closes.
+
+`?p2p=1` forces peer to peer even when a server is there; `?server=wss://…/ws` forces a server. `?peerhost=…&peerport=…&peerpath=…` points at your own PeerJS server.
+
 ## Deploy
+
+### GitHub Pages (free, no server)
+
+The workflow in `.github/workflows/pages.yml` publishes `public/` on every push to `main`. Turn it on once: in the repo go to **Settings → Pages**, and under **Build and deployment → Source** pick **GitHub Actions**. Then run the workflow (or push), and the game is at `https://OWNER.github.io/REPO/`. Rooms there run peer to peer.
+
+Your own domain: in **Settings → Pages → Custom domain** enter it (say `play.example.com`), and at your domain registrar add a `CNAME` record from `play` to `OWNER.github.io`. For a bare domain (`example.com`) add `A` records to `185.199.108.153`, `185.199.109.153`, `185.199.110.153` and `185.199.111.153`. Tick **Enforce HTTPS** once it's offered.
+
+### A game server
 
 Any host with WebSocket support works. The client connects to `/ws` on the same origin, using `wss://` on HTTPS. A `Dockerfile` is included and the server reads `PORT`.
 
@@ -129,4 +150,5 @@ npm test
 - `h/owl.e2e.js` checks the owl lift (only owl owners, climbing and flying, the countdown, the owl overhead, letting go and gliding down, tiring after 30 seconds), Hoot's Owl Eyes (ores showing, seeing in the dark, wearing off, the rest before the next go), Snowy's Frost Wings (freezing the sea, standing and walking on it, the ice not being saved and melting back), and a room guest seeing the host carried by Snowy and the sea freezing under them.
 - `h/food.e2e.js` checks Biscuit turning into a biscuit and back, that only Biscuit and Mochi can, that eating it makes it chase and bite you, losing hearts, being chased home to your bed with your hearts back, and in a room a guest seeing the host's mochi, being offered a bite, being chased home, and the server refusing to let anyone eat a pet that isn't food.
 - `h/spread.e2e.js` checks the default spread layout: where each home is, that the treehouse and cottage are rebuilt block for block in their new places, the clear and gentle road, smooth plot edges, the jet tour, the cottage gate, and that a room guest switches to the host's layout and back. The other browser tests use `?layout=classic`.
+- `h/p2p.e2e.js` checks rooms with no server: on a plain static host with a local PeerJS server, the host's browser opens a room, a guest joins it peer to peer and gets the island, edits go both ways, the host's browser turns down an off-meadow edit, the guest sees the host, a wrong code, the room closing when the host leaves, and opening another.
 - `h/rooms.e2e.js` starts the server and drives three Chromium pages through hosting, joining, snapshots, the meadow rule, a cheating client, admin grant and revoke, late joiners, avatars, leaving and room close. Needs Playwright.
