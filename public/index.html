@@ -497,18 +497,22 @@ const DEN_ZONE={x0:80,x1:91,y0:2,y1:9,z0:124,z1:137};
 function inDenZone(x,y,z){const Z=DEN_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
 /* the den is open until Cinder has an owner; after that only Cinder's owner can go in */
 function denLocked(){const o=petOwner('cinder');return !!o&&o!=='me';}
-function thCell(x,y,z){
+/* gen: while the island is being made, ignore the things built after the paths (the palace, the observation
+   tree, the airport, the helipad and the bridge), so plots and paths are laid exactly as before they existed */
+function thCell(x,y,z,gen){
   if(x>=PADDOCK.x0&&x<=PADDOCK.x1&&z>=PADDOCK.z0&&z<=PADDOCK.z1&&y>=PADDOCK.G-1&&y<=PADDOCK.G+5)return'base';
   if(x>=CAMP.x0&&x<=CAMP.x1&&z>=CAMP.z0&&z<=CAMP.z1&&y>=CAMP.G-1&&y<=CAMP.G+4)return'base';
   if(x>=DEN.x0&&x<=DEN.x1&&z>=DEN.z0&&z<=DEN.z1&&y>=DEN.y0&&y<=DEN.y1)return denInside(x,y,z)?'cinder':'base';
   if(x>=COT.x0&&x<=COT.x1&&z>=COT.z0&&z<=COT.z1&&y>=COT.y0&&y<=COT.y1){const r=cotRoom(x,y,z);return r?r.id:'base';}
   if(x>=AT.x0&&x<=AT.x1&&z>=AT.z0&&z<=AT.z1&&y>=AT.y0&&y<=AT.y1)return atInside(x,y,z)?'goldie':'base';
-  if(inPalBox(x,y,z))return inPalHall(x,y,z)?'shared':'base';
-  if(inODBox(x,y,z))return'base';
-  if(inLounge(x,y,z))return'lounge';
-  if(inAirBox(x,y,z))return'base';
-  if(inHeliPad(x,y,z))return'base';
-  if(heli.cellSet.size&&heli.cellSet.has((y*D+z)*W+x))return'base';
+  if(!gen){
+    if(inPalBox(x,y,z))return inPalHall(x,y,z)?'shared':'base';
+    if(inODBox(x,y,z))return'base';
+    if(inLounge(x,y,z))return'lounge';
+    if(inAirBox(x,y,z))return'base';
+    if(inHeliPad(x,y,z))return'base';
+    if(heli.cellSet.size&&heli.cellSet.has((y*D+z)*W+x))return'base';
+  }
   const r=thRoom(x,y,z);if(r)return r.id;
   if(x>=TH.x0&&x<=TH.x1&&z>=TH.z0&&z<=TH.z1&&y>=TH.y0&&y<=TH.y1)return'base';
   if(x>=TH.sx0&&x<=TH.sx1&&z>=TH.sz0&&z<=TH.sz1&&y>=TH.y0&&y<=TH.sy1)return'base';
@@ -1288,7 +1292,9 @@ function buildLookout(){
     if(x<0||z<0||x>=W||z>=D)continue;
     const want=G-1-Math.floor((r-5.6)/1.3);
     let top=G+6;while(top>0&&(g(x,top,z)===0||g(x,top,z)===B.WATER||g(x,top,z)===B.LEAVES||g(x,top,z)===B.LOG))top--;
-    if(top>=want)continue;
+    /* leave the sandstone road (and the ground right beside it) as it is */
+    let road=false;for(let dz=-1;dz<=1&&!road;dz++)for(let dx=-1;dx<=1&&!road;dx++){let t=G+6;const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=W||zz>=D)continue;while(t>0&&g(xx,t,zz)===0)t--;if(g(xx,t,zz)===B.SANDSTONE)road=true;}
+    if(road||top>=want)continue;
     for(let y=top+1;y<want;y++)S(x,y,z,B.DIRT);
     S(x,want,z,B.GRASS);
   }
@@ -1567,7 +1573,7 @@ function blendPlots(){
     if(inside||dmin>M)continue;
     const o=origHt[z*W+x];
     if(o<=SEA+1||onField(x,z))continue;
-    if(thCell(x,o-1,z)==='base'||thCell(x,o,z)==='base')continue;
+    if(thCell(x,o-1,z,true)==='base'||thCell(x,o,z,true)==='base')continue;
     if(dmin>Mc)continue;
     const t=smooth(0,Mc,dmin),target=Math.max(SEA+2,Math.round(G+(o-G)*t));
     if(target===o)continue;
@@ -1622,7 +1628,7 @@ function layPaths(){
       for(let k=0;k<t.length;k++)t[k]=Math.floor(t[k]);
       for(let k=0;k<cells.length;k++)for(const q of cells[k]){
         const x=q[0],z=q[1],y0=topY(x,z);
-        if(y0<=t[k]||thCell(x,y0,z)||thCell(x,t[k],z))continue;
+        if(y0<=t[k]||thCell(x,y0,z,true)||thCell(x,t[k],z,true))continue;
         for(let y=t[k]+1;y<Math.min(H,y0+12);y++)vox[(y*D+z)*W+x]=0;
         vox[(t[k]*D+z)*W+x]=B.SANDSTONE;
       }

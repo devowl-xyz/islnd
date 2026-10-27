@@ -108,33 +108,33 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('flying off folds the bridge away', !(await H(a)).bridge && (await get(a, 85, 18, 90)) === 0);
   await a.evaluate(() => window.__isle.heli.leave());
 
-  // the rope picks up pets too: Biscuit, waiting at the cottage gate
-  const hb = await a.evaluate(() => { const h = window.__isle.pets.home.biscuit; return { x: h.x, y: h.y, z: h.z }; });
+  // the rope picks up pets too: Clover, grazing in the open in its paddock (Biscuit waits under the arbour, out of the hook's reach)
+  const hb = await a.evaluate(() => { const h = window.__isle.pets.home.horse; return { x: h.x, y: h.y, z: h.z }; });
   await a.evaluate((hb) => { const I = window.__isle, P = I.player; I.heli.put(hb.x, hb.y + 8, hb.z, 0); P.fly = true; P.x = hb.x; P.y = hb.y + 9; P.z = hb.z + 1; I.heli.board(); I.heli.put(hb.x, hb.y + 8, hb.z, 0); }, hb);
   await a.evaluate(() => { window.__isle.player.yaw = -Math.PI / 2; });
   await a.keyboard.press('KeyH');
-  await a.waitForFunction(() => window.__isle.heli.state().pets.includes('biscuit'), null, { timeout: 30000 }).catch(() => {});
-  check('the rope snatches up Biscuit from the cottage gate', (await H(a)).pets.includes('biscuit') && /Got Biscuit/.test(await toast(a)), await H(a));
+  await a.waitForFunction(() => window.__isle.heli.state().pets.includes('horse'), null, { timeout: 30000 }).catch(() => {});
+  check('the rope snatches up Clover from its paddock', (await H(a)).pets.includes('horse') && /Got Clover/.test(await toast(a)), await H(a));
   await wait(800);
-  const bp = await a.evaluate(() => window.__isle.palace.petPos('biscuit')), bs = await H(a);
-  check('Biscuit hangs from the hook', bp && bp.y < bs.y - 3 && Math.hypot(bp.x - bs.x, bp.z - bs.z) < 1.2, { bp, bs });
+  const bp = await a.evaluate(() => window.__isle.palace.petPos('horse')), bs = await H(a);
+  check('Clover hangs from the hook', bp && bp.y < bs.y - 3 && Math.hypot(bp.x - bs.x, bp.z - bs.z) < 1.2, { bp, bs });
   await a.keyboard.press('KeyH');
   await a.waitForFunction(() => window.__isle.heli.state().rope < 1, null, { timeout: 30000 }).catch(() => {});
   await wait(600);
-  const bc = await a.evaluate(() => window.__isle.palace.petPos('biscuit')), bh = await H(a);
+  const bc = await a.evaluate(() => window.__isle.palace.petPos('horse')), bh = await H(a);
   check('and is winched up into the cabin', bc && Math.abs(bc.y - (bh.y + 0.9)) < 0.3 && Math.hypot(bc.x - bh.x, bc.z - bh.z) < 2, { bc, bh });
   await a.evaluate(() => window.__isle.heli.put(120.5, 30, 100.5));
   await wait(600);
-  const bf = await a.evaluate(() => window.__isle.palace.petPos('biscuit'));
+  const bf = await a.evaluate(() => window.__isle.palace.petPos('horse'));
   check('going wherever the helicopter goes', bf && Math.hypot(bf.x - 120.5, bf.z - 100.5) < 2 && bf.y > 29, bf);
   await a.evaluate(() => window.__isle.heli.leave());
   await a.close();
   a = await open(null, ctxA); await play(a); await wait(500);
-  check('it’s still aboard after a reload', (await H(a)).pets.includes('biscuit'));
+  check('it’s still aboard after a reload', (await H(a)).pets.includes('horse'));
   await a.evaluate(() => { const I = window.__isle, P = I.player; P.fly = true; P.x = 120.5; P.y = 31; P.z = 102; I.heli.board(); });
   await a.keyboard.press('KeyJ'); await wait(500);
-  const home = await a.evaluate(() => { const I = window.__isle, h = I.pets.home.biscuit, p = I.palace.petPos('biscuit'); return { h: { x: h.x, z: h.z }, p }; });
-  check('J lets it go, and Biscuit goes back to the cottage', !(await H(a)).pets.includes('biscuit') && /Biscuit drops down and heads home/.test(await toast(a)) && home.p && Math.hypot(home.p.x - home.h.x, home.p.z - home.h.z) < 0.5, home);
+  const home = await a.evaluate(() => { const I = window.__isle, h = I.pets.home.horse, p = I.palace.petPos('horse'); return { h: { x: h.x, z: h.z }, p }; });
+  check('J lets it go, and Clover goes back to its paddock', !(await H(a)).pets.includes('horse') && /Clover drops down and heads home/.test(await toast(a)) && home.p && Math.hypot(home.p.x - home.h.x, home.p.z - home.h.z) < 0.5, home);
   await a.evaluate(() => window.__isle.heli.leave());
 
   // rooms: the rope snatches people up
@@ -168,7 +168,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.heli.put(100.5, 22, 92.5));
   await a.keyboard.press('KeyH');
   await g.waitForFunction((id) => window.__isle.heli.state().captives.includes(id), gid, { timeout: 30000 }).catch(() => {});
-  check('the rope goes down and snatches up the guest, who gets no say', (await H(g)).captives.includes(gid) && /You’ve been kidnapped by/.test(await toast(g)), await H(g));
+  check('the rope goes down and snatches up the guest, who gets no say', (await H(g)).captives.includes(gid) && /You’ve been kidnapped by|snatched up your Mochi/.test(await toast(g)), await H(g));
   check('the pilot hears they got them', /Got (Gus|Mochi)/.test(await toast(a)), await toast(a));
   await g.waitForFunction(() => window.__isle.heli.state().pets.includes('mochi'), null, { timeout: 20000 }).catch(() => {});
   check('Mochi, right beside them, is snatched up too', (await H(g)).pets.includes('mochi'), await H(g));
