@@ -56,7 +56,7 @@ const TH_ROOMS = [
 ];
 // Goldie's house on the sea bed (same numbers as public/index.html): the dome is fixed,
 // and only Goldie's owner may change anything inside it.
-const AT = { cx: 80, cz: 150, x0: 73, x1: 87, z0: 143, z1: 157, y0: 2, y1: 10 };
+const AT = { cx: 50, cz: 226, x0: 43, x1: 57, z0: 219, z1: 233, y0: 2, y1: 10 };
 function atInside(x, y, z) { const dx = x - AT.cx, dz = z - AT.cz; return y >= 5 && y <= 8 && (dx * dx + dz * dz) / 28.09 + ((y - 5) / 3.9) * ((y - 5) / 3.9) < 1; }
 // Biscuit and Mochi's cottage (same numbers as public/index.html): yard, kennel, cat tree and
 // cottage frame are fixed; each pet's owner has a bedroom; the living room and gardens are shared.
@@ -92,6 +92,16 @@ const PAL_HALL = { x0: 9, x1: 19, z0: 65, z1: 75, y0: 64, y1: 68 };
 const OD_DECK = { x0: 29, x1: 37, z0: 65, z1: 73, y0: 14, y1: 43 };
 const OD_STAIRS = { x0: 32, x1: 34, z0: 74, z1: 98, y0: 14, y1: 43 };
 const PAL_PETS = ['goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
+// East Beach Airport (same numbers as public/index.html): fixed, except the members' lounge, which the
+// owners of Hoot, Snowy, Biscuit, Mochi and Clover may decorate. It stays put in every layout.
+const AIR = [
+  { x0: 132, x1: 155, z0: 92, z1: 122, y0: 1, y1: 31 },
+  { x0: 156, x1: 164, z0: 90, z1: 156, y0: 1, y1: 13 },
+  { x0: 140, x1: 142, z0: 87, z1: 91, y0: 1, y1: 15 },
+  { x0: 126, x1: 131, z0: 92, z1: 95, y0: 11, y1: 15 }
+];
+const LOUNGE = { x0: 135, x1: 149, z0: 107, z1: 111, y0: 12, y1: 16 };
+const LOUNGE_PETS = ['hoot', 'snowy', 'biscuit', 'mochi', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
 function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]; t[k] = typeof v !== 'number' ? v : /^(x|sx|cx)/.test(k) ? v + dx : /^(z|sz|cz)/.test(k) ? v + dz : v; } return t; }
@@ -114,6 +124,8 @@ function thCell(x, y, z, L) {
   const inB = (o) => x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && y >= o.y0 && y <= o.y1;
   if (inB(L.PAL)) return inB(L.PAL_HALL) ? 'shared' : 'base';
   if (L.OD.some(inB)) return 'base';
+  if (inB(LOUNGE)) return 'lounge';
+  if (AIR.some(inB)) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
   if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
@@ -122,6 +134,7 @@ function thCell(x, y, z, L) {
 function thMay(id, pet) {
   if (id === 'shared') return pet === 'hoot' || pet === 'snowy';
   if (id === 'cottage') return pet === 'biscuit' || pet === 'mochi';
+  if (id === 'lounge') return LOUNGE_PETS.includes(pet);
   return pet === id;
 }
 function thBaseIdx(i, L) { return thCell(i % W, Math.floor(i / (W * D)), Math.floor(i / W) % D, L) === 'base'; }
