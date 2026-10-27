@@ -254,6 +254,7 @@ body.touch .desk{display:none}
         <dt>E</dt><dd>Board or leave the jet at the east dock, adopt a pet, or get on and off Clover the horse</dd>
         <dt>Q</dt><dd>On a jet dock: cast your fishing line, and reel in when the bobber dips</dd>
         <dt>M</dt><dd>Island map</dd>
+        <dt>P</dt><dd>Float up to the Sky Palace, or back down (owl owners and their guests)</dd>
         <dt>Enter</dt><dd>Chat (in a room everyone sees it over your head)</dd>
         <dt>X</dt><dd>Emotes: then 1 wave, 2 dance, 3 sit, 4 cheer, 5 clap</dd>
         <dt>Y</dt><dd>Your pet does a trick</dd>
@@ -270,6 +271,7 @@ body.touch .desk{display:none}
       <button class="go" id="play" type="button" disabled>Raising the island</button>
       <button class="ghost wide" id="openSkin" type="button"><span class="dot" id="skinDot"></span>Customise your character</button>
       <div class="pets" id="pets"><h3>Pets</h3><div id="petList"></div></div>
+      <div class="pets" id="palSec"><h3>Sky Palace</h3><p class="hintp" id="palHint"></p><div id="palList"></div></div>
       <div class="pets"><h3>Fish book <span id="fishCount" class="cnt"></span></h3><p class="hintp">Stand on a jet dock and press <b>Q</b> to fish.</p><div id="fishBook" class="fishbook"></div></div>
       <button class="ghost wide" id="openMap" type="button">Island map (M)</button>
       <div class="pets"><h3>Games</h3><div id="playCtl" class="playctl"></div></div>
@@ -373,6 +375,16 @@ function thRoom(x,y,z){
   for(let k=0;k<TH_ROOMS.length;k++){const r=TH_ROOMS[k];if(x>=r.x0&&x<=r.x1&&y>=r.y0&&y<=r.y1&&z>=r.z0&&z<=r.z1)return r;}
   return null;
 }
+/* ---------- the Sky Palace: Hoot and Snowy's palace on a floating island north-west of the treehouse (hub.js has the same numbers) ----------
+   The frame is fixed. Owl owners can decorate the great hall, and invite other players and pets up (and send them down
+   again, with one click). A cloud by the treehouse stairs carries owners and guests up; P floats you up or down from anywhere. */
+const PAL={cx:14,cz:70,FY:35,R:11,x0:0,x1:28,z0:56,z1:84,y0:22,y1:47};
+/* the great hall inside the walls, which owl owners may decorate */
+const PAL_HALL={x0:9,x1:19,z0:65,z1:75,y0:35,y1:39};
+/* everyone who isn't invited is kept out of this box */
+const PAL_ZONE={x0:0,x1:29,y0:22,y1:48,z0:56,z1:85};
+function inPalBox(x,y,z){return x>=PAL.x0&&x<=PAL.x1&&z>=PAL.z0&&z<=PAL.z1&&y>=PAL.y0&&y<=PAL.y1;}
+function inPalHall(x,y,z){const h=PAL_HALL;return x>=h.x0&&x<=h.x1&&z>=h.z0&&z<=h.z1&&y>=h.y0&&y<=h.y1;}
 /* ---------- Goldie's house: a glass dome on marble stilts on the sea bed off the south beach (server.js has the same numbers) ---------- */
 const AT={cx:80,cz:150,FY:4,x0:73,x1:87,z0:143,z1:157,y0:2,y1:10,poolX:79,poolZ:146};
 const AT_ZONE={x0:75,x1:86,y0:5,y1:9,z0:145,z1:156};
@@ -405,12 +417,13 @@ function applyLayout(name){
   LAYOUT=SHIFTS[name]?name:'spread';SHIFT=SHIFTS[LAYOUT];
   if(!BASES.TH){
     const cp=function(o){return JSON.parse(JSON.stringify(o));};
-    BASES.TH=cp(TH);BASES.THR=cp(TH_ROOMS);BASES.THZ=cp(TH_ZONE);BASES.EMP=cp(EMP_PERCH);
+    BASES.TH=cp(TH);BASES.THR=cp(TH_ROOMS);BASES.THZ=cp(TH_ZONE);BASES.EMP=cp(EMP_PERCH);BASES.PAL=cp(PAL);BASES.PALH=cp(PAL_HALL);BASES.PALZ=cp(PAL_ZONE);
     BASES.COT=cp(COT);BASES.COTR=cp(COT_ROOMS);BASES.COTZ=cp(COT_ZONE);BASES.SPOT=cp(COT_SPOT);
   }
   const tx=SHIFT.th[0],tz=SHIFT.th[1],cx=SHIFT.cot[0],cz=SHIFT.cot[1];
   shiftObj(TH,BASES.TH,tx,tz);TH_ROOMS.forEach(function(r,i){shiftObj(r,BASES.THR[i],tx,tz);});shiftObj(TH_ZONE,BASES.THZ,tx,tz);
   for(const id in EMP_PERCH)shiftObj(EMP_PERCH[id],BASES.EMP[id],tx,tz);
+  shiftObj(PAL,BASES.PAL,tx,tz);shiftObj(PAL_HALL,BASES.PALH,tx,tz);shiftObj(PAL_ZONE,BASES.PALZ,tx,tz);
   shiftObj(COT,BASES.COT,cx,cz);COT_ROOMS.forEach(function(r,i){shiftObj(r,BASES.COTR[i],cx,cz);});shiftObj(COT_ZONE,BASES.COTZ,cx,cz);
   for(const id in COT_SPOT)shiftObj(COT_SPOT[id],BASES.SPOT[id],cx,cz);
   PLOTS.length=0;
@@ -440,6 +453,7 @@ function thCell(x,y,z){
   if(x>=DEN.x0&&x<=DEN.x1&&z>=DEN.z0&&z<=DEN.z1&&y>=DEN.y0&&y<=DEN.y1)return denInside(x,y,z)?'cinder':'base';
   if(x>=COT.x0&&x<=COT.x1&&z>=COT.z0&&z<=COT.z1&&y>=COT.y0&&y<=COT.y1){const r=cotRoom(x,y,z);return r?r.id:'base';}
   if(x>=AT.x0&&x<=AT.x1&&z>=AT.z0&&z<=AT.z1&&y>=AT.y0&&y<=AT.y1)return atInside(x,y,z)?'goldie':'base';
+  if(inPalBox(x,y,z))return inPalHall(x,y,z)?'shared':'base';
   const r=thRoom(x,y,z);if(r)return r.id;
   if(x>=TH.x0&&x<=TH.x1&&z>=TH.z0&&z<=TH.z1&&y>=TH.y0&&y<=TH.y1)return'base';
   if(x>=TH.sx0&&x<=TH.sx1&&z>=TH.sz0&&z<=TH.sz1&&y>=TH.y0&&y<=TH.sy1)return'base';
@@ -1044,6 +1058,91 @@ function buildLair(){
   PET_HOME.cinder={x:cx+0.5,y:fy+1,z:cz+0.5,yaw:0.6};
   PET_HOME.lairDir=compass(cx,cz);
 }
+/* the Sky Palace: a marble hall with a stepped blue roof, four towers and a glass railing,
+   on a floating island ringed with clouds. Inside: Hoot's and Snowy's thrones, a fountain and cushions for visiting pets. */
+const PAL_PETS=['goldie','biscuit','mochi','cinder','horse'];
+const PAL_SPOT={},PAL_PERCH={};
+function buildPalace(){
+  const cx=PAL.cx,cz=PAL.cz,FY=PAL.FY,R=PAL.R,M=B.MARBLE,Au=B.GOLD;
+  const S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=b===B.WATER?WMAX:0;};
+  /* the sky here is the palace's: clear anything that grew into it */
+  for(let y=PAL.y0;y<=PAL.y1;y++)for(let z=PAL.z0;z<=PAL.z1;z++)for(let x=PAL.x0;x<=PAL.x1;x++)S(x,y,z,0);
+  /* the floating island: a marble plaza with a gold rim, rock tapering to a crystal tip underneath */
+  for(let z=cz-R-1;z<=cz+R+1;z++)for(let x=cx-R-1;x<=cx+R+1;x++){
+    const r=Math.hypot(x-cx,z-cz);if(r>R+0.4)continue;
+    S(x,FY-1,z,r>R-0.9?Au:M);
+    if(r>R-0.9){S(x,FY,z,B.GLASS);S(x,FY+1,z,B.GLASS);}
+    const depth=Math.max(1,Math.round(1+10*Math.pow(Math.max(0,1-r/(R+0.4)),1.1)+(ihash(x,z,301)-0.5)*1.5));
+    for(let d=1;d<=depth;d++){const y=FY-1-d;S(x,y,z,d===1?B.DIRT:(d>=depth-1&&ihash(x,z+d,302)<0.3?B.CRYSTAL:(ihash(x+d,z,303)<0.3?B.GRANITE:B.STONE)));}
+  }
+  /* a gap in the railing at the south, where the cloud lands */
+  for(let x=cx-1;x<=cx+1;x++)for(let z=cz+R-1;z<=cz+R+1;z++){S(x,FY,z,0);S(x,FY+1,z,0);}
+  /* clouds round the rim */
+  for(let k=0;k<10;k++){
+    const a=k/10*Math.PI*2+ihash(k,3,304)*0.5,rr=R-1+ihash(k,5,305)*2.5,bx=cx+0.5+Math.cos(a)*rr,bz=cz+0.5+Math.sin(a)*rr,by=FY-3.2+ihash(k,7,306)*1.2;
+    const sx=2.2+ihash(k,9,307)*1.6,sy=1.4,sz=2.2+ihash(k,11,308)*1.6;
+    for(let y=Math.floor(by-sy);y<=Math.ceil(by+sy);y++)for(let z=Math.floor(bz-sz);z<=Math.ceil(bz+sz);z++)for(let x=Math.floor(bx-sx);x<=Math.ceil(bx+sx);x++){
+      const q=Math.pow((x+0.5-bx)/sx,2)+Math.pow((y+0.5-by)/sy,2)+Math.pow((z+0.5-bz)/sz,2);
+      if(q<1&&y<FY-1&&inPalBox(x,y,z)&&vox[(y*D+z)*W+x]===0)S(x,y,z,B.SNOWWHITE);
+    }
+  }
+  /* the hall: 13 by 13, marble walls with a gold band and glass windows */
+  for(let z=cz-6;z<=cz+6;z++)for(let x=cx-6;x<=cx+6;x++){
+    const ax=Math.abs(x-cx),az=Math.abs(z-cz);
+    if(ax<6&&az<6){S(x,FY-1,z,(ax<=1&&(z>=cz+3||z<=cz-3))?B.RED:((x+z)%2?M:B.SNOWWHITE));continue;}
+    const along=ax===6?z-cz:x-cx;
+    for(let y=FY;y<=FY+5;y++){
+      let b=M;
+      if(y===FY+5||(ax===6&&az===6))b=Au;
+      else if((y===FY+2||y===FY+3)&&Math.abs(along)%3===0&&Math.abs(along)<6&&along!==0)b=B.GLASS;
+      else if(y===FY+3&&along===0)b=B.LAMP;
+      S(x,y,z,b);
+    }
+  }
+  /* the door, under a gold arch */
+  for(let x=cx-1;x<=cx+1;x++){for(let y=FY;y<=FY+3;y++)S(x,y,cz+6,0);S(x,FY+4,cz+6,Au);}
+  /* a stepped roof: blue, then gold, with a lamp on the very top */
+  for(let k=0;k<=6;k++){
+    const y=FY+6+k,e=6-k;if(y>=H)break;
+    for(let z=cz-e;z<=cz+e;z++)for(let x=cx-e;x<=cx+e;x++){
+      if(k>0&&k<6&&Math.abs(x-cx)<e&&Math.abs(z-cz)<e)continue;
+      S(x,y,z,k===0?M:(k===6?B.LAMP:(k>=4?Au:(k===2?B.BLUE:B.CYAN))));
+    }
+  }
+  for(let a=-1;a<=1;a+=2)for(let b=-1;b<=1;b+=2)S(cx+3*a,FY+6,cz+3*b,B.LAMP);
+  /* four towers with gold caps and lamps */
+  for(let a=-1;a<=1;a+=2)for(let b=-1;b<=1;b+=2){
+    const tx=cx+7*a,tz=cz+7*b;
+    for(let z=tz-1;z<=tz+1;z++)for(let x=tx-1;x<=tx+1;x++)for(let y=FY;y<=FY+9;y++){
+      const mid=(x===tx)!==(z===tz)&&(x-tx===a||z-tz===b);
+      S(x,y,z,y===FY+9?Au:(y===FY+4&&mid?B.GLASS:M));
+    }
+    S(tx,FY+10,tz,B.LAMP);
+  }
+  /* the fountain in the middle of the hall */
+  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
+    const x=cx+dx,z=cz+dz;
+    if(Math.max(Math.abs(dx),Math.abs(dz))===2)S(x,FY,z,M);
+    else if(dx===0&&dz===0){S(x,FY-2,z,M);S(x,FY-1,z,M);S(x,FY,z,M);S(x,FY+1,z,B.LAMP);}
+    else{S(x,FY-1,z,B.WATER);S(x,FY-2,z,B.WATER);}
+  }
+  /* Hoot's throne (west) and Snowy's (east), against the north wall */
+  [['hoot',-2],['snowy',2]].forEach(function(t){
+    const x=cx+t[1];
+    S(x,FY,cz-4,B.PURPLE);
+    for(let y=FY;y<=FY+2;y++)S(x,y,cz-5,Au);
+    PAL_PERCH[t[0]]={x:x+0.5,y:FY+3,z:cz-4.5};
+  });
+  /* cushions for visiting pets, and Goldie in the fountain */
+  const face=function(x,z){return Math.atan2(-(cx+0.5-x),-(cz+0.5-z));};
+  [['biscuit',-4,2,B.PINK],['mochi',4,2,B.CYAN]].forEach(function(t){S(cx+t[1],FY,cz+t[2],t[3]);PAL_SPOT[t[0]]={x:cx+t[1]+0.5,y:FY+1,z:cz+t[2]+0.5};});
+  PAL_SPOT.cinder={x:cx-3.5,y:FY,z:cz-1.5};
+  PAL_SPOT.horse={x:cx+4,y:FY,z:cz-1.5};
+  for(const id in PAL_SPOT)PAL_SPOT[id].yaw=face(PAL_SPOT[id].x,PAL_SPOT[id].z);
+  PAL_SPOT.goldie={x:cx+0.5,y:FY-0.55,z:cz+0.5,swim:true,r:1.05};
+  /* the landing pad for the cloud, south of the door */
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)S(cx+dx,FY-1,cz+9+dz,dx===0&&dz===0?B.CYAN:Au);
+}
 function buildTreehouse(){
   const G=TH.G,PY=TH.PY,cx=TH.cx,cz=TH.cz;
   const S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=0;};
@@ -1263,7 +1362,7 @@ let thToastT=0,thInside=false;
 let atInsideNow=false,cotInsideNow=false,denInsideNow=false;
 function thTick(){
   const now=performance.now();
-  if(zoneBlocked&&now-thToastT>4000){thToastT=now;toast(zoneBlocked==='den'?'Cinder already has an owner, and only they can go into the den.':zoneBlocked==='home'?'Only Biscuit\u2019s and Mochi\u2019s owners can go through this gate. They\u2019re waiting under the arbour.':zoneBlocked==='sea'?'Only Goldie\u2019s owner can go into this house. Find Goldie swimming close by.':'Only owl owners can go into the treehouse. Adopt Hoot or Snowy from its roof first.');}
+  if(zoneBlocked&&now-thToastT>4000){thToastT=now;toast(zoneBlocked==='den'?'Cinder already has an owner, and only they can go into the den.':zoneBlocked==='home'?'Only Biscuit\u2019s and Mochi\u2019s owners can go through this gate. They\u2019re waiting under the arbour.':zoneBlocked==='sea'?'Only Goldie\u2019s owner can go into this house. Find Goldie swimming close by.':zoneBlocked==='palace'?'Only Hoot\u2019s and Snowy\u2019s owners and the guests they invite can go into the Sky Palace.':'Only owl owners can go into the treehouse. Adopt Hoot or Snowy from its roof first.');}
   zoneBlocked=false;
   const inSea=inATZone(P.x,P.y,P.z);
   if(inSea&&mySkin.pet!=='goldie'){P.x=AT.cx+0.5;P.y=SEA;P.z=AT.z0-2.5;P.vx=P.vy=P.vz=0;return;}
@@ -1281,7 +1380,159 @@ function thTick(){
   if(inside&&!isOwlOwner()){P.x=TH.cx+0.5;P.y=TH.G;P.z=TH.sz1+1.5;P.vx=P.vy=P.vz=0;return;}
   if(inside&&!thInside)toast('Welcome to the treehouse. Your bedroom is on the '+(mySkin.pet==='hoot'?'west':'east')+' side. The common room, hall, loft, the Owl Emporium upstairs, porch gardens and planters are shared with the other owl\u2019s owner.');
   thInside=inside;
+  const inPal=inPALZone(P.x,P.y,P.z);
+  if(inPal&&!palMay()){palInside=false;startCloud(false,performance.now()-palKickT<4000?'':'Only Hoot\u2019s and Snowy\u2019s owners and the guests they invite can stay in the Sky Palace. A cloud carries you down.');return;}
+  if(inPal&&!palInside)toast(isOwlOwner()?'Welcome to your Sky Palace. Invite players and pets up from the pause menu (Esc). Step on the cloud by the door, or press P, to float down.':'Welcome to the Sky Palace! Step on the cloud by the door, or press P, to float back down.');
+  palInside=inPal;
+  padTick();
 }
+/* ---------- the Sky Palace: who may go up, the cloud that carries you, and invites ----------
+   Owl owners can always go up. In a room they invite other players (and pets) with one click, and send them
+   down again with one click; the room (hub.js) keeps the guest list. On your own you can invite pets. */
+const PAL_KEY='voxel-isle-palace';
+const palace={guests:new Set(),pets:new Set(),mine:new Set()};
+try{const a=JSON.parse(localStorage.getItem(PAL_KEY)||'[]');if(Array.isArray(a))a.forEach(function(id){if(PAL_PETS.indexOf(id)>=0)palace.mine.add(id);});}catch(e){}
+palace.pets=new Set(palace.mine);
+function palSave(){try{localStorage.setItem(PAL_KEY,JSON.stringify([...palace.mine]));}catch(e){}}
+function inPALZone(x,y,z){const Z=PAL_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
+function palGuest(){return inRoom()&&palace.guests.has(net.you);}
+function palMay(){return isOwlOwner()||palGuest();}
+function palWhere(){return LAYOUT==='classic'?'over the sea west of the treehouse':'north-west of the treehouse';}
+let palInside=false,padOn=false,palKickT=-1e9;
+/* the cloud by the treehouse stairs, and where it sets you down */
+function palPad(){const x=TH.cx+3.5,z=TH.sz1-0.5;return{x:x,y:petGround(x,z,TH.G+6),z:z};}
+function palPadTop(){return{x:PAL.cx+0.5,y:PAL.FY,z:PAL.cz+9.5};}
+function palArrive(){return{x:PAL.cx+0.5,y:PAL.FY,z:PAL.cz+7.5,yaw:0};}
+function palLand(){const g=palPad();return{x:g.x,y:g.y,z:g.z+2.2,yaw:Math.PI};}
+function startCloud(up,say){
+  if(jet.seat||P.sleep)return false;
+  if(up&&!palMay()){toast('Only Hoot\u2019s and Snowy\u2019s owners and the guests they invite can go up to the Sky Palace.');return false;}
+  if(P.ride)dismount(true);
+  P.lift=null;P.dash=null;P.emote=null;
+  if(P.fly){P.fly=false;$('bFly').classList.toggle('on',false);}
+  const b=up?palArrive():palLand(),a={x:P.x,y:P.y,z:P.z};
+  /* swing out to the south of the palace on the way, so the cloud clears the towers and the railing */
+  const end=up?b:a,w={x:end.x,y:end.y+8,z:end.z+10};
+  const len=Math.hypot(w.x-a.x,w.y-a.y,w.z-a.z)+Math.hypot(b.x-w.x,b.y-w.y,b.z-w.z);
+  P.cloud={t0:performance.now(),dur:Math.min(8,Math.max(3,len/11)),a:a,w:w,b:b,up:up};
+  P.vx=P.vy=P.vz=0;
+  if(say!==''&&!(!up&&performance.now()-palKickT<4000))toast(say||(up?'A cloud carries you up to the Sky Palace\u2026':'A cloud carries you gently down\u2026'));
+  return true;
+}
+function cloudTick(dt){
+  const c=P.cloud,u=Math.min(1,(performance.now()-c.t0)/1000/c.dur),t=u*u*(3-2*u),m=1-t;
+  P.x=m*m*c.a.x+2*m*t*c.w.x+t*t*c.b.x;P.y=m*m*c.a.y+2*m*t*c.w.y+t*t*c.b.y;P.z=m*m*c.a.z+2*m*t*c.w.z+t*t*c.b.z;
+  P.vx=P.vy=P.vz=0;P.onGround=false;
+  mode=c.up?'Floating up to the Sky Palace':'Floating down';
+  if(u<1)return;
+  P.cloud=null;P.x=c.b.x;P.y=c.b.y;P.z=c.b.z;P.yaw=c.b.yaw;P.onGround=true;padOn=true;
+  /* sent down while still on the way up */
+  if(c.up&&!palMay())startCloud(false);
+}
+function palKey(){
+  if(P.cloud)return false;
+  if(inPALZone(P.x,P.y,P.z))return startCloud(false);
+  return startCloud(true);
+}
+function padTick(){
+  if(P.fly||P.cloud)return;
+  const g=palPad(),t=palPadTop();
+  const onG=Math.hypot(P.x-g.x,P.z-g.z)<1.2&&Math.abs(P.y-g.y)<1.6;
+  const onT=Math.hypot(P.x-t.x,P.z-t.z)<1.2&&Math.abs(P.y-t.y)<1.2;
+  const on=onG||onT;
+  if(on&&!padOn){
+    if(onT)startCloud(false);
+    else if(palMay())startCloud(true);
+    else toast('This cloud carries Hoot\u2019s and Snowy\u2019s owners and their guests up to the Sky Palace. Ask an owl owner to invite you.');
+  }
+  padOn=on;
+}
+/* invite or send down a player (in a room), or a pet */
+function palAct(act,arg){
+  if(!isOwlOwner()){toast('Only Hoot\u2019s and Snowy\u2019s owners can invite guests to the Sky Palace.');return false;}
+  if(inRoom()){netSend({t:'palace',act:act,peer:typeof arg==='number'?arg:undefined,pet:typeof arg==='string'?arg:undefined});return true;}
+  if(act==='invitePet'){if(PAL_PETS.indexOf(arg)<0)return false;if(petOwner(arg)){toast(PETS[arg].name+' is following someone. Invite its owner instead.');return false;}palace.mine.add(arg);toast(PETS[arg].name+' floats up to the Sky Palace.');}
+  else if(act==='kickPet'){if(!palace.mine.delete(arg))return false;toast(PETS[arg].name+' goes back home.');}
+  else if(act==='kickAll'){if(!palace.mine.size)return false;palace.mine.clear();toast('Every guest has gone back home.');}
+  else{toast('Host or join a room to invite other players.');return false;}
+  palace.pets=new Set(palace.mine);palSave();renderPets();
+  return true;
+}
+function onPalace(m){
+  const was=palGuest();
+  palace.guests=new Set((m.guests||[]).filter(Number.isInteger));
+  palace.pets=new Set((m.pets||[]).filter(function(id){return PAL_PETS.indexOf(id)>=0;}));
+  if(net.host){palace.mine=new Set(palace.pets);palSave();}
+  const me=m.by===net.you,byP=net.peers.get(m.by),by=me?'You':(byP?byP.name:'An owl owner');
+  const tP=net.peers.get(m.peer),tgt=tP?tP.name:'Someone';
+  if(m.act==='invite'){
+    if(m.peer===net.you)toast(by+' invited you to the Sky Palace! Press P to float up, or ride the cloud by the treehouse stairs.');
+    else if(me)toast(tgt+' is invited to the Sky Palace.');
+  }else if(m.act==='kick'||m.act==='kickAll'){
+    if(was&&!palGuest()&&!isOwlOwner()){palKickT=performance.now();toast(by+' sent you down from the Sky Palace.');}
+    else if(me)toast(m.act==='kickAll'?'Everyone has been sent down from the Sky Palace.':tgt+' has been sent down from the Sky Palace.');
+  }else if(m.act==='invitePet'&&PETS[m.pet])toast(me?PETS[m.pet].name+' floats up to the Sky Palace.':by+' invited '+PETS[m.pet].name+' up to the Sky Palace.');
+  else if(m.act==='kickPet'&&PETS[m.pet]&&me)toast(PETS[m.pet].name+' goes back home.');
+  renderPets();
+}
+function palFromRoom(m){palace.guests=new Set(((m&&m.guests)||[]).filter(Number.isInteger));palace.pets=new Set(((m&&m.pets)||[]).filter(function(id){return PAL_PETS.indexOf(id)>=0;}));}
+/* the pause card's Sky Palace list: one click to invite, one click to send down */
+function renderPalace(){
+  const el=$('palList'),hint=$('palHint');if(!el||!el.appendChild)return;
+  el.innerHTML='';
+  const owner=isOwlOwner();
+  hint.textContent=owner?'Hoot and Snowy\u2019s palace floats in the sky '+palWhere()+'. Ride the cloud by the treehouse stairs, or press P. Invite players and pets up, and send them down again, with one click.'+(inRoom()?'':' Host or join a room to invite other players.'):
+    (palGuest()?'You\u2019re invited to the Sky Palace! Press P to float up, or ride the cloud by the treehouse stairs.':'Hoot and Snowy\u2019s palace floats in the sky '+palWhere()+'. Only their owners and the guests they invite can go up.');
+  const mk=function(t,cls,f){const b=document.createElement('button');b.type='button';b.className='ghost'+(cls?' '+cls:'');b.textContent=t;b.addEventListener('click',f);return b;};
+  const row=function(col,name,txt,btn,key){
+    const r=document.createElement('div');r.className='petrow';if(key)r.setAttribute('data-pal',key);
+    const sw=document.createElement('span');sw.className='sw';sw.style.background=col;
+    const nm=document.createElement('span');nm.className='pn';nm.textContent=name;
+    const ht=document.createElement('span');ht.className='ph';ht.textContent=txt;
+    r.appendChild(sw);r.appendChild(nm);r.appendChild(ht);if(btn)r.appendChild(btn);el.appendChild(r);
+  };
+  if(palMay()){const inP=inPALZone(P.x,P.y,P.z);el.appendChild(mk(inP?'Float down (P)':'Float up to the Sky Palace (P)','wide',function(){setPlaying(true);palKey();}));}
+  if(!owner)return;
+  if(inRoom())net.peers.forEach(function(p){
+    if(p.skin&&(p.skin.pet==='hoot'||p.skin.pet==='snowy')){row(skinSwatch(p.skin),p.name,'Owl owner, always welcome.',null,'p'+p.id);return;}
+    const g=palace.guests.has(p.id);
+    row(skinSwatch(p.skin),p.name,g?'Invited':'Not invited',mk(g?'Kick out':'Invite',g?'warn':'',function(){palAct(g?'kick':'invite',p.id);}),'p'+p.id);
+  });
+  PAL_PETS.forEach(function(id){
+    const o=petOwner(id),inv=palace.pets.has(id);
+    if(o&&!inv){row(PETS[id].col,PETS[id].name,o==='me'?'Following you.':'Following '+o.name+'. It comes along when they do.',null,id);return;}
+    row(PETS[id].col,PETS[id].name,inv?'Visiting the palace':'At home',mk(inv?'Send home':'Invite',inv?'warn':'',function(){palAct(inv?'kickPet':'invitePet',id);}),id);
+  });
+  if(palace.guests.size||palace.pets.size)el.appendChild(mk('Kick everyone out','warn wide',function(){palAct('kickAll');}));
+}
+/* the clouds you ride and the ones that wait at each end, and a soft beam over the one on the ground */
+let palFx=null;
+function makeCloud(s){
+  const g=new THREE.Group(),m1=new THREE.MeshBasicMaterial({color:0xffffff}),m2=new THREE.MeshBasicMaterial({color:0xdde8f4});
+  [[0,0,0,0.75],[0.6,-0.05,0.2,0.55],[-0.6,-0.05,-0.1,0.6],[0.2,0.05,-0.55,0.5],[-0.2,-0.1,0.55,0.5]].forEach(function(b,k){
+    const me=new THREE.Mesh(new THREE.SphereGeometry(b[3],12,8),k?m2:m1);me.position.set(b[0],b[1],b[2]);me.scale.y=0.55;g.add(me);
+  });
+  g.scale.setScalar(s||1);
+  return g;
+}
+function palFxTick(dt){
+  if(!ready)return;
+  if(!palFx){
+    palFx={ride:makeCloud(1.1),ground:makeCloud(1.25),top:makeCloud(1.25),
+      beam:new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,1,18,1,true),new THREE.MeshBasicMaterial({color:0xbfe3ff,transparent:true,opacity:0.22,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})),
+      sign:makeLabel('Sky Palace'),padSign:makeLabel('Cloud to the Sky Palace'),t:0};
+    palFx.sign.scale.set(2.4,0.6,1);palFx.padSign.scale.set(3,0.7,1);
+    ['ride','ground','top','beam','sign','padSign'].forEach(function(k){scene.add(palFx[k]);});
+  }
+  palFx.t+=dt;
+  const g=palPad(),t=palPadTop(),bob=Math.sin(palFx.t*2)*0.06;
+  palFx.ground.position.set(g.x,g.y+0.25+bob,g.z);palFx.top.position.set(t.x,t.y+0.25+bob,t.z);
+  palFx.beam.position.set(g.x,g.y+6,g.z);palFx.beam.scale.set(1,12,1);
+  palFx.padSign.position.set(g.x,g.y+3.1,g.z);palFx.sign.position.set(PAL.cx+0.5,PAL.FY+5.6,PAL.cz+7.2);
+  palFx.ride.visible=!!P.cloud;
+  if(P.cloud)palFx.ride.position.set(P.x,P.y-0.15,P.z);
+}
+
 /* jet docks: plank decks on stilts off four beaches, each with a white landing ring and corner lamps.
    The first is the jet's home on the old island's east beach; the tour stops at each in turn. */
 const DOCKS=[
@@ -1391,6 +1642,7 @@ function generate(){
     plantTree(px,ht,pz);
   }
   buildTreehouse();
+  buildPalace();
   buildAtlantis();
   placePetHomes();
   blendPlots();
@@ -1469,6 +1721,7 @@ function fixedPlace(x,y,z){
   if(inB(AT,AT.y0,AT.y1))return['Goldie\u2019s house','Goldie\u2019s owner can decorate inside the dome.'];
   if(inB(PADDOCK,PADDOCK.G-1,PADDOCK.G+5))return['Clover\u2019s paddock',''];
   if(inB(CAMP,CAMP.G-1,CAMP.G+4))return['The campsite','You can still sleep in the tents.'];
+  if(inPalBox(x,y,z))return['The Sky Palace','Owl owners can decorate the great hall.'];
   return['The owls\u2019 treehouse','Owl owners can decorate its rooms.'];
 }
 function fixedMsg(x,y,z){const f=fixedPlace(x,y,z);return f[0]+' can\u2019t be changed.'+(f[1]?' '+f[1]:'');}
@@ -1477,7 +1730,7 @@ function roomMsg(x,y,z,th){
   if(th==='cinder')return'Only Cinder\u2019s owner can change the den. Wake Cinder with E to adopt it.';
   if(th==='goldie')return'Only Goldie\u2019s owner can decorate Goldie\u2019s house.';
   if(th==='cottage'||th==='biscuit'||th==='mochi'){const r=cotRoom(x,y,z),n=r?r.name:'the cottage';return th==='cottage'?'Only Biscuit\u2019s and Mochi\u2019s owners can change '+n+'.':'Only '+PETS[th].name+'\u2019s owner can decorate '+n+'.';}
-  const r=thRoom(x,y,z),n=r?r.name:'the treehouse';
+  const r=thRoom(x,y,z),n=r?r.name:(inPalHall(x,y,z)?'the Sky Palace’s great hall':'the treehouse');
   return th==='shared'?'Only owl owners can decorate '+n+'.':'Only '+(PETS[th]?PETS[th].name:'its')+'\u2019s owner can decorate '+n+'.';
 }
 /* every player edit goes through here. In a room it is sent to the server, which checks it and echoes it back to everyone */
@@ -2018,16 +2271,17 @@ function bedSpawn(){
   return false;
 }
 function respawn(){
-  P.sleep=null;P.ride=false;
+  P.sleep=null;P.ride=false;P.cloud=null;
   if(bedSpawn())return;
   const x=FX,z=FZ;let y=H-1;
   while(y>0&&get(x,y,z)===0)y--;
   P.x=x+0.5;P.z=z+0.5;P.y=y+1;P.vx=P.vy=P.vz=0;P.yaw=0;P.pitch=-0.1;P.fly=false;
 }
-let zoneBlocked=false;
+let zoneBlocked=false,palStuck=false;
 function inTHZone(x,y,z){const Z=TH_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
 function boxHits(x,y,z){
   if(!isOwlOwner()&&inTHZone(x,y,z)){zoneBlocked='tree';return true;}
+  if(!palStuck&&!palMay()&&inPALZone(x,y,z)){zoneBlocked='palace';return true;}
   if(mySkin.pet!=='goldie'&&inATZone(x,y,z)){zoneBlocked='sea';return true;}
   if(!isCotOwner()&&inCOTZone(x,y,z)){zoneBlocked='home';return true;}
   if(denLocked()&&inDenZone(x,y,z)){zoneBlocked='den';return true;}
@@ -2065,6 +2319,9 @@ let mode='Walking',wasWet=false,lastHitH=null;
 function update(dt){
   if(jet.seat){seatedUpdate(dt);return;}
   if(P.sleep){sleepTick(dt);return;}
+  if(P.cloud){cloudTick(dt);return;}
+  /* someone already inside without leave isn't walled in; thTick sends them down */
+  palStuck=inPALZone(P.x,P.y,P.z)&&!palMay();
   if(P.ride&&(P.fly||mySkin.pet!=='horse'))dismount(true);
   if(P.lift&&(P.fly||!(P.lift.kind==='dragon'?mySkin.pet==='cinder':isOwlOwner())))P.lift=null;
   if(P.dash&&(mySkin.pet!=='goldie'||(performance.now()-P.dash.t0)/1000>DASH_T)){P.dash=null;toast('Goldie\u2019s bubble pops.');}
@@ -2514,6 +2771,7 @@ window.addEventListener('keydown',function(e){
   else if(e.code==='KeyX')toggleEmotes();
   else if(e.code==='KeyY')petTrick();
   else if(e.code==='KeyM')toggleMap();
+  else if(e.code==='KeyP')palKey();
   else if(e.code==='KeyV'||e.code==='F5'){e.preventDefault();toggleView();}
   else if(e.code.indexOf('Digit')===0){const d=parseInt(e.code.slice(5),10);selectSlot(d===0?9:d-1);}
 });
@@ -3009,6 +3267,7 @@ function updateSelf(dt){
 }
 function rebuildSelf(){disposeFigure(selfFig);selfFig=null;}
 function dropAvatar(p){
+  if(p.cloudFx){scene.remove(p.cloudFx);p.cloudFx=null;}
   if(p.fish){scene.remove(p.fish.g);scene.remove(p.fish.line);p.fish=null;}
   if(!p.av)return;
   disposeFigure(p.av);
@@ -3046,6 +3305,8 @@ function updateAvatars(dt){
     if(rd)ridePose(p.av,true);
     if(p.tgt.sl)liePose(p.av,p.cur.x,p.cur.y,p.cur.z,p.cur.yaw);
     if(p.tgt.lf){if(p.skin&&p.skin.pet==='cinder')ridePose(p.av,true);else liftPose(p.av);}
+    if(p.tgt.cl&&!p.cloudFx){p.cloudFx=makeCloud(1.1);scene.add(p.cloudFx);}
+    if(p.cloudFx){p.cloudFx.visible=!!p.tgt.cl;p.cloudFx.position.set(p.cur.x,p.cur.y-0.15,p.cur.z);}
     peerFish(p);
     if(p.tgt.em){if(p.emSeen!==p.tgt.es){p.emSeen=p.tgt.es;p.emT0=performance.now();}emotePose(p.av,p.tgt.em-1,(performance.now()-p.emT0)/1000);}
   });
@@ -3058,8 +3319,8 @@ function netTick(dt){
   if(posT<0.1)return;
   posT=0;
   const r=function(v){return Math.round(v*100)/100;};
-  const m={t:'pos',x:r(P.x),y:r(P.y),z:r(P.z),yaw:r(P.yaw),pitch:r(P.pitch),rd:P.ride?1:0,sl:P.sleep?1:0,lf:P.lift?1:0,fr:frost?1:0,gd:P.dash?1:0,fb:fire2?1:0,em:P.emote?P.emote.i+1:0,es:P.emote?P.emote.seq:0,pk:myTrick?myTrick.seq:0,pi:myTrick?myTrick.i:0,fx:fishing?r(fishing.bob.x):0,fy:fishing?r(fishing.bob.y):0,fz:fishing?r(fishing.bob.z):0};
-  const key=m.x+','+m.y+','+m.z+','+m.yaw+','+m.pitch+','+m.rd+','+m.sl+','+m.lf+','+m.fr+','+m.gd+','+m.fb+','+m.em+','+m.es+','+m.pk+','+m.fx+','+m.fz;
+  const m={t:'pos',x:r(P.x),y:r(P.y),z:r(P.z),yaw:r(P.yaw),pitch:r(P.pitch),rd:P.ride?1:0,sl:P.sleep?1:0,lf:P.lift?1:0,fr:frost?1:0,gd:P.dash?1:0,fb:fire2?1:0,em:P.emote?P.emote.i+1:0,es:P.emote?P.emote.seq:0,pk:myTrick?myTrick.seq:0,pi:myTrick?myTrick.i:0,fx:fishing?r(fishing.bob.x):0,fy:fishing?r(fishing.bob.y):0,fz:fishing?r(fishing.bob.z):0,cl:P.cloud?1:0};
+  const key=m.x+','+m.y+','+m.z+','+m.yaw+','+m.pitch+','+m.rd+','+m.sl+','+m.lf+','+m.fr+','+m.gd+','+m.fb+','+m.em+','+m.es+','+m.pk+','+m.fx+','+m.fz+','+m.cl;
   if(key===lastSent)return;
   lastSent=key;netSend(m);
 }
@@ -3243,7 +3504,7 @@ function enteredRoom(m,host){
   if(saveTimer){clearTimeout(saveTimer);saveNow();}
   if(jet.seat)leaveJetLocal();
   if(typeof m.now==='number')net.tOff=m.now-Date.now();
-  jetFromRoom(m.jet);tagFromRoom(m.tag);
+  jetFromRoom(m.jet);tagFromRoom(m.tag);palFromRoom(m.palace);
   net.code=m.code;net.you=m.you;net.host=host;net.admin=false;net.pending.clear();
   clearPeers();
   (m.peers||[]).forEach(addPeer);
@@ -3252,6 +3513,7 @@ function enteredRoom(m,host){
   renderRoom();
 }
 function leftRoom(reason){
+  palace.guests.clear();palace.pets=new Set(palace.mine);
   tagState=null;if(race&&race.room)race=null;
   const wasHost=net.host;
   if(!wasHost&&LAYOUT!==URL_LAYOUT)applyLayout(URL_LAYOUT);
@@ -3324,6 +3586,7 @@ function onNet(m){
     }
     case 'chaseEnd':endChases(m.by);break;
     case 'chat':if(typeof m.text==='string')onChat(m);break;
+    case 'palace':onPalace(m);break;
     case 'tag':onTag(m);break;
     case 'tagEnd':onTagEnd(m);break;
     case 'race':startRace(m.start/1000,true);toast('The host started a race to the campsite!');break;
@@ -3334,7 +3597,7 @@ function onNet(m){
     case 'jetCall':if(m.dock>=0&&m.dock<DOCKS.length)onJetCall(m);break;
     case 'callNo':toast(m.why==='pilot'?'Someone is flying the jet right now.':'The jet was only just called. Try again in a moment.');break;
     case 'boardNo':toast(m.why==='full'?'The jet is full.':'Only the host or an admin can fly the jet.');break;
-    case 'pos':{const p=net.peers.get(m.id);if(p)p.tgt={x:m.x,y:m.y,z:m.z,yaw:m.yaw,pitch:m.pitch,rd:!!m.rd,sl:!!m.sl,lf:!!m.lf,fr:!!m.fr,gd:!!m.gd,fb:!!m.fb,em:m.em|0,es:m.es|0,pk:m.pk|0,pi:m.pi|0,fx:+m.fx||0,fy:+m.fy||0,fz:+m.fz||0};break;}
+    case 'pos':{const p=net.peers.get(m.id);if(p)p.tgt={x:m.x,y:m.y,z:m.z,yaw:m.yaw,pitch:m.pitch,rd:!!m.rd,sl:!!m.sl,lf:!!m.lf,fr:!!m.fr,gd:!!m.gd,fb:!!m.fb,em:m.em|0,es:m.es|0,pk:m.pk|0,pi:m.pi|0,fx:+m.fx||0,fy:+m.fy||0,fz:+m.fz||0,cl:!!m.cl};break;}
     case 'closed':if(inRoom())leftRoom(m.reason||null);break;
     case 'error':netBusy(false);netMsg(m.msg||'Something went wrong.',true);if(!inRoom()&&net.ws){const w=net.ws;net.ws=null;w.close();}break;
   }
@@ -3351,7 +3614,7 @@ function initNet(){
   try{nName.value=localStorage.getItem(NAME_KEY)||'';}catch(e){}
   const pre=params&&params.get('room');
   if(pre)nCode.value=pre.toUpperCase().slice(0,5);
-  nHost.addEventListener('click',function(){if(!ready){netMsg('The island is still loading. Try again in a moment.');return;}connect(function(){netSend({t:'host',name:myName(),skin:mySkin,layout:LAYOUT});});});
+  nHost.addEventListener('click',function(){if(!ready){netMsg('The island is still loading. Try again in a moment.');return;}connect(function(){netSend({t:'host',name:myName(),skin:mySkin,layout:LAYOUT,palace:[...palace.mine]});});});
   const join=function(){
     const code=(nCode.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     if(code.length<5){netMsg('Room codes are 5 letters and numbers.',true);return;}
@@ -4165,6 +4428,7 @@ const PETS={
 };
 const PET_IDS=Object.keys(PETS);
 function petHint(id){
+  if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace, up in the sky '+palWhere()+'.';
   if(id==='hoot'||id==='snowy')return'Perched on the roof of the big treehouse '+(LAYOUT==='classic'?'west of the meadow':'in the eastern hills, at the end of the road over the bridge')+'.';
   if(id==='goldie')return'Swimming round a little glass house on the sea bed off the south beach.';
   if(id==='biscuit'||id==='mochi')return'Waiting under the arbour at the gate of their cottage, out in the '+(PET_HOME.shelterDir||'far')+' of the island.';
@@ -4781,7 +5045,7 @@ function toggleMap(v){
 function mapPlaces(){
   const T=TH,C=COT,a=[];
   a.push(['Owls\u2019 treehouse',T.cx,T.cz,'#d9a25a'],['Biscuit & Mochi\u2019s cottage',(C.x0+C.x1)/2,(C.z0+C.z1)/2,'#f3d9b0'],['Clover\u2019s paddock',(PADDOCK.x0+PADDOCK.x1)/2,(PADDOCK.z0+PADDOCK.z1)/2,'#b8834a'],
-    ['Campsite',CAMP.fx,CAMP.fz,'#ff9a3a'],['Cinder\u2019s den',DEN.cx,DEN.cz,'#2f9e7a'],['Goldie\u2019s house',AT.cx,AT.cz,'#ffcc33'],['Meadow',FX,FZ,'#9fe07a']);
+    ['Campsite',CAMP.fx,CAMP.fz,'#ff9a3a'],['Cinder\u2019s den',DEN.cx,DEN.cz,'#2f9e7a'],['Goldie\u2019s house',AT.cx,AT.cz,'#ffcc33'],['Sky Palace',PAL.cx,PAL.cz,'#bfe3ff'],['Meadow',FX,FZ,'#9fe07a']);
   DOCKS.forEach(function(d){a.push(['\u2693 '+d.name,d.cx,d.cz,'#7fd0ff']);});
   return a;
 }
@@ -5117,10 +5381,11 @@ function updatePets(dt){
     if(!owner){
       if(!hp){hp=petFx.home[id]=makePetModel(id);scene.add(hp.g);if(PETS[id].homeScale)hp.g.scale.setScalar(PETS[id].homeScale);}
       hp.g.visible=true;
-      let x=h.x,y=h.y,z=h.z,yaw=h.yaw||0;
-      if(h.swim){const a=hp.t*0.5;x=h.x+Math.cos(a)*2.4;z=h.z+Math.sin(a)*2.4;yaw=figYaw(a+Math.PI/2);}
+      const v=palace.pets.has(id)&&PAL_SPOT[id],hh=v||h,rr=v?(v.r||2.4):2.4;
+      let x=hh.x,y=hh.y,z=hh.z,yaw=hh.yaw||0;
+      if(hh.swim){const a=hp.t*(v?0.9:0.5);x=hh.x+Math.cos(a)*rr;z=hh.z+Math.sin(a)*rr;yaw=figYaw(a+Math.PI/2);}
       hp.g.position.set(x,y,z);hp.g.rotation.y=yaw;
-      animatePet(hp,dt,!!h.swim,false,true,!!h.swim);
+      animatePet(hp,dt,!!hh.swim,false,true,!!hh.swim);
     }else if(hp)hp.g.visible=false;
   });
   /* followers */
@@ -5188,6 +5453,9 @@ function updatePets(dt){
     if(d.kind==='owl'&&!st.inJet&&inTHZone(st.x,st.y,st.z)){
       const pp=EMP_PERCH[id];tx=pp.x;tz=pp.z;ty=empPerchY(pp);perched=true;
     }
+    if(d.kind==='owl'&&!st.inJet&&PAL_PERCH[id]&&inPALZone(st.x,st.y,st.z)){
+      const pp=PAL_PERCH[id];tx=pp.x;tz=pp.z;ty=pp.y;perched=true;
+    }
     const dx=tx-f.x,dz=tz-f.z,dist=Math.hypot(dx,dz,ty-f.y);
     if(dist>24){f.x=tx;f.y=ty;f.z=tz;}
     const k=1-Math.exp(-(st.inJet?14:(d.move==='ground'?4:3))*dt);
@@ -5232,6 +5500,7 @@ function adoptPet(id){
   if(o&&o!=='me'){toast(PETS[id].name+' is following '+o.name+'.');return false;}
   const old=mySkin.pet;
   if(old!==id)setMyFood(false);
+  if(!inRoom()&&palace.mine.delete(id)){palace.pets=new Set(palace.mine);palSave();}
   mySkin.pet=id;
   /* the new pet starts where it was found */
   const f=petFx.follow.get('me');if(f){disposePet(f.P);petFx.follow.delete('me');}
@@ -5262,9 +5531,10 @@ function renderPets(){
     if(o==='me'){const b=document.createElement('button');b.type='button';b.className='ghost';b.textContent='Send home';b.addEventListener('click',sendPetHome);row.appendChild(b);}
     el.appendChild(row);
   });
+  renderPalace();
 }
 
-window.__isle={layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={palace:{PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
@@ -5282,7 +5552,7 @@ function frame(now){
     playBtn.textContent='Raising the island '+Math.round(done*100)+'%';
     if(left===0){ready=true;$('barfill').style.width='100%';refreshPlayLabel();}
   }else{
-    jetTick(dt);healTick(rawDt);fishTick(rawDt);socialTick(rawDt);owlTick(rawDt);fireTick(rawDt);if(mapOpen&&(mapDrawT+=rawDt)>0.25){mapDrawT=0;drawMap();}
+    jetTick(dt);healTick(rawDt);fishTick(rawDt);socialTick(rawDt);owlTick(rawDt);fireTick(rawDt);palFxTick(rawDt);if(mapOpen&&(mapDrawT+=rawDt)>0.25){mapDrawT=0;drawMap();}
     if(playing)update(dt);
     /* water and sand run on real time, so they keep pace on slow devices too */
     simAcc+=rawDt;

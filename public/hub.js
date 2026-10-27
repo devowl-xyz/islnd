@@ -84,13 +84,18 @@ function denInside(x, y, z) {
 // Clover's paddock and the campsite (same numbers as public/index.html) are fixed.
 const PADDOCK = { x0: 190, x1: 210, z0: 184, z1: 200, G: 17 };
 const CAMP = { x0: 182, x1: 206, z0: 201, z1: 217, G: 17 };
+// The Sky Palace floating north-west of the treehouse (same numbers as public/index.html): the frame
+// is fixed and owl owners may decorate the great hall. It moves with the treehouse.
+const PAL = { x0: 0, x1: 28, z0: 56, z1: 84, y0: 22, y1: 47 };
+const PAL_HALL = { x0: 9, x1: 19, z0: 65, z1: 75, y0: 35, y1: 39 };
+const PAL_PETS = ['goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
 function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]; t[k] = typeof v !== 'number' ? v : /^(x|sx|cx)/.test(k) ? v + dx : /^(z|sz|cz)/.test(k) ? v + dz : v; } return t; }
 const LAYOUTS = {};
 for (const name in SHIFTS) {
   const [tx, tz] = SHIFTS[name].th, [cx, cz] = SHIFTS[name].cot;
-  LAYOUTS[name] = { TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
+  LAYOUTS[name] = { PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
 }
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
@@ -103,6 +108,8 @@ function thCell(x, y, z, L) {
     return 'base';
   }
   if (x >= AT.x0 && x <= AT.x1 && z >= AT.z0 && z <= AT.z1 && y >= AT.y0 && y <= AT.y1) return atInside(x, y, z) ? 'goldie' : 'base';
+  const inB = (o) => x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && y >= o.y0 && y <= o.y1;
+  if (inB(L.PAL)) return inB(L.PAL_HALL) ? 'shared' : 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
   if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
@@ -175,8 +182,13 @@ function claimPet(room, peer) {
   if (!room || !k.pet || k.pet === 'none') return;
   let taken = false;
   room.peers.forEach((p) => { if (p.id !== peer.id && p.skin && p.skin.pet === k.pet) taken = true; });
-  if (taken) { send(peer.ws, { t: 'petNo', pet: k.pet }); k.pet = 'none'; }
+  if (taken) { send(peer.ws, { t: 'petNo', pet: k.pet }); k.pet = 'none'; return; }
+  if (room.palace && room.palace.pets.delete(k.pet)) palaceNews(room, { act: 'adopted', pet: k.pet });
 }
+/* the Sky Palace guest list: players invited up by an owl owner, and pets visiting */
+function isOwlPeer(p) { return !!p && !!p.skin && (p.skin.pet === 'hoot' || p.skin.pet === 'snowy'); }
+function palaceState(room) { return { guests: [...room.palace.guests], pets: [...room.palace.pets] }; }
+function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }, palaceState(room), extra)); }
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));
 }
@@ -235,6 +247,7 @@ function leave(peer) {
   room.peers.delete(peer.id);
   if (peer.id === room.hostId) { if (room.tagTimer) clearTimeout(room.tagTimer); closeRoom(room, 'The host left, so the room closed.'); return; }
   broadcast(room, { t: 'left', id: peer.id, name: peer.name });
+  if (room.palace && room.palace.guests.delete(peer.id)) palaceNews(room, { act: 'left', peer: peer.id });
   // whoever was it in tag left: pass it to someone else, or stop if too few are left
   if (room.tag && room.tag.it === peer.id) {
     if (room.peers.size < 2) endTag(room);
@@ -277,11 +290,12 @@ function handle(peer, msg) {
       peer.skin = cleanSkin(msg.skin);
       peer.admin = false;
       const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null } };
+      r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r) });
       return;
     }
     case 'seed': {
@@ -304,7 +318,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r) });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -371,6 +385,34 @@ function handle(peer, msg) {
       else if (j.pass.length < 4) j.pass.push(peer.id);
       else return send(peer.ws, { t: 'boardNo', why: 'full' });
       jetSeats(room);
+      return;
+    }
+    case 'palace': {
+      // only Hoot's and Snowy's owners invite guests up or send them down; owl owners can't be sent down
+      if (!room || !isOwlPeer(peer)) return;
+      const now = Date.now();
+      if (now - (peer.palT || 0) < 150) return;
+      peer.palT = now;
+      const P = room.palace, act = msg.act;
+      if (act === 'invite' || act === 'kick') {
+        const target = room.peers.get(msg.peer);
+        if (!target || target.id === peer.id || isOwlPeer(target)) return;
+        if (act === 'invite') P.guests.add(target.id); else if (!P.guests.delete(target.id)) return;
+        palaceNews(room, { act, by: peer.id, peer: target.id });
+      } else if (act === 'invitePet' || act === 'kickPet') {
+        if (!PAL_PETS.includes(msg.pet)) return;
+        if (act === 'invitePet') {
+          let owned = false;
+          room.peers.forEach((p) => { if (p.skin && p.skin.pet === msg.pet) owned = true; });
+          if (owned || P.pets.has(msg.pet)) return;
+          P.pets.add(msg.pet);
+        } else if (!P.pets.delete(msg.pet)) return;
+        palaceNews(room, { act, by: peer.id, pet: msg.pet });
+      } else if (act === 'kickAll') {
+        if (!P.guests.size && !P.pets.size) return;
+        P.guests.clear(); P.pets.clear();
+        palaceNews(room, { act, by: peer.id });
+      }
       return;
     }
     case 'chat': {
@@ -492,7 +534,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
