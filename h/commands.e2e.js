@@ -34,6 +34,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const help = (await lines(a)).join('\n');
   check('/help lists the commands in the chat log', ['/spawn', '/despawn', '/clear', '/tp', '/home', '/fly', '/pet', '/jet', '/block', '/where'].every((c) => help.includes(c)), help);
   check('and commands aren’t said out loud as chat', !(await lines(a)).some((l) => /^Player: \/help/.test(l)));
+  // pressing / opens the chat box with the slash typed, ready for a command, even right after another one
+  await a.keyboard.press('Slash'); await wait(400);
+  check('pressing / opens the chat box ready for a command', await a.evaluate(() => !document.getElementById('chatIn').hidden && document.getElementById('chatIn').value === '/' && document.activeElement.id === 'chatIn'));
+  await a.keyboard.type('where'); await a.keyboard.press('Enter'); await wait(150);
+  await a.keyboard.press('Slash'); await wait(150); await a.keyboard.type('where'); await a.keyboard.press('Enter'); await wait(400);
+  check('and two commands typed straight after each other both work', (await lines(a)).filter((l) => /You’re at/.test(l)).length === 2, await lines(a));
   await say(a, '/where');
   const at = await me(a);
   check('/where says where you are', (await last(a)).includes(Math.floor(at.x) + ' ' + Math.floor(at.y) + ' ' + Math.floor(at.z)), await last(a));

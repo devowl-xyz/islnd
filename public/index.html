@@ -264,6 +264,7 @@ body.touch .desk{display:none}
         <dt>P</dt><dd>Float up to the Sky Palace, or back down (owl owners and their guests)</dd>
         <dt>Helicopter</dt><dd>At North Shore, owl owners only: <b>E</b> to fly or get out, <b>W</b>/<b>S</b> <b>A</b>/<b>D</b> and the mouse to fly, <b>Space</b>/<b>Shift</b> up and down, <b>H</b> rope down or up, <b>J</b> let everyone go, <b>K</b> bridge out or in</dd>
         <dt>Enter</dt><dd>Chat (in a room everyone sees it over your head)</dd>
+        <dt>/</dt><dd>Type a command (<b>/help</b> lists them: <b>/spawn</b> a test dummy, <b>/tp</b>, <b>/fly</b>, <b>/home</b>, <b>/pet</b>, <b>/jet</b>, <b>/block</b>, <b>/where</b>)</dd>
         <dt>X</dt><dd>Emotes: then 1 wave, 2 dance, 3 sit, 4 cheer, 5 clap</dd>
         <dt>Y</dt><dd>Your pet does a trick</dd>
         <dt>Esc</dt><dd>Pause</dd>
@@ -3009,7 +3010,7 @@ function setPlaying(v){
   if(!v&&chatOpen){chatOpen=false;$('chatIn').hidden=true;}
   if(!v)renderPlay();
   if(!v){keys.clear();stopHold();mv.x=mv.z=0;touchJump=false;touchDown=false;}
-  else canvas.focus&&canvas.focus();
+  else if(!chatOpen)canvas.focus&&canvas.focus();
   refreshPlayLabel();
 }
 let started=false;
@@ -3030,6 +3031,8 @@ playBtn.addEventListener('click',function(){
 });
 document.addEventListener('pointerlockchange',function(){
   locked=document.pointerLockElement===canvas;
+  /* the mouse came back just as the chat box opened again: let go of it, and keep typing in the chat box */
+  if(locked&&chatOpen){try{document.exitPointerLock();}catch(e){}const ci=$('chatIn');if(ci)ci.focus();return;}
   if(locked){everLocked=true;setPlaying(true);}
   else if(everLocked&&!pickerOpen&&!chatOpen){setPlaying(false);}
 });
@@ -3051,12 +3054,16 @@ window.addEventListener('keydown',function(e){
   if(atcOn&&(e.code==='Escape'||e.code==='KeyM')){e.preventDefault();closeATC();return;}
   if(!playing){return;}
   if(chatOpen){
+    /* keep the letters going into the chat box even if something took the focus away */
+    const ci=$('chatIn');if(ci&&document.activeElement!==ci)ci.focus();
     if(e.code==='Enter'){e.preventDefault();sendChat();}
     else if(e.code==='Escape'){e.preventDefault();closeChat(false);setPlaying(false);}
     return;
   }
   if(emoteBar&&e.code.indexOf('Digit')===0){const d=parseInt(e.code.slice(5),10);if(d>=1&&d<=5){doEmote(d-1);return;}}
   if(e.code==='Enter'){e.preventDefault();openChat();return;}
+  /* / opens the chat box ready for a command, like in most games */
+  if(e.key==='/'||e.code==='Slash'||e.code==='NumpadDivide'){e.preventDefault();openChat('/');return;}
   if(pickerOpen){
     if(e.code==='Escape'){closePicker(false);setPlaying(false);}
     else if(e.code==='KeyB'){e.preventDefault();closePicker(true);}
@@ -5319,12 +5326,12 @@ function addChat(name,text,col){
     setTimeout(function(){li.classList.add('old');},12000);
   }
 }
-function openChat(){
+function openChat(prefix){
   if(!playing)return;
   const el=$('chatIn');if(!el)return;
-  chatOpen=true;el.hidden=false;el.value='';keys.clear();stopHold();
+  chatOpen=true;el.hidden=false;el.value=prefix||'';keys.clear();stopHold();
   if(locked)try{document.exitPointerLock();}catch(e){}
-  setTimeout(function(){el.focus();},0);
+  setTimeout(function(){el.focus();const n=el.value.length;if(el.setSelectionRange)el.setSelectionRange(n,n);},0);
 }
 function closeChat(relock){
   if(!chatOpen)return;
