@@ -4745,7 +4745,7 @@ function heliPetSpot(id){
 function heliPetName(id){return PETS[id]?PETS[id].name:'a pet';}
 /* let go of the test dummies: they drop from wherever they are */
 function dropHeliDummies(){
-  const names=[];
+  const names=[];if(heli.dummies.length)heli.relT=performance.now();
   heli.dummies.forEach(function(id){const d=dummies.filter(function(q){return q.id===id;})[0];if(d){const s=heliDummySpot(id);if(s){d.x=s.x;d.y=s.y;d.z=s.z;}d.vy=0;names.push(d.name);}});
   heli.dummies=[];
   return names;
@@ -4855,8 +4855,11 @@ function heliRopeKey(){
 function heliRelease(){
   if(!heli.seat&&!(inRoom()&&(net.host||net.admin))){toast('Only the pilot or the host can let people go.');return false;}
   if(!heli.captives.length&&!heli.pets.length&&!heli.dummies.length){toast('Nobody is aboard to let go.');return false;}
+  /* letting go winds the rope up too, so the hook doesn't snatch them straight back */
+  if(heli.seat&&heli.down){heli.down=false;}
+  heli.relT=performance.now();
   if(inRoom())netSend({t:'heliRelease'});
-  else{const n=heli.pets.map(heliPetName).concat(dropHeliDummies());heli.pets=[];heliSave();toast(n.join(' and ')+(n.length>1?' drop':' drops')+' down'+(heli.pets.length||n.length?' and head'+(n.length>1?'':'s')+' home':'')+'.');}
+  else{heli.relT=performance.now();const n=heli.pets.map(heliPetName).concat(dropHeliDummies());heli.pets=[];heliSave();toast(n.join(' and ')+(n.length>1?' drop':' drops')+' down'+(heli.pets.length||n.length?' and head'+(n.length>1?'':'s')+' home':'')+'.');}
   return true;
 }
 function setHeliBridge(on){
@@ -4913,7 +4916,8 @@ function heliTick(dt){
   if(heli.pilot!==null&&!heli.seat&&heli.remote&&typeof heli.remote.r==='number')heli.rope+=(heli.remote.r-heli.rope)*Math.min(1,dt*8);
   else heli.rope+=Math.max(-10*dt,Math.min(10*dt,want-heli.rope));
   /* the pilot's game snatches up anyone under the hook; the room checks it */
-  if(heli.seat&&inRoom()&&heli.down&&heli.rope>2){
+  const relOk=performance.now()-(heli.relT||0)>3000;
+  if(relOk&&heli.seat&&inRoom()&&heli.down&&heli.rope>2){
     const e=heliRopeEnd(),now=performance.now();
     net.peers.forEach(function(p){
       if(!p.cur||heli.captives.indexOf(p.id)>=0)return;
@@ -4921,7 +4925,7 @@ function heliTick(dt){
     });
   }
   /* test dummies too */
-  if(heli.seat&&heli.down&&heli.rope>2&&heli.dummies.length<4){
+  if(relOk&&heli.seat&&heli.down&&heli.rope>2&&heli.dummies.length<4){
     const e=heliRopeEnd(),now=performance.now();
     dummies.forEach(function(d){
       if(heli.dummies.indexOf(d.id)>=0||Math.hypot(d.x-e.x,d.z-e.z)>1.9||d.y<e.y-2.4||d.y>e.y+0.8)return;
@@ -4932,7 +4936,7 @@ function heliTick(dt){
     });
   }
   /* pets too: ones waiting at home, and ones following someone else (not your own) */
-  if(heli.seat&&heli.down&&heli.rope>2&&heli.pets.length<4){
+  if(relOk&&heli.seat&&heli.down&&heli.rope>2&&heli.pets.length<4){
     const e=heliRopeEnd(),now=performance.now(),seen=[];
     for(const id in petFx.home){const hp=petFx.home[id];if(hp.g.visible)seen.push([id,hp.g.position.x,hp.g.position.y,hp.g.position.z]);}
     petFx.follow.forEach(function(f,key){if(key!=='me'&&f.P.g.visible)seen.push([f.id,f.x,f.y,f.z]);});
@@ -4960,13 +4964,17 @@ function onHeli(m){
   const was=heliCaptive(),wasSeat=heli.seat;
   ['x','y','z','h'].forEach(function(k){if(isFinite(m[k]))heli[k]=+m[k];});
   heli.pilot=Number.isInteger(m.pilot)?m.pilot:null;heli.down=!!m.down;
-  heli.captives=Array.isArray(m.captives)?m.captives.filter(Number.isInteger):[];
+  const nc=Array.isArray(m.captives)?m.captives.filter(Number.isInteger):[];
+  if(heli.captives.some(function(id){return nc.indexOf(id)<0;}))heli.relT=performance.now();
+  heli.captives=nc;
   const nd=Array.isArray(m.dummies)?m.dummies.filter(Number.isInteger):[];
   if(heli.dummies.some(function(id){return nd.indexOf(id)<0;})){const keep=heli.dummies.filter(function(id){return nd.indexOf(id)>=0;});const drop=heli.dummies.filter(function(id){return nd.indexOf(id)<0;});heli.dummies=drop;dropHeliDummies();heli.dummies=keep;}
   heli.dummies=nd;
   if(m.act==='grabDummy'&&m.by===net.you){const d=dummies.filter(function(q){return q.id===m.dummy;})[0];if(d)toast('Got '+d.name+'!');}
   const hadPets=heli.pets.slice();
-  heli.pets=Array.isArray(m.pets)?m.pets.filter(function(id){return PET_IDS.indexOf(id)>=0;}):[];
+  const np=Array.isArray(m.pets)?m.pets.filter(function(id){return PET_IDS.indexOf(id)>=0;}):[];
+  if(heli.pets.some(function(id){return np.indexOf(id)<0;}))heli.relT=performance.now();
+  heli.pets=np;
   if(m.act==='grabPet'&&PETS[m.pet]){
     const o=petOwner(m.pet);
     if(m.by===net.you)toast('Got '+heliPetName(m.pet)+'!');

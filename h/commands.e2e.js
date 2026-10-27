@@ -94,7 +94,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and it hangs from the hook', hd.y < hs.y - 3 && Math.hypot(hd.x - hs.x, hd.z - hs.z) < 1.2, { hd, hs });
   await a.keyboard.press('KeyJ');
   await a.waitForFunction(() => { const d = window.__isle.dummies()[0]; return d && Math.abs(d.y - 13) < 0.01; }, null, { timeout: 15000 }).catch(() => {});
-  check('J drops it back down to the ground', (await a.evaluate(() => window.__isle.heli.state().dummies.length)) === 0 && Math.abs((await D(a))[0].y - 13) < 0.01, await D(a));
+  check('J drops it back down to the ground', (await a.evaluate(() => window.__isle.heli.state().dummies.length)) === 0 && Math.abs((await D(a))[0].y - 13) < 0.01, { d: await D(a), toast: await a.textContent('#toast'), st: await a.evaluate(() => { const s = window.__isle.heli.state(); return { seat: s.seat, dummies: s.dummies, rope: s.rope, y: s.y }; }), act: await a.evaluate(() => document.activeElement && document.activeElement.id) });
   await a.evaluate(() => window.__isle.heli.leave());
   for (let k = 0; k < 13; k++) await a.evaluate(() => window.__isle.cmd('/spawn'));
   check('there can be at most 12 dummies', (await D(a)).length === 12 && /most test dummies/.test(await last(a)));
