@@ -5457,7 +5457,7 @@ function spawnDummy(name){
 }
 function despawnDummy(all){
   if(!dummies.length){sysChat('There are no test dummies.');return false;}
-  let best=null,bd=1e9;dummies.forEach(function(d){const dd=Math.hypot(d.x-P.x,d.y-P.y,d.z-P.z);if(dd<bd){bd=dd;best=d;}});
+  let best=null,bd=1e9;dummies.forEach(function(d){const dd=Math.hypot(d.x-P.x,d.z-P.z)+Math.abs(d.y-P.y)*0.01;if(dd<=bd+0.05){bd=dd;best=d;}});
   if(inRoom()){netSend({t:'dummy',act:all?'clear':'remove',id:best.id});return true;}
   if(all){const n=dummies.length;while(dummies.length)dropDummy(dummies[0]);heli.dummies=[];sysChat('Removed '+n+' test dumm'+(n===1?'y':'ies')+'.');}
   else{dropDummy(best);heli.dummies=heli.dummies.filter(function(i){return i!==best.id;});sysChat('Removed '+best.name+'.');}
