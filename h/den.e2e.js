@@ -36,7 +36,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // Smooth edges: walk outward from each levelled plot and check no step is more than 2 blocks.
   const edges = await a.evaluate(() => {
     const I = window.__isle;
-    const top = (x, z) => { for (let y = 47; y > 0; y--) { const b = I.get(x, y, z); if (b !== 0 && b !== 5 && b !== 6 && b !== 12) return y + 1; } return 0; };
+    // the ground only: skip logs, leaves, water and planks (the observation deck's staircase stands on the treehouse plot's west edge)
+    const top = (x, z) => { for (let y = 47; y > 0; y--) { const b = I.get(x, y, z); if (b !== 0 && b !== 5 && b !== 6 && b !== 7 && b !== 12) return y + 1; } return 0; };
     const line = (pts) => { let worst = 0; for (let k = 1; k < pts.length; k++) worst = Math.max(worst, Math.abs(top(pts[k][0], pts[k][1]) - top(pts[k - 1][0], pts[k - 1][1]))); return worst; };
     const seq = (x0, z0, dx, dz, n) => Array.from({ length: n }, (_, k) => [x0 + dx * k, z0 + dz * k]);
     return {
