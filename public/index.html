@@ -1,3 +1,5 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Voxel Isle</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,8 +63,13 @@ body{margin:0;background:var(--night);color:var(--text);font:500 15px/1.45 var(-
 #chatlog{position:absolute;left:16px;bottom:calc(env(safe-area-inset-bottom) + 150px);z-index:5;max-width:min(420px,calc(100vw - 32px));display:flex;flex-direction:column;gap:3px;pointer-events:none;font-size:14px}
 #chatlog .line{background:rgba(10,20,28,.6);padding:4px 8px;border-radius:8px;color:#fff;transition:opacity 1s}
 #chatlog .line.old{opacity:0}
-#chatIn{position:absolute;left:16px;bottom:calc(env(safe-area-inset-bottom) + 112px);z-index:7;width:min(420px,calc(100vw - 32px));box-sizing:border-box;padding:10px 12px;border-radius:10px;border:2px solid var(--gold);background:rgba(10,20,28,.9);color:#fff;font:500 15px var(--body);pointer-events:auto}
+#chatIn{position:absolute;left:16px;bottom:calc(env(safe-area-inset-bottom) + 112px);z-index:7;width:min(420px,calc(100vw - 32px));box-sizing:border-box;padding:10px 12px;border-radius:10px;border:2px solid var(--gold);background:rgba(10,20,28,.9);color:#fff;font:500 16px var(--body);pointer-events:auto}
 #chatIn[hidden]{display:none}
+/* on phones and tablets the keyboard covers the bottom of the screen, so the chat box goes at the top, with taps for common commands */
+body.touch #chatIn{top:calc(env(safe-area-inset-top) + 52px);bottom:auto}
+#chatChips{position:absolute;left:16px;top:calc(env(safe-area-inset-top) + 102px);z-index:7;width:min(420px,calc(100vw - 32px));display:flex;flex-wrap:wrap;gap:6px;pointer-events:auto}
+#chatChips button{appearance:none;-webkit-appearance:none;border:1px solid var(--edge);background:rgba(10,20,28,.85);color:#fff;font:600 14px var(--body);padding:8px 10px;border-radius:999px;min-height:36px;touch-action:manipulation}
+body:not(.touch) #chatChips{display:none!important}
 #emotes{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 100px);transform:translateX(-50%);z-index:6;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
 #emotes[hidden]{display:none}
 #emotes button{padding:8px 12px;border-radius:12px;border:0;background:rgba(236,236,246,.95);font:600 14px var(--body);color:#1b2630;cursor:pointer}
@@ -114,6 +121,8 @@ body.touch #cross{opacity:.8}
 .tbtns{position:absolute;right:16px;bottom:84px;display:grid;grid-template-columns:repeat(2,64px);gap:10px}
 .tb{pointer-events:auto;touch-action:none;width:64px;height:64px;box-sizing:border-box;border:2px solid var(--edge);background:var(--panel);color:#fff;font:700 14px/1 var(--display);letter-spacing:.02em;padding:0;margin:0;appearance:none;-webkit-appearance:none}
 .tb.on{background:rgba(255,212,94,.35);border-color:var(--gold)}
+@media (max-height:560px){.tbtns{grid-template-columns:repeat(4,52px);gap:6px;bottom:calc(env(safe-area-inset-bottom) + 76px);right:calc(env(safe-area-inset-right) + 12px)}.tb{width:52px;height:52px;font-size:12px}}
+@media (max-width:560px) and (min-height:561px){.tbtns{grid-template-columns:repeat(3,56px);gap:8px}.tb{width:56px;height:56px;font-size:13px}}
 body:not(.touch) .tch{display:none}
 body.touch .desk{display:none}
 
@@ -210,7 +219,8 @@ body.touch .desk{display:none}
       <div id="hotbar"></div>
     </div>
     <div id="chatlog" aria-live="polite"></div>
-    <input id="chatIn" hidden maxlength="80" placeholder="Say something, then Enter (or /help for commands)" aria-label="Chat" autocomplete="off">
+    <input id="chatIn" hidden maxlength="80" placeholder="Say something, then Enter (or /help for commands)" aria-label="Chat" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send">
+    <div id="chatChips" hidden></div>
     <div id="emotes" hidden role="toolbar" aria-label="Emotes"><button type="button" data-e="0">1 Wave</button><button type="button" data-e="1">2 Dance</button><button type="button" data-e="2">3 Sit</button><button type="button" data-e="3">4 Cheer</button><button type="button" data-e="4">5 Clap</button></div>
     <div id="gamehud" hidden role="status"></div>
     <div id="results" hidden role="status"></div>
@@ -237,6 +247,9 @@ body.touch .desk{display:none}
       <button class="tb" id="bEmote" type="button">Emote</button>
       <button class="tb" id="bTrick" type="button">Trick</button>
       <button class="tb" id="bBoard" type="button" hidden>Board</button>
+      <button class="tb" id="bRope" type="button" hidden>Rope</button>
+      <button class="tb" id="bLetGo" type="button" hidden>Let go</button>
+      <button class="tb" id="bBridge" type="button" hidden>Bridge</button>
     </div>
   </div>
   <div id="overlay">
@@ -3170,7 +3183,9 @@ if(touch){
   hold('bDown',function(){touchDown=true;},function(){touchDown=false;});
   hold('bView',toggleView,null);
   hold('bBoard',toggleBoard,null);
-  hold('bFish',fishKey,null);hold('bMap',function(){toggleMap();},null);hold('bChat',openChat,null);hold('bEmote',function(){toggleEmotes();},null);hold('bTrick',petTrick,null);
+  /* Chat on a click, not a press: phones and tablets only bring up the keyboard for a box focused during a tap */
+  $('bChat').addEventListener('click',function(e){e.preventDefault();if(!playing)return;if(chatOpen)closeChat(false);else openChat();});
+  hold('bFish',fishKey,null);hold('bMap',function(){toggleMap();},null);hold('bRope',heliRopeKey,null);hold('bLetGo',heliRelease,null);hold('bBridge',function(){if(heli.seat)setHeliBridge(!heli.bridge);},null);hold('bEmote',function(){toggleEmotes();},null);hold('bTrick',petTrick,null);
   hold('bBreak',function(){startHold(0);},stopHold);
   hold('bPlace',function(){act(2);},null);
   hold('bFly',toggleFly,null);
@@ -4688,7 +4703,7 @@ function nearJet(){
   const q=jet.pose;
   return Math.hypot(P.x-q.x,P.y+0.9-q.y,P.z-q.z)<6.5;
 }
-let hintLast='';
+let hintLast='',heliBtnKey='';
 function updateJetHint(){
   let h='';
   if(heli.seat)h='<b>W</b>/<b>S</b> <b>A</b>/<b>D</b> fly · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>H</b> rope '+(heli.down?'up':'down')+(heli.captives.length+heli.pets.length+heli.dummies.length?' · <b>J</b> let '+(heli.captives.length+heli.pets.length+heli.dummies.length)+' go':'')+' · <b>K</b> bridge '+(heli.bridge?'in':'out')+' · <b>E</b> get out';
@@ -4713,6 +4728,9 @@ function updateJetHint(){
     h=(C&&C.dock===dk&&nowS()<C.tLand)?'The jet is on its way to '+DOCKS[dk].name:(jet.pilot!==null?'Someone is flying the jet':'<b>E</b> to call the jet to '+DOCKS[dk].name)+' \u00b7 <b>Q</b> to fish';
   }
   else if(playing&&!P.ride&&foodNear(true))h='<b>E</b> to eat the '+foodName(foodNear(true).id)+'\u2026';
+  /* the helicopter's own buttons, while you fly it */
+  const hk=touch?(heli.seat?1:0)+':'+(heli.down?1:0)+':'+(heli.bridge?1:0):'';
+  if(hk!==heliBtnKey){heliBtnKey=hk;if(touch){['bRope','bLetGo','bBridge'].forEach(function(id){$(id).hidden=!heli.seat;});$('bRope').textContent=heli.down?'Rope up':'Rope';$('bBridge').textContent=heli.bridge?'Bridge in':'Bridge';}}
   if(h!==hintLast){hintLast=h;const el=$('jethint');el.innerHTML=h;el.classList.toggle('on',!!h);if(touch)$('bBoard').hidden=!h;$('bBoard').textContent=jet.seat?'Leave':(P.ride?'Get off':(foodNear()?'Eat':petNear()?'Adopt':(canMount()?'Ride':(nearJet()?'Board':(dockHere()!==null?'Call':'Use')))));}
 }
 /* ---------- the helicopter at North Shore ----------
@@ -5347,13 +5365,42 @@ function openChat(prefix){
   const el=$('chatIn');if(!el)return;
   chatOpen=true;el.hidden=false;el.value=prefix||'';keys.clear();stopHold();
   if(locked)try{document.exitPointerLock();}catch(e){}
-  setTimeout(function(){el.focus();const n=el.value.length;if(el.setSelectionRange)el.setSelectionRange(n,n);},0);
+  const put=function(){el.focus();const n=el.value.length;if(el.setSelectionRange)el.setSelectionRange(n,n);};
+  try{put();}catch(e){}
+  setTimeout(put,0);
+  chatChips(true);
+}
+/* taps for common commands under the chat box, on phones and tablets */
+const CHAT_CHIPS=['/help','/spawn','/spawn jet','/spawn heli','/despawn','/fly','/home','/where'];
+function chatChips(on){
+  const box=$('chatChips');if(!box)return;
+  if(!on||!touch){box.hidden=true;return;}
+  if(!box.childNodes.length)CHAT_CHIPS.forEach(function(c){
+    const b=document.createElement('button');b.type='button';b.textContent=c;
+    /* pressing keeps the keyboard's box focused; letting go runs the command */
+    b.addEventListener('pointerdown',function(e){e.preventDefault();});
+    b.addEventListener('click',function(e){e.preventDefault();const el=$('chatIn');el.value=c;sendChat();});
+    box.appendChild(b);
+  });
+  box.hidden=false;
 }
 function closeChat(relock){
   if(!chatOpen)return;
-  chatOpen=false;const el=$('chatIn');el.hidden=true;el.blur();
+  chatOpen=false;const el=$('chatIn');el.hidden=true;el.blur();chatChips(false);
   if(relock&&everLocked&&!touch&&!noLock)try{canvas.requestPointerLock();}catch(e){}
 }
+(function(){
+  const el=$('chatIn');if(!el)return;
+  /* some phone keyboards send Enter without a key code the game knows, so the box listens itself */
+  el.addEventListener('keydown',function(e){
+    if(e.key==='Enter'||e.keyCode===13){e.preventDefault();e.stopPropagation();if(chatOpen)sendChat();}
+  });
+  /* on a phone or tablet, closing the keyboard (or tapping away) closes the chat box */
+  el.addEventListener('blur',function(){
+    if(!touch)return;
+    setTimeout(function(){if(chatOpen&&document.activeElement!==el)closeChat(false);},250);
+  });
+})();
 const EMOTES=['wave','dance','sit','cheer','clap'],EMOTE_T=[2.5,6,1e9,2.5,3];
 function sendChat(){
   const el=$('chatIn'),t=(el.value||'').replace(/[\u0000-\u001f]/g,'').trim().slice(0,80);
