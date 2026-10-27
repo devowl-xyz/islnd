@@ -101,6 +101,35 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await say(a, '/clear');
   check('/clear removes them all', (await D(a)).length === 0 && /Removed 12 test dummies/.test(await last(a)));
 
+  // the jet and the helicopter come to you
+  const JP = (p) => p.evaluate(() => { const j = window.__isle.jet; return Object.assign({}, j.pose, { park: j.park ? Object.assign({}, j.park) : null, rel: !!j.rel }); });
+  const HS = (p) => p.evaluate(() => window.__isle.heli.state());
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.x = 85.5; P.y = 13; P.z = 92.5; P.yaw = Math.PI / 2; });
+  await wait(300);
+  await say(a, '/spawn jet');
+  await a.waitForFunction(() => { const q = window.__isle.jet.pose; return Math.hypot(q.x - 75.5, q.z - 92.5) < 0.5; }, null, { timeout: 8000 }).catch(() => {});
+  let jp = await JP(a);
+  check('/spawn jet parks the jet in front of you, on the ground', jp.park && Math.hypot(jp.x - 75.5, jp.z - 92.5) < 0.5 && jp.y > 14 && jp.y < 22 && /jet is parked/.test(await last(a)), { jp, l: await last(a) });
+  check('pointing the way you look', Math.abs(Math.cos(jp.h) + 1) < 0.01, jp.h);
+  await wait(2000);
+  const jp2 = await JP(a);
+  check('and it stays there', Math.hypot(jp2.x - jp.x, jp2.y - jp.y, jp2.z - jp.z) < 0.01, jp2);
+  check('the departures board calls it a private flight', (await a.evaluate(() => window.__isle.jetStatus(0).manual)) === true);
+  await say(a, '/despawn jet');
+  await wait(1500);
+  const jp3 = await JP(a);
+  check('/despawn jet sends it flying home', !jp3.park && jp3.rel && /flies home/.test(await last(a)) && Math.hypot(jp3.x - jp.x, jp3.y - jp.y, jp3.z - jp.z) > 0.5, jp3);
+  await say(a, '/despawn jet');
+  check('and says when it isn’t spawned', /isn’t spawned/.test(await last(a)));
+  await say(a, '/spawn helicopter');
+  let hs2 = await HS(a);
+  check('/spawn helicopter parks the helicopter in front of you, on the ground', Math.hypot(hs2.x - 78.5, hs2.z - 92.5) < 0.5 && hs2.y >= 12.9 && hs2.y < 20 && !hs2.bridge && /helicopter is parked/.test(await last(a)), { hs2, l: await last(a) });
+  await wait(1500);
+  check('and it stays there', Math.hypot((await HS(a)).x - hs2.x, (await HS(a)).y - hs2.y) < 0.01);
+  await say(a, '/despawn heli');
+  hs2 = await HS(a);
+  check('/despawn heli puts it back on its pad', Math.hypot(hs2.x - 295.5, hs2.z - 34.5) < 0.01 && /back on its pad/.test(await last(a)), hs2);
+
   // rooms: only the host and admins spawn dummies, and everyone sees them
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
@@ -128,6 +157,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await say(a, '/clear');
   await g.waitForFunction(() => window.__isle.dummies().length === 0, null, { timeout: 8000 }).catch(() => {});
   check('the host clears them for everyone', (await D(g)).length === 0);
+  // the jet and the helicopter in a room
+  await say(g, '/spawn jet');
+  check('a guest can’t /spawn the jet', !(await JP(g)).park && /Only the host and admins can \/spawn/.test(await last(g)));
+  await say(a, '/spawn jet');
+  await g.waitForFunction(() => !!window.__isle.jet.park, null, { timeout: 8000 }).catch(() => {});
+  const gp = (await JP(g)).park, ap = (await JP(a)).park;
+  check('the host spawns the jet and the guest sees it parked in the same place', gp && ap && Math.hypot(gp.x - ap.x, gp.y - ap.y, gp.z - ap.z) < 0.01 && Math.hypot(ap.x - 75.5, ap.z - 92.5) < 0.5 && /spawned the jet/.test(await last(g)), { gp, ap });
+  await say(a, '/despawn jet');
+  await g.waitForFunction(() => !window.__isle.jet.park, null, { timeout: 8000 }).catch(() => {});
+  check('and sends it home for everyone', !(await JP(g)).park && (await JP(g)).rel);
+  await say(a, '/spawn heli');
+  await g.waitForFunction(() => Math.abs(window.__isle.heli.state().x - 78.5) < 0.5, null, { timeout: 8000 }).catch(() => {});
+  check('the host spawns the helicopter and the guest sees it there', Math.hypot((await HS(g)).x - 78.5, (await HS(g)).z - 92.5) < 0.5 && /spawned the helicopter/.test(await last(g)), await HS(g));
+  await say(a, '/despawn heli');
+  await g.waitForFunction(() => Math.abs(window.__isle.heli.state().x - 295.5) < 0.01, null, { timeout: 8000 }).catch(() => {});
+  check('and puts it back on its pad for everyone', Math.hypot((await HS(g)).x - 295.5, (await HS(g)).z - 34.5) < 0.01);
 
   await browser.close();
   server.close();

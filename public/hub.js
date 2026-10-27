@@ -326,7 +326,7 @@ function handle(peer, msg) {
       peer.name = cleanName(msg.name);
       peer.skin = cleanSkin(msg.skin);
       peer.admin = false;
-      const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null } };
+      const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null, park: null } };
       const hp = cleanPose(msg.heli, HELI_HOME);
       r.dummies = []; r.dummySeq = 1;
       r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], dummies: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
@@ -421,7 +421,7 @@ function handle(peer, msg) {
       const j = room.jet;
       if (j.pilot === peer.id || j.pass.includes(peer.id)) return;
       const may = peer.id === room.hostId || peer.admin;
-      if (msg.seat === 'pilot' && may && j.pilot === null) { j.pilot = peer.id; j.release = null; j.call = null; j.last = null; }
+      if (msg.seat === 'pilot' && may && j.pilot === null) { j.pilot = peer.id; j.release = null; j.call = null; j.last = null; j.park = null; }
       else if (msg.seat === 'pilot' && !may) return send(peer.ws, { t: 'boardNo', why: 'admin' });
       else if (j.pass.length < 4) j.pass.push(peer.id);
       else return send(peer.ws, { t: 'boardNo', why: 'full' });
@@ -612,7 +612,7 @@ function handle(peer, msg) {
       const j = room.jet, n = (v) => (typeof v === 'number' && isFinite(v) ? Math.max(-1000, Math.min(1000, Math.round(v * 100) / 100)) : 0);
       if (j.pilot !== null || !Number.isInteger(msg.dock) || msg.dock < 0 || msg.dock >= JET_DOCKS) return;
       j.call = { dock: msg.dock, x: n(msg.x), y: n(msg.y), z: n(msg.z), h: n(msg.h), at: Date.now(), by: peer.id, hold: true };
-      j.release = null;
+      j.release = null; j.park = null;
       broadcast(room, Object.assign({ t: 'jetCall' }, j.call));
       return;
     }
@@ -660,8 +660,37 @@ function handle(peer, msg) {
         j.call.via = msg.via.slice(0, 8).filter((w) => Array.isArray(w) && w.length === 2 && w.every((v) => typeof v === 'number' && isFinite(v)))
           .map((w) => [Math.max(0, Math.min(W - 1, Math.round(w[0]))), Math.max(0, Math.min(D - 1, Math.round(w[1])))]);
       }
-      j.release = null;
+      j.release = null; j.park = null;
       broadcast(room, Object.assign({ t: 'jetCall' }, j.call));
+      return;
+    }
+    case 'jetSpawn': {
+      // /spawn jet: the host or an admin parks the jet where they say, until someone flies it, calls it or sends it home
+      if (!room || (peer.id !== room.hostId && !peer.admin)) return;
+      const j = room.jet;
+      if (j.pilot !== null) return send(peer.ws, { t: 'callNo', why: 'pilot' });
+      j.park = cleanPose(msg, { x: 80, y: 30, z: 80, h: 0 });
+      j.call = null; j.release = null;
+      broadcast(room, Object.assign({ t: 'jetSpawn', by: peer.id }, j.park));
+      return;
+    }
+    case 'jetDespawn': {
+      // /despawn jet: a parked jet flies home from where it is
+      if (!room || (peer.id !== room.hostId && !peer.admin) || !room.jet.park) return;
+      const j = room.jet;
+      j.release = Object.assign({}, j.park, { at: Date.now() });
+      j.park = null;
+      broadcast(room, Object.assign({ t: 'jetRelease' }, j.release));
+      return;
+    }
+    case 'heliSpawn': {
+      // /spawn heli (and /despawn heli, back to its pad): the host or an admin moves the helicopter, when nobody is flying it
+      if (!room || (peer.id !== room.hostId && !peer.admin)) return;
+      const h = room.heli;
+      if (h.pilot !== null) return send(peer.ws, { t: 'heliNo', why: 'busy' });
+      Object.assign(h, cleanPose(msg, h));
+      h.bridge = null; h.rope = 0; h.down = false;
+      heliNews(room, { act: msg.home ? 'home' : 'spawn', by: peer.id });
       return;
     }
     case 'unboard': {

@@ -3929,6 +3929,7 @@ function onNet(m){
     case 'petNo':if(mySkin.pet===m.pet){mySkin.pet='none';skinChanged();renderPets();toast(PETS[m.pet].name+' is already someone else\u2019s pet.');}break;
     case 'jet':if(jet.pilot===m.id&&m.id!==net.you)jet.remote={x:m.x,y:m.y,z:m.z,h:m.h,p:m.p,r:m.r,s:m.s};break;
     case 'jetRelease':jetRelease(m);break;
+    case 'jetSpawn':onJetSpawn(m);break;
     case 'jetCall':if(m.dock>=0&&m.dock<DOCKS.length)onJetCall(m);break;
     case 'callNo':toast(m.why==='pilot'?'Someone is flying the jet right now.':m.why==='atc'?'Only the host and admins can be air traffic control.':m.why==='held'?'The host is holding the jet. Only the host or an admin can send it on.':'The jet was only just called. Try again in a moment.');break;
     case 'boardNo':toast(m.why==='full'?'The jet is full.':'Only the host or an admin can fly the jet.');break;
@@ -4263,6 +4264,7 @@ function buildJetPath(){
 /* where the tour is: parked at a dock (and for how long), or on its way to the next one */
 function jetStatus(c){
   if(jet.pilot!==null)return{flying:true,manual:true};
+  if(jet.park)return{manual:true,parked:true};
   if(jet.call){
     const C=callPlan(),t=nowS();
     if(t<C.tLand)return{flying:true,next:C.dock,called:true};
@@ -4354,7 +4356,7 @@ function callPose(t){
   }
   return{x:o[0],y:o[1],z:o[2],h:b.h+(e.h-b.h)*(u*u*(3-2*u))};
 }
-function setCall(c){jet.call=c;jet.rel=null;}
+function setCall(c){jet.call=c;jet.rel=null;jet.park=null;}
 /* the dock you're standing on or beside, if any */
 function dockHere(){
   let best=null,bd=14;
@@ -4606,7 +4608,7 @@ function seatWorld(st){
 }
 function seatOf(id){if(jet.pilot!==null&&jet.pilot===id)return'pilot';const i=jet.pass.indexOf(id);return i>=0?i+1:null;}
 function myId(){return inRoom()?net.you:-1;}
-function jetReset(){jet.mode='auto';jet.pilot=null;jet.pass=[];jet.rel=null;jet.call=null;jet.remote=null;}
+function jetReset(){jet.mode='auto';jet.pilot=null;jet.pass=[];jet.rel=null;jet.call=null;jet.remote=null;jet.park=null;}
 
 /* manual flight: throttle with W/S, steer with the camera, Space/Shift for lift */
 function flyJet(dt){
@@ -4654,7 +4656,9 @@ function jetTick(dt){
   }else if(jet.pilot===null){
     let a,b;
     if(jet.call&&t>=callPlan().resume)jet.call=null;
-    if(jet.call){a=callPose(t);b=callPose(t+0.1);}
+    /* spawned with /spawn jet: it waits where it was put */
+    if(jet.park){a=jet.park;b=jet.park;}
+    else if(jet.call){a=callPose(t);b=callPose(t+0.1);}
     else{
       if(jet.rel){
         a=returnPose(t);
@@ -4981,6 +4985,8 @@ function onHeli(m){
     else if(o==='me')toast(heliName(m.by)+' snatched up your '+heliPetName(m.pet)+' in the helicopter!');
     else toast(heliName(m.by)+' snatched up '+heliPetName(m.pet)+' in the helicopter!');
   }
+  if(m.act==='spawn')sysChat(m.by===net.you?'The helicopter is parked in front of you.':heliName(m.by)+' spawned the helicopter at '+Math.floor(heli.x)+' '+Math.floor(heli.y)+' '+Math.floor(heli.z)+'.');
+  if(m.act==='home')sysChat('The helicopter is back on its pad at North Shore.');
   if(m.act==='release'&&hadPets.indexOf(mySkin.pet)>=0&&heli.pets.indexOf(mySkin.pet)<0&&m.by!==net.you)toast(heliPetName(mySkin.pet)+' has been let go and comes back to you.');
   heli.bridge=m.bridge&&isFinite(m.bridge.x)?m.bridge:null;
   if(typeof m.rope==='number')heli.rope=heli.seat?heli.rope:m.rope;
@@ -5038,7 +5044,7 @@ function toggleBoard(){
   if(!nearJet()){const dk=dockHere();if(dk!==null&&!P.ride){callJet(dk);return;}const mf=foodNear(true);if(mf&&!P.ride)eatFood(mf);return;}
   const want=canPilot()&&jet.pilot===null?'pilot':'pass';
   if(inRoom()){netSend({t:'board',seat:want});return;}
-  if(want==='pilot'){jet.pilot=-1;jet.rel=null;jet.call=null;jet.thr=0.25;jet.spd=0;}
+  if(want==='pilot'){jet.pilot=-1;jet.rel=null;jet.call=null;jet.park=null;jet.thr=0.25;jet.spd=0;}
   boardLocal(want==='pilot'?'pilot':1);
 }
 function boardLocal(st){
@@ -5073,11 +5079,12 @@ function onJetSeats(m){
     if(mine==='pilot'){jet.rel=null;jet.thr=0.25;jet.spd=0;}
     boardLocal(mine);
   }else if(!mine&&jet.seat){leaveJetLocal();toast('You left the jet.');}
-  if(jet.pilot!==null){jet.rel=null;jet.call=null;}
+  if(jet.pilot!==null){jet.rel=null;jet.call=null;jet.park=null;}
   if(jet.pilot!==null&&jet.pilot!==was&&jet.pilot!==net.you)jet.remote=null;
 }
 function jetRelease(m){
-  jet.pilot=null;jet.remote=null;jet.call=null;
+  if(jet.park&&jet.pilot===null)sysChat('The jet flies home to East Beach.');
+  jet.pilot=null;jet.remote=null;jet.call=null;jet.park=null;
   jet.rel={x:m.x,y:m.y,z:m.z,h:m.h,t0:m.at/1000};
 }
 function tagFromRoom(t){tagState=t?{it:t.it,ends:t.ends,scores:t.scores||{}}:null;}
@@ -5085,6 +5092,7 @@ function jetFromRoom(j){
   jetReset();
   if(!j)return;
   if(j.release)jet.rel={x:j.release.x,y:j.release.y,z:j.release.z,h:j.release.h,t0:j.release.at/1000};
+  if(j.park&&isFinite(j.park.x))jet.park={x:+j.park.x,y:+j.park.y,z:+j.park.z,h:+j.park.h};
   if(j.call)setCall({dock:j.call.dock,x:j.call.x,y:j.call.y,z:j.call.z,h:j.call.h,t0:j.call.at/1000,hold:!!j.call.hold,wait:j.call.wait,via:cleanVia(j.call.via)});
   jet.pilot=j.pilot===undefined?null:j.pilot;jet.pass=j.pass||[];
   if(j.last&&jet.pilot!==null){jet.remote=j.last;Object.assign(jet.pose,j.last);}
@@ -5370,8 +5378,8 @@ function onChat(m){
 function sysChat(text){addChat('⚙',text,'#9fd0ff');}
 const COMMANDS=[
   ['help','','list the commands'],
-  ['spawn','[name]','spawn a test dummy in front of you'],
-  ['despawn','','remove the test dummy nearest you'],
+  ['spawn','[name] | jet | heli','spawn a test dummy in front of you, or bring the jet or helicopter to you'],
+  ['despawn','[jet | heli]','remove the test dummy nearest you, or send the jet or helicopter home'],
   ['clear','','remove every test dummy'],
   ['tp','x y z | player','teleport to a spot, or to a player'],
   ['home','','back to your bed, or the meadow'],
@@ -5400,8 +5408,20 @@ function runCommand(t){
       sysChat('Commands (type them in chat):');
       COMMANDS.forEach(function(k){sysChat('/'+k[0]+(k[1]?' '+k[1]:'')+' — '+k[2]);});
       return true;
-    case'spawn':case'summon':if(needAdmin())return false;return spawnDummy(arg);
-    case'despawn':case'kill':if(needAdmin())return false;return despawnDummy(false);
+    case'spawn':case'summon':{
+      if(needAdmin())return false;
+      const v=VEHICLE_WORDS[arg.toLowerCase()];
+      if(v==='jet')return spawnJet();
+      if(v==='heli')return spawnHeli();
+      return spawnDummy(arg);
+    }
+    case'despawn':case'kill':{
+      if(needAdmin())return false;
+      const v=VEHICLE_WORDS[arg.toLowerCase()];
+      if(v==='jet')return despawnJet();
+      if(v==='heli')return despawnHeli();
+      return despawnDummy(false);
+    }
     case'clear':if(needAdmin())return false;return despawnDummy(true);
     case'tp':case'teleport':{
       if(!free())return false;
@@ -5463,6 +5483,59 @@ function spawnDummy(name){
   sysChat('Spawned '+nm+'.');
   return true;
 }
+/* /spawn jet and /spawn heli: the island has one of each, so this brings it to you,
+   parked on the ground just in front of you (raised clear of anything in the way) */
+function groundBelow(x,z,fromY){
+  const xi=Math.floor(x),zi=Math.floor(z);
+  if(xi<0||zi<0||xi>=W||zi>=D)return SEA+1;
+  for(let y=Math.min(H-1,Math.floor(fromY));y>=0;y--){const b=get(xi,y,zi);if(b===B.WATER)return y+1;if(solidAt(x,y+0.5,z))return y+1;}
+  return 1;
+}
+function vehicleSpot(dist,face,feet,hits){
+  const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);
+  const x=Math.max(10,Math.min(W-10,P.x+fx*dist)),z=Math.max(10,Math.min(D-10,P.z+fz*dist)),h=Math.atan2(fz,fx)+(face?Math.PI:0);
+  const c=Math.cos(h),sn=Math.sin(h);
+  let g=0;feet.forEach(function(f){g=Math.max(g,groundBelow(x+f[0]*c-f[1]*sn,z+f[0]*sn+f[1]*c,P.y+2));});
+  let y=g;for(let k=0;k<20&&hits(x,y,z,h);k++)y+=1;
+  return{x:Math.round(x*100)/100,y:Math.round(y*100)/100,z:Math.round(z*100)/100,h:Math.round(h*1000)/1000};
+}
+function jetHits(x,y,z,h){
+  const c=Math.cos(h),sn=Math.sin(h);
+  return[[4.5,0,0],[-5,0.5,0],[-0.5,-0.4,5.5],[-0.5,-0.4,-5.5],[0,-1.3,0],[2.5,-1,0],[-2.5,-0.8,0]].some(function(l){return solidAt(x+l[0]*c-l[2]*sn,y+l[1],z+l[0]*sn+l[2]*c);});
+}
+function spawnJet(){
+  if(jet.pilot!==null){sysChat('Someone is flying the jet, so it can’t be spawned right now.');return false;}
+  if(jet.seat){sysChat('You’re on the jet already.');return false;}
+  /* 10 blocks ahead, pointing the way you look, wheels on the ground */
+  const s=vehicleSpot(10,false,[[0,0],[4.5,0],[-5,0],[-0.5,5.5],[-0.5,-5.5]],function(x,y,z,h){return jetHits(x,y+1.55,z,h);});
+  s.y+=1.55;
+  if(inRoom()){netSend({t:'jetSpawn',x:s.x,y:s.y,z:s.z,h:s.h});return true;}
+  jet.park=s;jet.call=null;jet.rel=null;
+  sysChat('The jet is parked in front of you. Walk up to it and press E to fly it. /despawn jet sends it home.');
+  return true;
+}
+function despawnJet(){
+  if(!jet.park){sysChat('The jet isn’t spawned anywhere, it’s flying its tour.');return false;}
+  if(inRoom()){netSend({t:'jetDespawn'});return true;}
+  const q=jet.park;jet.park=null;jet.rel={x:q.x,y:q.y,z:q.z,h:q.h,t0:nowS()};
+  sysChat('The jet flies home to East Beach.');
+  return true;
+}
+function onJetSpawn(m){
+  jet.park={x:+m.x,y:+m.y,z:+m.z,h:+m.h};jet.call=null;jet.rel=null;jet.remote=null;
+  sysChat(m.by===net.you?'The jet is parked in front of you. Walk up to it and press E to fly it.':heliName(m.by)+' spawned the jet at '+Math.floor(m.x)+' '+Math.floor(m.y)+' '+Math.floor(m.z)+'.');
+}
+function putHeli(s,home){
+  if(heli.pilot!==null){sysChat('Someone is flying the helicopter, so it can’t be moved right now.');return false;}
+  if(inRoom()){netSend({t:'heliSpawn',x:s.x,y:s.y,z:s.z,h:s.h,home:!!home});return true;}
+  heli.x=s.x;heli.y=s.y;heli.z=s.z;heli.h=s.h;heli.vx=heli.vy=heli.vz=0;heli.bridge=null;heli.down=false;heli.rope=0;heliSave();
+  sysChat(home?'The helicopter is back on its pad at North Shore.':'The helicopter is parked in front of you.'+(isOwlOwner()?' Walk up to it and press E to fly it.':' Only Hoot’s and Snowy’s owners can fly it.'));
+  return true;
+}
+/* 7 blocks ahead, nose towards you, skids on the ground */
+function spawnHeli(){return putHeli(vehicleSpot(7,true,[[0,0],[2,1],[2,-1],[-1.4,1],[-1.4,-1],[-5.6,0]],heliHits));}
+function despawnHeli(){return putHeli({x:HELI_HOME.x,y:HELI_HOME.y,z:HELI_HOME.z,h:HELI_HOME.h},true);}
+const VEHICLE_WORDS={jet:'jet',plane:'jet',aeroplane:'jet',airplane:'jet',heli:'heli',helicopter:'heli',chopper:'heli',copter:'heli'};
 function despawnDummy(all){
   if(!dummies.length){sysChat('There are no test dummies.');return false;}
   let best=null,bd=1e9;dummies.forEach(function(d){const dd=Math.hypot(d.x-P.x,d.z-P.z)+Math.abs(d.y-P.y)*0.01;if(dd<=bd+0.05){bd=dd;best=d;}});
