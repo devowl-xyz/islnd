@@ -18,7 +18,7 @@ function randomBytes(n) {
 function createHub(opts) {
 opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
-const W = 352, D = 352, H = 48;
+const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
 const MAX_BLOCK = 45; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
@@ -86,8 +86,11 @@ const PADDOCK = { x0: 190, x1: 210, z0: 184, z1: 200, G: 17 };
 const CAMP = { x0: 182, x1: 206, z0: 201, z1: 217, G: 17 };
 // The Sky Palace floating north-west of the treehouse (same numbers as public/index.html): the frame
 // is fixed and owl owners may decorate the great hall. It moves with the treehouse.
-const PAL = { x0: 0, x1: 28, z0: 56, z1: 84, y0: 22, y1: 47 };
-const PAL_HALL = { x0: 9, x1: 19, z0: 65, z1: 75, y0: 35, y1: 39 };
+const PAL = { x0: 0, x1: 28, z0: 56, z1: 84, y0: 54, y1: 76 };
+const PAL_HALL = { x0: 9, x1: 19, z0: 65, z1: 75, y0: 64, y1: 68 };
+// The treehouse's observation deck and its staircase (same numbers as public/index.html) are fixed.
+const OD_DECK = { x0: 29, x1: 37, z0: 65, z1: 73, y0: 14, y1: 43 };
+const OD_STAIRS = { x0: 32, x1: 34, z0: 74, z1: 98, y0: 14, y1: 43 };
 const PAL_PETS = ['goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
@@ -95,7 +98,7 @@ function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]
 const LAYOUTS = {};
 for (const name in SHIFTS) {
   const [tx, tz] = SHIFTS[name].th, [cx, cz] = SHIFTS[name].cot;
-  LAYOUTS[name] = { PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
+  LAYOUTS[name] = { OD: [shiftObj(OD_DECK, tx, tz), shiftObj(OD_STAIRS, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
 }
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
@@ -110,6 +113,7 @@ function thCell(x, y, z, L) {
   if (x >= AT.x0 && x <= AT.x1 && z >= AT.z0 && z <= AT.z1 && y >= AT.y0 && y <= AT.y1) return atInside(x, y, z) ? 'goldie' : 'base';
   const inB = (o) => x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && y >= o.y0 && y <= o.y1;
   if (inB(L.PAL)) return inB(L.PAL_HALL) ? 'shared' : 'base';
+  if (L.OD.some(inB)) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
   if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
