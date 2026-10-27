@@ -213,7 +213,8 @@ function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }
 /* the helicopter: where it is, who flies it, the rope, who has been snatched up, and its bridge */
 function num(v, lo, hi, d) { return typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
 function cleanPose(m, d) { return { x: num(m && m.x, -50, W + 50, d.x), y: num(m && m.y, 0, H + 40, d.y), z: num(m && m.z, -50, D + 50, d.z), h: num(m && m.h, -1e4, 1e4, d.h) }; }
-function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), bridge: h.bridge }; }
+function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), pets: h.pets.slice(), bridge: h.bridge }; }
+const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
 function heliNews(room, extra) { broadcast(room, Object.assign({ t: 'heli' }, heliState(room), extra)); }
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));
@@ -324,7 +325,8 @@ function handle(peer, msg) {
       peer.admin = false;
       const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null } };
       const hp = cleanPose(msg.heli, HELI_HOME);
-      r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null });
+      r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
+        pets: (msg.heli && Array.isArray(msg.heli.pets) ? msg.heli.pets : []).filter((id, k, a) => HELI_PETS.includes(id) && a.indexOf(id) === k).slice(0, 4) });
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.peers.set(peer.id, peer);
@@ -461,14 +463,24 @@ function handle(peer, msg) {
       heliNews(room, { act: 'grab', by: peer.id, peer: target.id });
       return;
     }
+    case 'heliGrabPet': {
+      // the pilot's rope snatches up a pet (any pet but the pilot's own), up to four at a time
+      if (!room) return;
+      const h = room.heli;
+      if (h.pilot !== peer.id || !h.down || h.rope < 2 || !HELI_PETS.includes(msg.pet) || h.pets.includes(msg.pet) || h.pets.length >= 4) return;
+      if (peer.skin && peer.skin.pet === msg.pet) return;
+      h.pets.push(msg.pet);
+      heliNews(room, { act: 'grabPet', by: peer.id, pet: msg.pet });
+      return;
+    }
     case 'heliRelease': {
       // only the pilot or the host (or an admin) lets people go
       if (!room) return;
       const h = room.heli;
       if (h.pilot !== peer.id && peer.id !== room.hostId && !peer.admin) return send(peer.ws, { t: 'heliNo', why: 'release' });
-      if (!h.captives.length) return;
-      const freed = h.captives.splice(0);
-      heliNews(room, { act: 'release', by: peer.id, freed });
+      if (!h.captives.length && !h.pets.length) return;
+      const freed = h.captives.splice(0), pets = h.pets.splice(0);
+      heliNews(room, { act: 'release', by: peer.id, freed, freedPets: pets });
       return;
     }
     case 'heliBridge': {
