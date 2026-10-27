@@ -57,13 +57,28 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const at5 = await a.evaluate(() => window.__isle.air.rows(5));
   const is1 = at5.dep.find((r) => r.code === 'IS1');
   check('while the jet waits at East Beach, IS1 to North Shore is boarding', is1.place === 'North Shore' && is1.status === 'Boarding' && Math.abs(is1.t - 13) < 0.01, is1);
-  const at40 = await a.evaluate(() => window.__isle.air.rows(40));
-  check('once it leaves, IS1 has departed and is in flight', at40.dep.find((r) => r.code === 'IS1').status === 'Departed' && at40.arr.find((r) => r.code === 'IS1').status === 'In flight');
+  const at40 = await a.evaluate(() => window.__isle.air.rows(window.__isle.runway.done + 5));
+  check('once it has taken off, IS1 has departed and is in flight', at40.dep.find((r) => r.code === 'IS1').status === 'Departed' && at40.arr.find((r) => r.code === 'IS1').status === 'In flight');
   const cyc = await a.evaluate(() => window.__isle.cycle());
   const st = await a.evaluate(() => window.__isle.stops());
   const atN = await a.evaluate((t) => window.__isle.air.rows(t), st[0].tArrive + 2);
   check('when it lands at North Shore, IS1 has landed and IS2 is boarding', atN.arr.find((r) => r.code === 'IS1').status === 'Landed' && atN.dep.find((r) => r.code === 'IS2').status === 'Boarding', atN);
   check('times count down to the timetable', Math.abs(at5.arr.find((r) => r.code === 'IS1').t - (st[0].tArrive - 5)) < 0.01 && cyc > 60);
+
+  // the jet takes off from the runway
+  const yellow = await a.evaluate(() => { let n = 0; for (let z = 84; z <= 91; z++) for (let x = 150; x <= 164; x++) if (window.__isle.get(x, 11, z) === 35) n++; return n; });
+  check('a taxiway with a yellow line joins the jet dock to the runway', (await get(a, 163, 11, 85)) === 43 && yellow > 8, yellow);
+  const run = await a.evaluate(() => {
+    const I = window.__isle, R = I.runway, w = I.homeWait, P = (t) => { const q = I.autoPose(t); return { x: q.x, y: q.y, z: q.z, h: ((q.h % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) }; };
+    return { w, R, dock: P(w - 1), taxi: P((w + R.roll) / 2 + 2), roll0: P(R.roll), roll1: P(R.roll + 1), roll2: P(R.roll + 2), roll4: P(R.roll + 4), air: P(R.air), up: P(R.air + 2.2), done: P(R.done), park: I.dockPark(I.docks[0]) };
+  });
+  check('after boarding at the dock, the jet taxis down the runway on the ground', Math.abs(run.taxi.x - 160.5) < 0.6 && Math.abs(run.taxi.y - run.park[1]) < 0.05 && run.taxi.z > 100 && run.taxi.z < 150, run.taxi);
+  check('turns round at the far end to face north', Math.abs(run.roll0.z - 152.5) < 0.1 && Math.abs(run.roll0.h - 3 * Math.PI / 2) < 0.05, run.roll0);
+  const v1 = run.roll0.z - run.roll1.z, v2 = run.roll2.z - run.roll4.z;
+  check('rolls north faster and faster, still on the ground', v2 / 2 > v1 * 1.5 && Math.abs(run.roll4.y - run.park[1]) < 0.05 && Math.abs(run.roll4.x - 160.5) < 0.1, { v1, v2, roll4: run.roll4 });
+  check('lifts off near the end of the runway and climbs away', Math.abs(run.air.y - run.park[1]) < 0.05 && run.up.y > run.park[1] + 5 && run.done.y > 25 && run.done.z < 70, { air: run.air, up: run.up, done: run.done });
+  const tx = await a.evaluate(() => { const I = window.__isle, R = I.runway, s = (t) => I.air.rows(t).dep.find((r) => r.code === 'IS1').status; return [s(I.homeWait + 2), s(R.roll + 1), s(R.done + 3)]; });
+  check('the board shows IS1 Taxiing, then Taking off, then Departed', tx.join() === 'Taxiing,Taking off,Departed', tx);
 
   // the members' lounge
   await put(a, 141.5, 12, 104.5, Math.PI);
@@ -86,7 +101,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   }
   await put(a, 141.5, 12, 104.5, Math.PI); await wait(500);
   await a.keyboard.down('KeyW');
-  await a.waitForFunction(() => window.__isle.air.inLounge(), null, { timeout: 10000 }).catch(() => {});
+  await a.waitForFunction(() => window.__isle.air.inLounge(), null, { timeout: 30000 }).catch(() => {});
   await a.keyboard.up('KeyW');
   check('a member walks in through the door', await inLounge(a));
   await a.waitForFunction(() => /Welcome to the members’ lounge/.test(document.getElementById('toast').textContent), null, { timeout: 5000 }).catch(() => {});

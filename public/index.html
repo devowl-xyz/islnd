@@ -404,6 +404,7 @@ const AIR={y:11,
   apron:{x0:132,x1:155,z0:92,z1:122,y0:1,y1:31},
   runway:{x0:156,x1:164,z0:90,z1:156,y0:1,y1:13},
   walk:{x0:140,x1:142,z0:87,z1:91,y0:1,y1:15},
+  taxi:{x0:150,x1:164,z0:84,z1:91,y0:1,y1:13},
   beach:{x0:126,x1:131,z0:92,z1:95,y0:11,y1:15},
   term:{x0:134,x1:150,z0:96,z1:112},
   tower:{x0:135,x1:139,z0:115,z1:119}};
@@ -411,8 +412,8 @@ const LOUNGE={x0:135,x1:149,z0:107,z1:111,y0:12,y1:16};
 const LOUNGE_ZONE={x0:135,x1:150,y0:12,y1:17,z0:107,z1:112};
 const LOUNGE_PETS=['hoot','snowy','biscuit','mochi','horse'];
 function inAirBox(x,y,z){
-  const k=['apron','runway','walk','beach'];
-  for(let n=0;n<4;n++){const o=AIR[k[n]];if(x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1&&y>=o.y0&&y<=o.y1)return true;}
+  const k=['apron','runway','walk','beach','taxi'];
+  for(let n=0;n<5;n++){const o=AIR[k[n]];if(x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1&&y>=o.y0&&y<=o.y1)return true;}
   return false;
 }
 function inLounge(x,y,z){const o=LOUNGE;return x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1&&y>=o.y0&&y<=o.y1;}
@@ -1107,6 +1108,12 @@ function buildAirport(){
     for(let z=o.z0;z<=o.z1;z+=4)for(let x=o.x0;x<=o.x1;x+=4)for(let yy=y-1;yy>=1;yy--){const j=(yy*D+z)*W+x;if(solidB(vox[j]))break;vox[j]=B.LOG;wl[j]=0;}
   };
   deck(A,function(x,z){return z===104&&x>T.x1?B.YELLOW:B.WHITE;},20);
+  /* the taxiway the jet takes from its dock to the runway, with a yellow line to follow */
+  const d0=DOCKS[0],px=d0.cx,pz=d0.cz,qx=RUNWAY_X,qz=R.z0+2.5;
+  deck(AIR.taxi,function(x,z){
+    const vx=qx-px,vz=qz-pz,u=Math.max(0,Math.min(1,((x+0.5-px)*vx+(z+0.5-pz)*vz)/(vx*vx+vz*vz)));
+    return Math.hypot(x+0.5-px-u*vx,z+0.5-pz-u*vz)<0.65?B.YELLOW:B.GREY;
+  },3);
   deck(R,function(x,z){
     const edge=x===R.x0||x===R.x1,end=z-R.z0<5||R.z1-z<5;
     if(edge)return z%8===0?B.LAMP:B.SNOWWHITE;
@@ -1171,7 +1178,11 @@ function boardRows(c){
     if(st.manual){ds=as='Private flight';}
     else if(st.called){ds=as='Delayed';}
     else if(st.at===i){ds='Boarding';}
-    else if(st.flying&&st.next===to){ds='Departed';as='In flight';}
+    else if(st.flying&&st.next===to){
+      const cc=((c%C)+C)%C;
+      ds=i===0&&cc>=JET_HOME_WAIT&&cc<JET_RUNWAY.done?(cc<JET_RUNWAY.roll?'Taxiing':'Taking off'):'Departed';
+      as='In flight';
+    }
     else if(st.at===to&&until(tArr)>C-30){as='Landed';}
     dep.push({code:'IS'+(i+1),place:DOCKS[to].name,from:DOCKS[i].name,t:until(tLeave),status:ds});
     arr.push({code:'IS'+(i+1),place:DOCKS[i].name,to:DOCKS[to].name,t:until(tArr),status:as});
@@ -1191,7 +1202,7 @@ function drawBoard(){
     col('Flight',x0+16,74,'#8fb3d9');col(isDep?'To':'From',x0+96,74,'#8fb3d9');col(isDep?'Leaves':'Due',x0+300,74,'#8fb3d9');col('Status',x0+385,74,'#8fb3d9');
     g.font='600 24px Barlow, system-ui, sans-serif';
     list.forEach(function(r,k){
-      const yy=112+k*44,cs=/Boarding|Landed/.test(r.status)?'#7ef58a':(/Delayed|Private/.test(r.status)?'#ff8a6a':(/flight|Departed/.test(r.status)?'#7fd0ff':'#e8eef6'));
+      const yy=112+k*44,cs=/Boarding|Landed/.test(r.status)?'#7ef58a':/Taxiing|Taking off/.test(r.status)?'#ffd34a':(/Delayed|Private/.test(r.status)?'#ff8a6a':(/flight|Departed/.test(r.status)?'#7fd0ff':'#e8eef6'));
       if(k%2===0){g.fillStyle='rgba(255,255,255,0.05)';g.fillRect(x0+8,yy-20,W2/2-16,40);}
       col(r.code,x0+16,yy,'#ffd34a');col(r.place,x0+96,yy,'#e8eef6');col(fmtLeg(r.t),x0+300,yy,'#e8eef6');col(r.status,x0+385,yy,cs);
     });
@@ -4071,6 +4082,8 @@ const JET_WAIT=14,JET_HOME_WAIT=18,JET_SPEED=18,JET_CRUISE=50;
 /* the way between docks, kept out over the sea and high over the hills */
 const JET_LEGS=[[[220,30]],[[335,110],[335,235],[290,345]],[[150,345],[95,315]],[[100,175]]];
 let JET_STOPS=[];
+/* when the tour's take-off from the runway starts its roll, leaves the ground and is done (seconds into the tour) */
+const JET_RUNWAY={roll:0,air:0,done:0},RUNWAY_X=160.5;
 function buildJetPath(){
   const k=[],stops=[];let t=0;
   const add=function(p,h,dt,extra){t+=dt;const o=Object.assign({t:t,p:p,h:h},extra||{});k.push(o);return o;};
@@ -4083,10 +4096,30 @@ function buildJetPath(){
     const wait=i===0?JET_HOME_WAIT:JET_WAIT;
     add(PA,A.out,wait,{hold:true});
     if(i>0)stops[stops.length-1].tLeave=t;
-    /* lift off facing out to sea and climb away */
-    add(HA,A.out,6,{hold:true});
-    let last=[PA[0]+Math.cos(A.out)*26,30,PA[2]+Math.sin(A.out)*26];
-    add(last,null,8);
+    let last;
+    if(i===0){
+      /* from home it takes off from the airport's runway: turn, taxi onto the runway's north end, taxi down
+         to the south end, turn round, roll north faster and faster, lift off and climb away over the sea */
+      const y0=PA[1],RX=RUNWAY_X,T1=[RX,y0,AIR.runway.z0+2.5],T2=[RX,y0,AIR.runway.z1-3.5],T3=[RX,y0,AIR.runway.z1-43],T4=[RX,y0+6,AIR.runway.z0+2],T5=[RX+6,28,AIR.runway.z0-30];
+      const h1=Math.atan2(T1[2]-PA[2],T1[0]-PA[0]);
+      add(PA,h1,2.5,{hold:true});
+      add(T1,h1,Math.max(3,dist(PA,T1)/6),{hold:true});
+      add(T1,Math.PI/2,3,{hold:true});
+      add(T2,Math.PI/2,dist(T1,T2)/8,{hold:true});
+      add(T2,-Math.PI/2,4,{hold:true,ground:true});
+      JET_RUNWAY.roll=t;
+      add(T3,-Math.PI/2,4.5);
+      JET_RUNWAY.air=t;
+      add(T4,-Math.PI/2,2.2);
+      add(T5,null,3.5);
+      JET_RUNWAY.done=t;
+      last=T5;
+    }else{
+      /* lift off facing out to sea and climb away */
+      add(HA,A.out,6,{hold:true});
+      last=[PA[0]+Math.cos(A.out)*26,30,PA[2]+Math.sin(A.out)*26];
+      add(last,null,8);
+    }
     JET_LEGS[i].forEach(function(w){const p=[w[0],JET_CRUISE,w[1]];add(p,null,Math.max(6,dist(last,p)/JET_SPEED));last=p;});
     /* come in from the sea, hover over the deck, turn to face out again and set down */
     const ap=[PB[0]+Math.cos(B.out)*40,32,PB[2]+Math.sin(B.out)*40];
@@ -4238,6 +4271,8 @@ function autoPose(c){
     const m0=(e.p[k]-a.p[k])/(e.t-a.t),m1=(f.p[k]-b.p[k])/(f.t-b.t);
     o[k]=hermite(b.p[k],e.p[k],(a.p[k]===b.p[k])?0:m0,(f.p[k]===e.p[k])?0:m1,u,dt);
   }
+  /* the take-off roll stays on the runway until it lifts off */
+  if(JK[((i%(JK.length-1))+(JK.length-1))%(JK.length-1)].ground)o[1]=b.p[1];
   const h=b.h+(e.h-b.h)*(u*u*(3-2*u));
   return{x:o[0],y:o[1],z:o[2],h:h};
 }
@@ -5735,7 +5770,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
@@ -5747,7 +5782,8 @@ function frame(now){
   requestAnimationFrame(frame);
   const rawDt=Math.min(0.5,Math.max(0,(now-last)/1000)),dt=Math.min(0.05,rawDt);last=now;clock+=dt;
   if(!ready){
-    processDirty(14);
+    /* nobody is playing while the island loads, so spend most of each frame building it */
+    processDirty(45);
     const left=nearDirty(),done=1-left/nearTotal;
     $('barfill').style.width=Math.round(done*100)+'%';
     playBtn.textContent='Raising the island '+Math.round(done*100)+'%';

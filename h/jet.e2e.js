@@ -44,6 +44,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const q = I.autoPose(t); top = Math.max(top, q.y);
       const near = Math.min(...I.docks.map((d) => { const k = I.dockPark(d); return Math.hypot(q.x - k[0], q.z - k[2]); }));
       if (near < 12) continue;
+      // taxiing and taking off on the airport's runway is meant to be on the ground
+      if (q.x > 148 && q.x < 168 && q.z > 80 && q.z < 158) continue;
       const x = Math.floor(q.x), z = Math.floor(q.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; }
       minClear = Math.min(minClear, q.y - g);
     }

@@ -81,7 +81,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     for (let t = 0; t < I.cycle(); t += 0.5) {
       const p = I.autoPose(t); maxX = Math.max(maxX, p.x); maxZ = Math.max(maxZ, p.z);
       const near = Math.min(...I.docks.map((d) => { const k = I.dockPark(d); return Math.hypot(p.x - k[0], p.z - k[2]); }));
-      if (near > 12) { const x = Math.floor(p.x), z = Math.floor(p.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; } minClear = Math.min(minClear, p.y - g); }
+      const runway = p.x > 148 && p.x < 168 && p.z > 80 && p.z < 158; // taxiing and taking off at the airport
+      if (near > 12 && !runway) { const x = Math.floor(p.x), z = Math.floor(p.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; } minClear = Math.min(minClear, p.y - g); }
     }
     return { maxX: Math.round(maxX), maxZ: Math.round(maxZ), minClear: Math.round(minClear) };
   });
