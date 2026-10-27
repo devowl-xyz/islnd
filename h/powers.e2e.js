@@ -57,10 +57,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(400);
   await a.keyboard.press('KeyQ');
   const t0 = Date.now();
-  await a.waitForFunction(() => { const s = window.__isle.fish.state(); return s && s.phase === 'bite'; }, null, { timeout: 15000 }).catch(() => {});
+  // reel in the moment it bites (the test browser draws slowly, so a key press could miss the bite)
+  await a.waitForFunction(() => { const I = window.__isle, s = I.fish.state(); if (s && s.phase === 'bite') { I.fish.cast(); return true; } return false; }, null, { timeout: 15000, polling: 'raf' }).catch(() => {});
   check('with Lucky Fin a fish bites almost at once', Date.now() - t0 < 5000, Date.now() - t0);
-  await a.keyboard.press('KeyQ'); await wait(300);
-  check('and each catch uses one', (await a.evaluate(() => window.__isle.power.luck())) === 4 && /Lucky Fin: 4 left/.test(await a.textContent('#toast')));
+  await wait(300);
+  check('and each catch uses one', (await a.evaluate(() => window.__isle.power.luck())) === 4 && /Lucky Fin: 4 left/.test(await a.textContent('#toast')), [await a.evaluate(() => window.__isle.power.luck()), await a.textContent('#toast'), await a.evaluate(() => window.__isle.fish.state())]);
   const rare = await a.evaluate(() => { const I = window.__isle; let n = 0, m = 0; for (let k = 0; k < 3000; k++) { if (I.fish.roll('east', true).r >= 2) n++; if (I.fish.roll('east', false).r >= 2) m++; } return { lucky: n, plain: m }; });
   check('rare fish are much more likely', rare.lucky > rare.plain * 2, rare);
   await a.keyboard.press('KeyG'); await wait(200);

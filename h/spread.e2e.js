@@ -64,7 +64,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const edges = await a.evaluate(() => {
     const I = window.__isle, T = I.th.TH, C = I.cot.COT;
-    const top = (x, z) => { for (let y = 47; y > 0; y--) { const b = I.get(x, y, z); if (b !== 0 && b !== 5 && b !== 6 && b !== 12) return y + 1; } return 0; };
+    // the ground only: skip logs, leaves, water and planks (the observation deck's staircase stands on the treehouse plot's west edge)
+    const top = (x, z) => { for (let y = 47; y > 0; y--) { const b = I.get(x, y, z); if (b !== 0 && b !== 5 && b !== 6 && b !== 7 && b !== 12) return y + 1; } return 0; };
     const line = (x0, z0, dx, dz, n) => { let w = 0; for (let k = 1; k < n; k++) w = Math.max(w, Math.abs(top(x0 + dx * k, z0 + dz * k) - top(x0 + dx * (k - 1), z0 + dz * (k - 1)))); return w; };
     return {
       treeWest: line(T.x0 - 10, T.cz, 1, 0, 11), treeNorth: line(T.cx, T.z0 - 10, 0, 1, 11), treeEast: line(T.x1 + 10, T.cz, -1, 0, 11),

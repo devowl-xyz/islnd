@@ -46,7 +46,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const C = await a.evaluate(() => { const C = window.__isle.cot.COT, T = window.__isle.th.TH; return { ox: C.x0 - 106, oz: C.z0 - 57, tx: T.cx, ty: T.PY + 9, tz: T.cz }; });
     return {
       camp: await said(189, 17, 207), paddock: await said(192, 18, 184), cottage: await said(121 + C.ox, 20, 61 + C.oz),
-      tree: await said(C.tx, C.ty, C.tz), den: await said(85, 10, 120), goldie: await said(80, 4, 150)
+      tree: await said(C.tx, C.ty, C.tz), den: await said(85, 10, 120), goldie: await said(50, 4, 226)
     };
   })();
   check('trying to change a fixed building names that building', /campsite/.test(msgs.camp) && /paddock/.test(msgs.paddock) && /cottage/.test(msgs.cottage) && /treehouse/.test(msgs.tree) && /den/.test(msgs.den) && /Goldie/.test(msgs.goldie), msgs);
@@ -57,7 +57,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     return {
       biscuit: g(128 + ox, 24, 63 + oz), mochi: g(128 + ox, 24, 73 + oz),
       hoot: g(T.cx - 6, T.PY + 1, T.cz - 5), snowy: g(T.cx + 6, T.PY + 1, T.cz - 5),
-      goldie: g(76, 5, 148), cinder: g(82, 3, 134), clover: g(197, 17, 186),
+      goldie: g(46, 5, 224), cinder: g(82, 3, 134), clover: g(197, 17, 186),
       front: [g(116 + ox, 19, 68 + oz), g(116 + ox, 20, 68 + oz)], rooms: [g(126 + ox, 24, 67 + oz), g(126 + ox, 25, 69 + oz)]
     };
   });
