@@ -32,7 +32,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.down('KeyW'); await wait(1500);
   const s0 = await P(a); await wait(1500); const s1 = await P(a); await a.keyboard.up('KeyW');
   const plain = Math.hypot(s1.x - s0.x, s1.z - s0.z);
-  await pose(a, 162.5, 6, 84.5, -Math.PI / 2); await wait(500);
+  await pose(a, 162.5, 6, 78.5, -Math.PI / 2); await wait(500); // open water, clear of the taxiway's stilts
   await a.keyboard.press('KeyT'); await wait(300);
   check('T: Goldie’s Bubble Dash', await a.evaluate(() => window.__isle.power.dash()) && /Bubble Dash/.test(await a.textContent('#toast')));
   await a.keyboard.down('KeyW'); await wait(1500);

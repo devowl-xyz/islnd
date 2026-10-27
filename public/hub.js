@@ -213,7 +213,10 @@ function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }
 /* the helicopter: where it is, who flies it, the rope, who has been snatched up, and its bridge */
 function num(v, lo, hi, d) { return typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
 function cleanPose(m, d) { return { x: num(m && m.x, -50, W + 50, d.x), y: num(m && m.y, 0, H + 40, d.y), z: num(m && m.z, -50, D + 50, d.z), h: num(m && m.h, -1e4, 1e4, d.h) }; }
-function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), pets: h.pets.slice(), bridge: h.bridge }; }
+function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), pets: h.pets.slice(), dummies: h.dummies.slice(), bridge: h.bridge }; }
+/* test dummies: spawned by the host and admins with /spawn, everyone sees the same ones */
+const DUMMY_MAX = 12;
+function dummyList(room) { return room.dummies.map((d) => ({ id: d.id, name: d.name, x: d.x, y: d.y, z: d.z, yaw: d.yaw })); }
 const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
 function heliNews(room, extra) { broadcast(room, Object.assign({ t: 'heli' }, heliState(room), extra)); }
 function send(ws, msg) {
@@ -325,14 +328,15 @@ function handle(peer, msg) {
       peer.admin = false;
       const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null } };
       const hp = cleanPose(msg.heli, HELI_HOME);
-      r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
+      r.dummies = []; r.dummySeq = 1;
+      r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], dummies: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
         pets: (msg.heli && Array.isArray(msg.heli.pets) ? msg.heli.pets : []).filter((id, k, a) => HELI_PETS.includes(id) && a.indexOf(id) === k).slice(0, 4) });
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r) });
       return;
     }
     case 'seed': {
@@ -355,7 +359,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r) });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r) });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -473,13 +477,44 @@ function handle(peer, msg) {
       heliNews(room, { act: 'grabPet', by: peer.id, pet: msg.pet });
       return;
     }
+    case 'heliGrabDummy': {
+      if (!room) return;
+      const h = room.heli, d = room.dummies.find((q) => q.id === msg.id);
+      if (h.pilot !== peer.id || !h.down || h.rope < 2 || !d || h.dummies.includes(d.id) || h.dummies.length >= 4) return;
+      h.dummies.push(d.id);
+      heliNews(room, { act: 'grabDummy', by: peer.id, dummy: d.id });
+      return;
+    }
+    case 'dummy': {
+      // /spawn, /despawn and /clear: the host and admins only
+      if (!room || (peer.id !== room.hostId && !peer.admin)) return;
+      if (msg.act === 'spawn') {
+        if (room.dummies.length >= DUMMY_MAX) return;
+        const p = cleanPose(msg, { x: 0, y: 20, z: 0, h: 0 });
+        const name = cleanName(msg.name).slice(0, 16), d = { id: room.dummySeq++, name: name === 'Player' && msg.name !== 'Player' ? 'Test Dummy' : name, x: p.x, y: p.y, z: p.z, yaw: num(msg.yaw, -1e4, 1e4, 0) };
+        room.dummies.push(d);
+        broadcast(room, { t: 'dummies', act: 'spawn', by: peer.id, byName: peer.name, name: d.name, dummies: dummyList(room) });
+      } else if (msg.act === 'remove' || msg.act === 'clear') {
+        const gone = msg.act === 'clear' ? room.dummies.splice(0) : room.dummies.filter((d) => d.id === msg.id);
+        if (!gone.length) return;
+        room.dummies = room.dummies.filter((d) => !gone.includes(d));
+        const ids = gone.map((d) => d.id), had = room.heli.dummies.length;
+        room.heli.dummies = room.heli.dummies.filter((id) => !ids.includes(id));
+        broadcast(room, { t: 'dummies', act: msg.act, by: peer.id, name: gone[0].name, dummies: dummyList(room) });
+        if (room.heli.dummies.length !== had) heliNews(room, { act: 'dummyGone' });
+      }
+      return;
+    }
     case 'heliRelease': {
       // only the pilot or the host (or an admin) lets people go
       if (!room) return;
       const h = room.heli;
       if (h.pilot !== peer.id && peer.id !== room.hostId && !peer.admin) return send(peer.ws, { t: 'heliNo', why: 'release' });
-      if (!h.captives.length && !h.pets.length) return;
-      const freed = h.captives.splice(0), pets = h.pets.splice(0);
+      if (!h.captives.length && !h.pets.length && !h.dummies.length) return;
+      const freed = h.captives.splice(0), pets = h.pets.splice(0), dm = h.dummies.splice(0);
+      // the dummies drop from the helicopter: remember where, for anyone who joins later
+      dm.forEach((id) => { const d = room.dummies.find((q) => q.id === id); if (d) { d.x = h.x; d.z = h.z; d.y = h.y - (h.rope > 2 ? h.rope : 0); } });
+      if (dm.length) broadcast(room, { t: 'dummies', act: 'drop', dummies: dummyList(room) });
       heliNews(room, { act: 'release', by: peer.id, freed, freedPets: pets });
       return;
     }
