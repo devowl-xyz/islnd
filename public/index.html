@@ -4718,7 +4718,8 @@ function heliLoad(){
     const s=JSON.parse(localStorage.getItem(HELI_KEY)||'null');
     if(s&&[s.x,s.y,s.z,s.h].every(isFinite)){heli.x=s.x;heli.y=s.y;heli.z=s.z;heli.h=s.h;}
     if(s&&s.bridge&&[s.bridge.x,s.bridge.y,s.bridge.z,s.bridge.h].every(isFinite))heli.bridge=s.bridge;
-    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return PET_IDS.indexOf(id)>=0;}):[];
+    /* (this runs before the pet list further down exists, so the names are spelled out here) */
+    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse'].indexOf(id)>=0;}):[];
   }catch(e){heli.pets=[];}
   heli.pilot=null;heli.seat=false;heli.rope=0;heli.down=false;heli.captives=[];heli.remote=null;heli.vx=heli.vy=heli.vz=0;
 }
