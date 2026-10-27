@@ -129,7 +129,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.sleep.wake());
   const fd = await a.evaluate(() => { const C = window.__isle.cot.COT; return [116 + C.x0 - 106, 19, 68 + C.z0 - 57]; });
   check('anyone can open a door in a house that can’t be changed', await a.evaluate((d) => window.__isle.door.toggle(d[0], d[1], d[2]), fd) && (await get(a, fd[0], fd[1], fd[2])) === DOOR_OPEN);
-  await wait(1500);
+  await wait(3000); // builds save 1.5 s after the last change
   const a2 = await open(null, ctx);
   check('and it stays open after a reload', (await get(a2, fd[0], fd[1], fd[2])) === DOOR_OPEN && (await get(a2, fd[0], 20, fd[2])) === DOOR_TOP_OPEN);
   await a2.close();

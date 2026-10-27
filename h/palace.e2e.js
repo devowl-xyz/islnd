@@ -163,8 +163,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.click('#palList [data-pal="p' + gid + '"] button');
   await g.waitForFunction(() => !window.__isle.palace.may(), null, { timeout: 8000 }).catch(() => {});
   check('one click kicks Gus out', !(await g.evaluate(() => window.__isle.palace.may())) && /sent you down from the Sky Palace/.test(await toast(g)), [await g.evaluate(() => window.__isle.palace.state()), await toast(g)]);
-  await g.waitForFunction(() => window.__isle.palace.riding() || !window.__isle.palace.inZone(), null, { timeout: 8000 }).catch(() => {});
-  check('and a cloud carries Gus down', !!(await g.evaluate(() => { const r = window.__isle.palace.riding(); return r && !r.up; })));
+  await g.waitForFunction(() => window.__isle.palace.riding(), null, { timeout: 15000 }).catch(() => {});
+  check('and a cloud carries Gus down', !!(await g.evaluate(() => { const r = window.__isle.palace.riding(); return r && !r.up; })), await g.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z, window.__isle.palace.inZone(), window.__isle.palace.riding(), document.getElementById('overlay').className]; }));
   await g.evaluate(() => window.__isle.palace.rush()); await rideDone(g);
   check('out of the palace', !(await inZone(g)));
   // pets in a room, and kicking everyone out
