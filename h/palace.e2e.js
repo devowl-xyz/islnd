@@ -44,21 +44,49 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('it floats far above the land, but close enough to see it clearly (the haze starts 55 blocks away)', C.FY >= 60 && C.FY + 1.6 - (below + 1) <= 55 && (await get(a, C.cx, C.FY - 14, C.cz)) === 0, { FY: C.FY, below });
   const lowest = await a.evaluate((C) => { const I = window.__isle; for (let y = C.y0; y <= C.FY; y++) for (let z = C.z0; z <= C.z1; z++) for (let x = C.x0; x <= C.x1; x++) if (I.get(x, y, z)) return y; return 99; }, C);
   check('and all of it stays above the jet’s flying height', lowest > 52, lowest);
-  // the observation deck on the treehouse
-  const OD = await a.evaluate(() => window.__isle.palace.od);
-  check('the treehouse has an observation deck above its roof', (await get(a, OD.x0 + 2, OD.y, OD.z0 + 2)) === 7 && (await get(a, OD.x0, OD.y + 2, OD.z0)) === 11 && OD.y >= (await a.evaluate(() => window.__isle.th.TH.PY)) + 16);
-  check('with a railing, a telescope and the cloud’s pad', (await get(a, OD.x0 + 2, OD.y + 1, OD.z0)) === 7 && (await get(a, OD.x0 + 1, OD.y + 2, OD.z0 + 1)) === 42 && (await get(a, OD.x0 + 4, OD.y, OD.z0 + 4)) === 37);
-  const foot = await a.evaluate((OD) => { const I = window.__isle; for (let z = OD.sz1; z >= OD.sz0; z--) for (let y = 1; y < OD.y; y++) if (I.get(OD.sx0 + 1, y, z) === 7 && I.get(OD.sx0 + 1, y + 1, z) === 0) return { z, y }; return null; }, OD);
-  check('and a long staircase up to it, reaching right down to the ground', (await get(a, OD.sx0 + 1, OD.y, OD.sz0)) === 7 && foot && (await a.evaluate(([f, x]) => { const I = window.__isle, b = I.get(x, f.y - 1, f.z + 1); return b !== 0 && b !== 12; }, [foot, OD.sx0 + 1])), foot);
-  check('the deck can’t be changed', !(await a.evaluate((OD) => window.__isle.setBlock(OD.x0 + 2, OD.y, OD.z0 + 2, 0), OD)) && /observation deck can’t be changed/.test(await toast(a)));
-  // anyone can climb up for the view
-  await put(a, OD.sx0 + 1.5, foot.y + 1, foot.z + 1.5, 0); await wait(400);
-  // every step is a little hop, and the test browser draws slowly, so this takes a while
-  await a.keyboard.down('ShiftLeft'); await a.keyboard.down('KeyW');
-  await a.waitForFunction((OD) => { const P = window.__isle.player; return P.y > OD.y + 0.9 && P.z < OD.z1 + 0.5; }, OD, { timeout: 240000 }).catch(() => {});
-  await a.keyboard.up('KeyW'); await a.keyboard.up('ShiftLeft');
-  const up = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z }; });
-  check('anyone can climb the stairs to the deck', up.y > OD.y + 0.5 && up.z < OD.z1 + 1, up);
+  // the observation tree on the treehouse
+  const OD = await a.evaluate(() => window.__isle.palace.od), TH = await a.evaluate(() => window.__isle.th.TH);
+  const LOG = 5, LEAVES = 6, PLANKS = 7, LAMP = 11, GRASS = 1;
+  check('a second trunk grows at the treehouse plot’s south-west corner, with a lantern on top', (await get(a, OD.cx, 30, OD.cz)) === LOG && (await get(a, OD.cx + 1, 20, OD.cz - 1)) === LOG && (await get(a, OD.cx, OD.y + 2, OD.cz)) === LAMP && OD.y >= TH.PY + 16);
+  const b0 = [TH.cx - 8, TH.PY - 1, TH.cz + 8], b1 = [OD.cx + 1, TH.PY + 2, OD.cz - 1], mid = b0.map((v, k) => Math.round(v + (b1[k] - v) * 0.5));
+  check('joined to the treehouse by its south-west branch', (await get(a, b0[0], b0[1], b0[2])) === LOG && (await get(a, mid[0], mid[1], mid[2])) === LOG, mid);
+  const cells = await a.evaluate((OD) => {
+    const I = window.__isle, sec = I.palace.odSector, G = I.th.TH.G, o = {};
+    for (let z = OD.cz - 4; z <= OD.cz + 4; z++) for (let x = OD.cx - 4; x <= OD.cx + 4; x++) {
+      const d = Math.max(Math.abs(x - OD.cx), Math.abs(z - OD.cz)), s = sec(x, z);
+      if (d === 2 && s === 0 && !o.first) o.first = [x, z, I.get(x, G, z), I.get(x, G + 16, z)];
+      if (d === 3 && s === 5 && !o.mid) o.mid = [x, z, I.get(x, G + 5, z), I.get(x, G + 6, z), I.get(x, G + 9, z)];
+      if (d === 4 && s === 5 && !o.hedge) o.hedge = [x, z, I.get(x, G + 6, z), I.get(x, G + 7, z)];
+      if (d === 2 && s === 7 && !o.hole) o.hole = [x, z, I.get(x, OD.y, z), I.get(x, G + 7 + 16, z)];
+    }
+    return o;
+  }, OD);
+  check('a spiral staircase winds round it, one block up a step, with headroom', cells.first && cells.first[2] === PLANKS && cells.first[3] === PLANKS && cells.mid && cells.mid[2] === PLANKS && cells.mid[3] === 0 && cells.mid[4] === 0, cells);
+  check('with a hedge of leaves on the outside', cells.hedge && cells.hedge[2] === LEAVES && cells.hedge[3] === LEAVES, cells.hedge);
+  check('up through an opening into a round deck in the leaves, just above the roof', cells.hole && cells.hole[2] === 0 && cells.hole[3] === PLANKS && (await get(a, OD.cx + 3, OD.y, OD.cz - 1)) === PLANKS && (await get(a, OD.cx + 5, OD.y + 1, OD.cz)) === PLANKS, cells.hole);
+  check('with lanterns on its posts, a telescope and the cloud’s pad', (await a.evaluate((OD) => { let n = 0; for (let z = OD.cz - 6; z <= OD.cz + 6; z++) for (let x = OD.cx - 6; x <= OD.cx + 6; x++) if (window.__isle.get(x, OD.y + 2, z) === 11) n++; return n; }, OD)) >= 6 && (await get(a, OD.cx - 2, OD.y + 2, OD.cz + 3)) === 42 && (await get(a, OD.cx + 2, OD.y, OD.cz + 2)) === 37);
+  check('it stands on a grassy mound that slopes down to the land', (await get(a, OD.cx + 4, TH.G - 1, OD.cz + 3)) === GRASS && (await a.evaluate(([x, z]) => { const I = window.__isle; let y = 30; while (y > 0 && I.get(x, y, z) === 0) y--; return y; }, [OD.cx - 7, OD.cz])) >= TH.G - 3);
+  check('the tree can’t be changed', !(await a.evaluate((OD) => window.__isle.setBlock(OD.cx + 3, OD.y, OD.cz - 1, 0), OD)) && /observation deck can’t be changed/.test(await toast(a)));
+  // anyone can climb up for the view: walk round the spiral, keeping the trunk on your left
+  await put(a, OD.cx + 4.8, TH.G, OD.cz + 4.2, 0); await wait(400);
+  await a.keyboard.down('KeyW');
+  const t0 = Date.now();
+  let up = null;
+  while (Date.now() - t0 < 300000) {
+    up = await a.evaluate((OD) => {
+      // head for the lane cells two steps further round (or for the bottom landing, from outside)
+      const I = window.__isle, P = I.player, sec = I.palace.odSector, x0 = Math.floor(P.x), z0 = Math.floor(P.z);
+      const d0 = Math.max(Math.abs(x0 - OD.cx), Math.abs(z0 - OD.cz)), ts = d0 >= 4 ? 0 : (sec(x0, z0) + 2) % 16;
+      let sx = 0, sz = 0, n = 0;
+      for (let z = OD.cz - 3; z <= OD.cz + 3; z++) for (let x = OD.cx - 3; x <= OD.cx + 3; x++) { const d = Math.max(Math.abs(x - OD.cx), Math.abs(z - OD.cz)); if (d >= 2 && sec(x, z) === ts) { sx += x + 0.5; sz += z + 0.5; n++; } }
+      P.yaw = Math.atan2(-(sx / n - P.x), -(sz / n - P.z));
+      return { x: P.x, y: P.y, z: P.z };
+    }, OD);
+    if (up.y > OD.y + 0.9) break;
+    await wait(120);
+  }
+  await a.keyboard.up('KeyW');
+  check('anyone can climb the spiral staircase to the deck', up.y > OD.y + 0.9, up);
   check('it is on the map', await a.evaluate(() => window.__isle.map.places().some((p) => p[0] === 'Sky Palace')));
   check('nobody can change the palace itself', !(await a.evaluate((C) => window.__isle.setBlock(C.cx - 6, C.FY + 1, C.cz, 0), C)) && /Sky Palace can’t be changed/.test(await toast(a)));
   check('and without an owl you can’t decorate the hall', !(await a.evaluate((C) => window.__isle.setBlock(C.cx - 3, C.FY, C.cz + 3, 8), C)) && /Only owl owners can decorate the Sky Palace/.test(await toast(a)));
@@ -67,7 +95,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('KeyP'); await wait(300);
   check('P without an owl or an invite says who may go up', !(await a.evaluate(() => window.__isle.palace.riding())) && /Only Hoot’s and Snowy’s owners/.test(await toast(a)));
   const pad = await a.evaluate(() => window.__isle.palace.pad());
-  await put(a, pad.x, pad.y, pad.z + 3, 0); await wait(500);
+  await put(a, pad.x, pad.y, pad.z - 2.5, Math.PI); await wait(500);
   await a.keyboard.down('KeyW');
   await a.waitForFunction(() => /Ask an owl owner to invite you/.test(document.getElementById('toast').textContent), null, { timeout: 10000 }).catch(() => {});
   await a.keyboard.up('KeyW');
@@ -86,7 +114,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Hoot's owner
   await a.evaluate(() => { const I = window.__isle, h = I.pets.home.hoot, P = I.player; P.x = h.x; P.y = h.y - 1; P.z = h.z; I.pets.adopt('hoot'); });
-  await put(a, pad.x, pad.y, pad.z + 3, 0); await wait(600);
+  await put(a, pad.x, pad.y, pad.z - 2.5, Math.PI); await wait(600);
   await a.keyboard.down('KeyW');
   await a.waitForFunction(() => window.__isle.palace.riding(), null, { timeout: 15000 }).catch(() => {});
   await a.keyboard.up('KeyW');
@@ -152,7 +180,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await g.waitForFunction(() => window.__isle.isReady(), null, { timeout: 120000 });
   check('the guest sees Goldie in the fountain', (await g.evaluate(() => window.__isle.palace.state().pets)).join() === 'goldie');
   await play(g); await wait(500);
-  await put(g, pad.x, pad.y, pad.z + 3);
+  await put(g, pad.x, pad.y, pad.z - 2.5, Math.PI);
   await g.keyboard.press('KeyP'); await wait(300);
   check('a guest who isn’t invited can’t go up', !(await g.evaluate(() => window.__isle.palace.riding())));
   // cheating: a guest can't invite themselves

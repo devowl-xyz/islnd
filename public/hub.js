@@ -88,9 +88,8 @@ const CAMP = { x0: 182, x1: 206, z0: 201, z1: 217, G: 17 };
 // is fixed and owl owners may decorate the great hall. It moves with the treehouse.
 const PAL = { x0: 0, x1: 28, z0: 56, z1: 84, y0: 54, y1: 76 };
 const PAL_HALL = { x0: 9, x1: 19, z0: 65, z1: 75, y0: 64, y1: 68 };
-// The treehouse's observation deck and its staircase (same numbers as public/index.html) are fixed.
-const OD_DECK = { x0: 29, x1: 37, z0: 65, z1: 73, y0: 14, y1: 43 };
-const OD_STAIRS = { x0: 32, x1: 34, z0: 74, z1: 98, y0: 14, y1: 43 };
+// The treehouse's observation tree, its spiral staircase and deck (same numbers as public/index.html) are fixed.
+const OD_TREE = { x0: 23, x1: 37, z0: 91, z1: 105, y0: 1, y1: 45 };
 const PAL_PETS = ['goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
 // East Beach Airport (same numbers as public/index.html): fixed, except the members' lounge, which the
 // owners of Hoot, Snowy, Biscuit, Mochi and Clover may decorate. It stays put in every layout.
@@ -109,7 +108,7 @@ function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]
 const LAYOUTS = {};
 for (const name in SHIFTS) {
   const [tx, tz] = SHIFTS[name].th, [cx, cz] = SHIFTS[name].cot;
-  LAYOUTS[name] = { OD: [shiftObj(OD_DECK, tx, tz), shiftObj(OD_STAIRS, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
+  LAYOUTS[name] = { OD: [shiftObj(OD_TREE, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
 }
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
@@ -527,11 +526,19 @@ function handle(peer, msg) {
       if (!Number.isInteger(msg.dock) || msg.dock < 0 || msg.dock >= JET_DOCKS) return;
       if (j.pilot !== null) return send(peer.ws, { t: 'callNo', why: 'pilot' });
       const now = Date.now(), boss = peer.id === room.hostId || peer.admin;
+      // a route of waypoints is air traffic control: only the host and admins may send one, and it can redirect a call
+      const atc = Array.isArray(msg.via);
+      if (atc && !boss) return send(peer.ws, { t: 'callNo', why: 'atc' });
       if (j.call && j.call.hold && !boss) return send(peer.ws, { t: 'callNo', why: 'held' });
-      if (j.call && !j.call.hold && now - j.call.at < 4000) return send(peer.ws, { t: 'callNo', why: 'busy' });
+      if (j.call && !j.call.hold && now - j.call.at < 4000 && !atc) return send(peer.ws, { t: 'callNo', why: 'busy' });
       const wait = typeof msg.wait === 'number' && isFinite(msg.wait) ? Math.max(0, Math.min(25, msg.wait)) : undefined;
       j.call = { dock: msg.dock, x: n(msg.x), y: n(msg.y), z: n(msg.z), h: n(msg.h), at: now, by: peer.id };
       if (wait !== undefined) j.call.wait = wait;
+      if (atc) {
+        j.call.atc = true;
+        j.call.via = msg.via.slice(0, 8).filter((w) => Array.isArray(w) && w.length === 2 && w.every((v) => typeof v === 'number' && isFinite(v)))
+          .map((w) => [Math.max(0, Math.min(W - 1, Math.round(w[0]))), Math.max(0, Math.min(D - 1, Math.round(w[1])))]);
+      }
       j.release = null;
       broadcast(room, Object.assign({ t: 'jetCall' }, j.call));
       return;

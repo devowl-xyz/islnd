@@ -78,6 +78,12 @@ body{margin:0;background:var(--night);color:var(--text);font:500 15px/1.45 var(-
 #map[hidden]{display:none}
 #map canvas{width:min(88vmin,704px);height:min(88vmin,704px);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.5);background:#1b4f86}
 #map p{margin:10px 0 0;color:#dfe8ef;font-size:14px}
+#atc{max-width:min(88vmin,704px);text-align:center}
+#atc p{margin:8px 0}
+#atcBtns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+#atcBtns button{padding:6px 10px;font-size:13px}
+#map.atc canvas{cursor:crosshair}
+body.atcmode #overlay,body.atcmode #bottom{display:none}
 .fishbook{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
 .fish{display:flex;align-items:center;gap:8px;font-size:12px;color:#9aa8b4}
 .fish i{flex:0 0 14px;height:9px;border-radius:50% 30% 30% 50%}
@@ -208,7 +214,8 @@ body.touch .desk{display:none}
     <div id="emotes" hidden role="toolbar" aria-label="Emotes"><button type="button" data-e="0">1 Wave</button><button type="button" data-e="1">2 Dance</button><button type="button" data-e="2">3 Sit</button><button type="button" data-e="3">4 Cheer</button><button type="button" data-e="4">5 Clap</button></div>
     <div id="gamehud" hidden role="status"></div>
     <div id="results" hidden role="status"></div>
-    <div id="map" hidden role="dialog" aria-label="Island map"><canvas id="mapCanvas" width="704" height="704"></canvas><p>Island map &middot; <b>M</b> or <b>Esc</b> to close</p></div>
+    <div id="map" hidden role="dialog" aria-label="Island map"><canvas id="mapCanvas" width="704" height="704"></canvas><p id="mapHint">Island map &middot; <b>M</b> or <b>Esc</b> to close</p>
+      <div id="atc" hidden><p id="atcMsg"></p><div id="atcBtns"></div></div></div>
     <div id="hearts" hidden aria-label="Hearts"></div>
     <div id="owlfx" hidden aria-hidden="true"></div>
     <div id="hurt" aria-hidden="true"></div>
@@ -387,11 +394,22 @@ const PAL={cx:14,cz:70,FY:64,R:11,x0:0,x1:28,z0:56,z1:84,y0:54,y1:76};
 const PAL_HALL={x0:9,x1:19,z0:65,z1:75,y0:64,y1:68};
 /* everyone who isn't invited is kept out of this box */
 const PAL_ZONE={x0:0,x1:29,y0:54,y1:77,z0:56,z1:85};
-/* the treehouse's observation deck: level with the top of the roof, above the leaves, at the north-west corner
-   looking out at the palace. A long staircase climbs to it from the ground along the west edge of the treehouse plot;
-   anyone can go up (it stays outside the owls' private part). */
-const OD={x0:29,x1:37,z0:65,z1:73,y:39,sx0:32,sx1:34,sz0:74,sz1:98};
-function inODBox(x,y,z){return y>=14&&y<=OD.y+4&&((x>=OD.x0&&x<=OD.x1&&z>=OD.z0&&z<=OD.z1)||(x>=OD.sx0&&x<=OD.sx1&&z>=OD.sz0&&z<=OD.sz1));}
+/* the treehouse's observation tree: the treehouse's own south-west branch grows out into a second trunk at the
+   corner of the plot, by the main stairs. A two-lane spiral staircase with a leafy railing winds up it to a round
+   deck in the leaves just above the roof, where the cloud to the Sky Palace leaves from. Anyone can climb it
+   (it stays outside the owls' private part). */
+const OD={cx:30,cz:98,x0:23,x1:37,z0:91,z1:105,y:41};
+const OD_A0=Math.PI/4,OD_SECT=16;
+function inODBox(x,y,z){return y>=1&&y<=OD.y+4&&x>=OD.x0&&x<=OD.x1&&z>=OD.z0&&z<=OD.z1;}
+/* which of the 16 steps round the trunk a cell is on, counting round from the entrance. The staircase is a square
+   spiral, two blocks wide: a flat 2x2 landing at each corner and three steps along each side, so every step is
+   one block up on both lanes. Cells further out count as the lane cell next to them. */
+function odSector(x,z){
+  const dx=Math.max(-3,Math.min(3,x-OD.cx)),dz=Math.max(-3,Math.min(3,z-OD.cz));
+  if(Math.abs(dx)>=2&&Math.abs(dz)>=2)return dx>0?(dz>0?0:12):(dz>0?4:8);
+  if(Math.abs(dz)<=1)return dx>0?14+dz:6-dz;
+  return dz>0?2-dx:10+dx;
+}
 function inPalBox(x,y,z){return x>=PAL.x0&&x<=PAL.x1&&z>=PAL.z0&&z<=PAL.z1&&y>=PAL.y0&&y<=PAL.y1;}
 function inPalHall(x,y,z){const h=PAL_HALL;return x>=h.x0&&x<=h.x1&&z>=h.z0&&z<=h.z1&&y>=h.y0&&y<=h.y1;}
 /* ---------- Goldie's house: a glass dome on marble stilts on the sea bed at x 50, z 226, west of West Bay (hub.js has the same numbers) ---------- */
@@ -1210,10 +1228,10 @@ function drawBoard(){
   half(0,'Departures',rows.dep,true);half(W2/2,'Arrivals',rows.arr,false);
   g.fillStyle='#24476e';g.fillRect(W2/2-1,12,2,H2-60);
   g.font='600 20px Barlow, system-ui, sans-serif';
-  const st=rows.st,msg=st.manual?'The jet is on a private flight.':(st.called?'The jet has been called away. The tour will carry on after.':(st.at===0?'Now boarding at the East Beach jet dock, just outside.':'Island Shuttle: one jet, every jet stop, all day.'));
+  const st=rows.st,msg=st.manual?'The jet is on a private flight.':(st.called?(jet.call&&jet.call.via&&jet.call.via.length?'Air traffic control has the jet on a special route to '+DOCKS[jet.call.dock].name+'.':'The jet has been called away. The tour will carry on after.'):(st.at===0?'Now boarding at the East Beach jet dock, just outside.':'Island Shuttle: one jet, every jet stop, all day.'));
   col(msg,W2/2,H2-26,'#ffd34a','center');
   airFx.tex.needsUpdate=true;
-  airFx.text=rows;
+  rows.msg=msg;airFx.text=rows;
 }
 function airFxTick(dt){
   if(!ready)return;
@@ -1232,32 +1250,81 @@ function airFxTick(dt){
   if(airFx.t<1)return;
   airFx.t=0;drawBoard();
 }
-/* the observation deck: a plank deck on log posts with a railing, lamps, a telescope and the cloud's landing pad,
-   and a three-wide staircase climbing north along the west side of the treehouse plot */
+/* the observation tree: a grassy mound, a 3x3 trunk joined to the treehouse by its south-west branch, a spiral
+   staircase (two lanes, one block up a step, a hedge of leaves on the outside), and a round deck at the top with a
+   plank railing on log posts, lanterns, a leafy rim, a telescope and the cloud's landing pad */
 function buildLookout(){
-  const G=TH.G,top=OD.y;
+  const G=TH.G,DY=OD.y,cx=OD.cx,cz=OD.cz;
   const S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=0;};
-  const post=function(x,z,y1){for(let y=y1;y>0;y--){const b=vox[(y*D+z)*W+x];if(b!==0&&b!==B.WATER&&b!==B.LEAVES&&y<y1)break;S(x,y,z,B.LOG);}};
-  /* one block up a step, from the plot's south edge at ground level to the deck */
-  for(let z=OD.sz0;z<=OD.sz1;z++){
-    const y=top-(z-OD.sz0);
-    for(let x=OD.sx0;x<=OD.sx1;x++){S(x,y,z,B.PLANKS);for(let yy=y+1;yy<=y+4;yy++)S(x,yy,z,0);}
-    if((z-OD.sz0)%3===0&&y>G){post(OD.sx0,z,y-1);post(OD.sx1,z,y-1);}
+  const g=function(x,y,z){return vox[(y*D+z)*W+x];};
+  const cheb=function(x,z){return Math.max(Math.abs(x-cx),Math.abs(z-cz));};
+  /* the mound: flat grass at the plot's level, earth down to the ground or sea bed, open air above */
+  for(let z=cz-6;z<=cz+6;z++)for(let x=cx-6;x<=cx+6;x++){
+    if(Math.hypot(x-cx,z-cz)>5.6)continue;
+    for(let y=G-2;y>0;y--){const b=g(x,y,z);if(b!==0&&b!==B.WATER&&b!==B.LEAVES&&b!==B.LOG)break;S(x,y,z,B.DIRT);}
+    S(x,G-1,z,B.GRASS);
+    for(let y=G;y<=DY+4;y++)S(x,y,z,0);
   }
-  for(let z=OD.z0;z<=OD.z1;z++)for(let x=OD.x0;x<=OD.x1;x++){
-    for(let y=top+1;y<=top+4;y++)S(x,y,z,0);
-    const edge=x===OD.x0||x===OD.x1||z===OD.z0||z===OD.z1;
-    S(x,top,z,edge?B.LOG:B.PLANKS);
-    const gap=z===OD.z1&&x>=OD.sx0&&x<=OD.sx1;
-    if(edge&&!gap)S(x,top+1,z,B.PLANKS);
+  /* ease the mound down to the land round it, so you can walk up to the stairs */
+  for(let z=cz-10;z<=cz+10;z++)for(let x=cx-10;x<=cx+10;x++){
+    const r=Math.hypot(x-cx,z-cz);if(r<=5.6||r>10)continue;
+    if(x<0||z<0||x>=W||z>=D)continue;
+    const want=G-1-Math.floor((r-5.6)/1.3);
+    let top=G+6;while(top>0&&(g(x,top,z)===0||g(x,top,z)===B.WATER||g(x,top,z)===B.LEAVES||g(x,top,z)===B.LOG))top--;
+    if(top>=want)continue;
+    for(let y=top+1;y<want;y++)S(x,y,z,B.DIRT);
+    S(x,want,z,B.GRASS);
   }
-  [[OD.x0,OD.z0],[OD.x1,OD.z0],[OD.x0,OD.z1],[OD.x1,OD.z1]].forEach(function(c){post(c[0],c[1],top-1);S(c[0],top+1,c[1],B.LOG);S(c[0],top+2,c[1],B.LAMP);});
-  post(OD.x0+4,OD.z0,top-1);post(OD.x0,OD.z0+4,top-1);
-  /* a telescope pointing at the palace */
-  S(OD.x0+1,top+1,OD.z0+1,B.GREY);S(OD.x0+1,top+2,OD.z0+1,B.BLACK);
-  /* the cloud's pad in the middle */
-  const px=OD.x0+4,pz=OD.z0+4;
-  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)S(px+dx,top,pz+dz,dx===0&&dz===0?B.CYAN:B.GOLD);
+  /* the trunk, up through the deck to a lantern */
+  for(let y=1;y<=DY+1;y++)for(let z=cz-1;z<=cz+1;z++)for(let x=cx-1;x<=cx+1;x++){if(y<G-1&&g(x,y,z)!==0&&g(x,y,z)!==B.WATER)continue;S(x,y,z,B.LOG);}
+  S(cx,DY+2,cz,B.LAMP);
+  /* roots */
+  [[-2,0],[2,0],[0,-2],[0,2]].forEach(function(r){S(cx+r[0],G-1,cz+r[1],B.LOG);});
+  /* the treehouse's south-west branch reaches over and joins the trunk */
+  const b0=[TH.cx-8,TH.PY-1,TH.cz+8],b1=[cx+1,TH.PY+2,cz-1];
+  for(let k=0;k<=12;k++){const u=k/12;S(Math.round(b0[0]+(b1[0]-b0[0])*u),Math.round(b0[1]+(b1[1]-b0[1])*u),Math.round(b0[2]+(b1[2]-b0[2])*u),B.LOG);}
+  /* the spiral: steps on the two lanes round the trunk, with headroom, and a leaf hedge outside */
+  const rise=DY-G;
+  for(let z=cz-4;z<=cz+4;z++)for(let x=cx-4;x<=cx+4;x++){
+    const d=cheb(x,z);if(d<2)continue;
+    const s=odSector(x,z);
+    for(let n=0;G+s+OD_SECT*n<DY;n++){
+      const y=G+s+OD_SECT*n;
+      if(d<=3){S(x,y,z,B.PLANKS);for(let yy=y+1;yy<=Math.min(y+4,DY-1);yy++)if(g(x,yy,z)!==B.PLANKS)S(x,yy,z,0);}
+      else if(!(n===0&&s<2)){S(x,y+1,z,B.LEAVES);S(x,y+2,z,B.LEAVES);}
+    }
+  }
+  /* the deck, with a hole over the last steps so you can climb up through it */
+  for(let z=cz-6;z<=cz+6;z++)for(let x=cx-6;x<=cx+6;x++){
+    const r=Math.hypot(x-cx,z-cz),d=cheb(x,z);
+    if(r>5.4||d<2)continue;
+    const s=odSector(x,z),last=G+s+OD_SECT>=DY-4&&G+s+OD_SECT<DY;
+    if(d<=3&&last)continue;
+    S(x,DY,z,r>4.4?B.LOG:B.PLANKS);
+    for(let y=DY+1;y<=DY+4;y++)S(x,y,z,0);
+    if(r>4.4)S(x,DY+1,z,B.PLANKS);
+  }
+  /* log posts with lanterns round the railing */
+  for(let k=0;k<8;k++){
+    const a=k/8*Math.PI*2+Math.PI/8,x=Math.round(cx+Math.cos(a)*4.9),z=Math.round(cz+Math.sin(a)*4.9);
+    if(g(x,DY,z)===0)continue;
+    S(x,DY+1,z,B.LOG);S(x,DY+2,z,B.LAMP);
+  }
+  /* a leafy rim under the deck and round its edge, like the top of a tree */
+  for(let y=DY-4;y<=DY;y++)for(let z=cz-7;z<=cz+7;z++)for(let x=cx-7;x<=cx+7;x++){
+    const r=Math.hypot(x-cx,z-cz);
+    if(r<5.5||r>7.2-(DY-y)*0.25||g(x,y,z)!==0)continue;
+    if(ihash(x-SHIFT.th[0]+y*13,z-SHIFT.th[1],61)<0.75)S(x,y,z,B.LEAVES);
+  }
+  for(let y=G+6;y<DY-5;y++)for(let z=cz-6;z<=cz+6;z++)for(let x=cx-6;x<=cx+6;x++){
+    const r=Math.hypot(x-cx,z-cz);
+    if(r<4.8||r>6.3||g(x,y,z)!==0)continue;
+    if(ihash(x-SHIFT.th[0]+y*7,z-SHIFT.th[1],63)<0.22)S(x,y,z,B.LEAVES);
+  }
+  /* a telescope on the deck (clear of the stairwell), and the cloud's pad */
+  const tz=cz+3,tx=cx-2;S(tx,DY+1,tz,B.GREY);S(tx,DY+2,tz,B.BLACK);
+  const px=cx+2,pz=cz+2;
+  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)if(cheb(px+dx,pz+dz)>=2)S(px+dx,DY,pz+dz,dx===0&&dz===0?B.CYAN:B.GOLD);
 }
 /* the Sky Palace: a marble hall with a stepped blue roof, four towers and a glass railing,
    on a floating island ringed with clouds. Inside: Hoot's and Snowy's thrones, a fountain and cushions for visiting pets. */
@@ -1605,10 +1672,10 @@ function palMay(){return isOwlOwner()||palGuest();}
 function palWhere(){return LAYOUT==='classic'?'over the sea west of the treehouse':'north-west of the treehouse';}
 let palInside=false,padOn=false,palKickT=-1e9;
 /* the cloud on the observation deck, and where it sets you down */
-function palPad(){return{x:OD.x0+4.5,y:OD.y+1,z:OD.z0+4.5};}
+function palPad(){return{x:OD.cx+2.5,y:OD.y+1,z:OD.cz+2.5};}
 function palPadTop(){return{x:PAL.cx+0.5,y:PAL.FY,z:PAL.cz+9.5};}
 function palArrive(){return{x:PAL.cx+0.5,y:PAL.FY,z:PAL.cz+7.5,yaw:0};}
-function palLand(){const g=palPad();return{x:g.x,y:g.y,z:g.z+2.2,yaw:Math.PI};}
+function palLand(){return{x:OD.cx+3.5,y:OD.y+1,z:OD.cz-0.5,yaw:-Math.PI/2};}
 function startCloud(up,say){
   if(jet.seat||P.sleep)return false;
   if(up&&!palMay()){toast('Only Hoot\u2019s and Snowy\u2019s owners and the guests they invite can go up to the Sky Palace.');return false;}
@@ -2953,6 +3020,7 @@ resetBtn.addEventListener('click',function(){
 });
 
 window.addEventListener('keydown',function(e){
+  if(atcOn&&(e.code==='Escape'||e.code==='KeyM')){e.preventDefault();closeATC();return;}
   if(!playing){return;}
   if(chatOpen){
     if(e.code==='Enter'){e.preventDefault();sendChat();}
@@ -3550,7 +3618,7 @@ function loadOwnIsland(){
 
 function roleText(){return net.host?'Host':(net.admin?'Admin':'Builder, meadow only');}
 function renderRoom(){
-  renderPets();
+  renderPets();renderPlay();
   const on=inRoom();
   $('netIdle').hidden=on;$('netRoom').hidden=!on;
   resetBtn.hidden=on;
@@ -3807,7 +3875,7 @@ function onNet(m){
     case 'jet':if(jet.pilot===m.id&&m.id!==net.you)jet.remote={x:m.x,y:m.y,z:m.z,h:m.h,p:m.p,r:m.r,s:m.s};break;
     case 'jetRelease':jetRelease(m);break;
     case 'jetCall':if(m.dock>=0&&m.dock<DOCKS.length)onJetCall(m);break;
-    case 'callNo':toast(m.why==='pilot'?'Someone is flying the jet right now.':'The jet was only just called. Try again in a moment.');break;
+    case 'callNo':toast(m.why==='pilot'?'Someone is flying the jet right now.':m.why==='atc'?'Only the host and admins can be air traffic control.':m.why==='held'?'The host is holding the jet. Only the host or an admin can send it on.':'The jet was only just called. Try again in a moment.');break;
     case 'boardNo':toast(m.why==='full'?'The jet is full.':'Only the host or an admin can fly the jet.');break;
     case 'pos':{const p=net.peers.get(m.id);if(p)p.tgt={x:m.x,y:m.y,z:m.z,yaw:m.yaw,pitch:m.pitch,rd:!!m.rd,sl:!!m.sl,lf:!!m.lf,fr:!!m.fr,gd:!!m.gd,fb:!!m.fb,em:m.em|0,es:m.es|0,pk:m.pk|0,pi:m.pi|0,fx:+m.fx||0,fy:+m.fy||0,fz:+m.fz||0,cl:!!m.cl};break;}
     case 'closed':if(inRoom())leftRoom(m.reason||null);break;
@@ -4049,6 +4117,7 @@ function initSkinUI(){
   $('skinDot').style.background=skinSwatch(mySkin);
   $('openSkin').addEventListener('click',function(){openSkin(true);});
   $('openMap').addEventListener('click',function(){setPlaying(true);toggleMap(true);});
+  $('mapCanvas').addEventListener('click',atcClick);
   (document.querySelectorAll?Array.from(document.querySelectorAll('#emotes button')):[]).forEach(function(b){b.addEventListener('pointerdown',function(ev){ev.preventDefault();doEmote(+b.dataset.e);});});
   renderPlay();
   renderFishBook();
@@ -4100,7 +4169,7 @@ function buildJetPath(){
     if(i===0){
       /* from home it takes off from the airport's runway: turn, taxi onto the runway's north end, taxi down
          to the south end, turn round, roll north faster and faster, lift off and climb away over the sea */
-      const y0=PA[1],RX=RUNWAY_X,T1=[RX,y0,AIR.runway.z0+2.5],T2=[RX,y0,AIR.runway.z1-3.5],T3=[RX,y0,AIR.runway.z1-43],T4=[RX,y0+6,AIR.runway.z0+2],T5=[RX+6,28,AIR.runway.z0-30];
+      const y0=PA[1],RX=RUNWAY_X,T1=[RX,y0,AIR.runway.z0+2.5],T2=[RX,y0,AIR.runway.z1-3.5],T3=[RX,y0,AIR.runway.z1-43],T4=[RX,y0+6,AIR.runway.z0+2],T5=[RX+6,36,AIR.runway.z0-28];
       const h1=Math.atan2(T1[2]-PA[2],T1[0]-PA[0]);
       add(PA,h1,2.5,{hold:true});
       add(T1,h1,Math.max(3,dist(PA,T1)/6),{hold:true});
@@ -4111,7 +4180,7 @@ function buildJetPath(){
       add(T3,-Math.PI/2,4.5);
       JET_RUNWAY.air=t;
       add(T4,-Math.PI/2,2.2);
-      add(T5,null,3.5);
+      add(T5,null,4);
       JET_RUNWAY.done=t;
       last=T5;
     }else{
@@ -4161,6 +4230,9 @@ function jetStatus(c){
    back to East Beach and picks up its tour where the schedule is. Everything follows from when and
    where it was called, so in a room everyone sees the same flight. */
 const CALL_WAIT=25;
+/* air traffic control: the host and admins (or you, on your own) can route the jet through up to 8 waypoints,
+   picked on the map, before it lands at a dock. Waypoints are flown at this height: over the hills, under the palace. */
+const ATC_ALT=46,ATC_MAX=8;
 function buildCallPlan(c){
   const k=[],D=DOCKS[c.dock],PB=dockPark(D),HB=[PB[0],PB[1]+7,PB[2]],F=[c.x,c.y,c.z];
   let t=c.t0;
@@ -4174,7 +4246,9 @@ function buildCallPlan(c){
   };
   k.push({t:t,p:F,h:c.h,hold:true});
   const flat=Math.hypot(F[0]-PB[0],F[2]-PB[2]);
-  if(!(flat<1&&Math.abs(F[1]-PB[1])<0.5)){
+  /* air traffic control can send it round a route of waypoints first */
+  const via=Array.isArray(c.via)?c.via:[];
+  if(via.length||!(flat<1&&Math.abs(F[1]-PB[1])<0.5)){
     let last=F;
     /* sitting on a deck: lift off, then climb away out over the sea */
     if(F[1]<SEA+6){
@@ -4182,7 +4256,8 @@ function buildCallPlan(c){
       let from=null,fd=4;DOCKS.forEach(function(d){const k2=dockPark(d),dd=Math.hypot(F[0]-k2[0],F[2]-k2[2]);if(dd<fd){fd=dd;from=d;}});
       if(from&&from!==D){const o=[L[0]+Math.cos(from.out)*26,34,L[2]+Math.sin(from.out)*26];add(o,null,8);last=o;}
     }
-    if(flat>30){
+    via.forEach(function(w){const p=[w[0],ATC_ALT,w[1]];last=cruise(last,p);add(p,null,Math.max(4,dist(last,p)/JET_SPEED));last=p;});
+    if(flat>30||via.length){
       const A=[PB[0]+Math.cos(D.out)*40,32,PB[2]+Math.sin(D.out)*40];
       last=cruise(last,A);
       add(A,null,Math.max(6,dist(last,A)/JET_SPEED));last=A;
@@ -4241,10 +4316,28 @@ function callJet(i){
   toast('The jet is on its way to '+DOCKS[i].name+'. It will wait '+CALL_WAIT+' s for you.');
   return true;
 }
+/* a route from air traffic control: up to 8 [x, z] waypoints inside the world */
+function cleanVia(v){
+  if(!Array.isArray(v))return[];
+  return v.slice(0,ATC_MAX).filter(function(w){return Array.isArray(w)&&isFinite(w[0])&&isFinite(w[1]);}).map(function(w){return[Math.max(0,Math.min(W-1,Math.round(+w[0]))),Math.max(0,Math.min(D-1,Math.round(+w[1])))];});
+}
+/* air traffic control sends the jet round its route to a dock */
+function atcSend(i,route){
+  if(!atcMay()){toast('Only the host and admins can be air traffic control.');return false;}
+  if(jet.pilot!==null){toast('Tower: someone is flying the jet, so it can’t be routed right now.');return false;}
+  const via=cleanVia(route===undefined?atcRoute:route),q=jet.pose;
+  if(inRoom())netSend({t:'call',dock:i,x:q.x,y:q.y,z:q.z,h:q.h,via:via});
+  else{setCall({dock:i,x:q.x,y:q.y,z:q.z,h:q.h,t0:nowS(),via:via});toast(atcText(via.length,i,true));}
+  atcRoute=[];if(mapOpen)drawMap();atcPanel();
+  return true;
+}
+function atcText(n,i,me){return'Tower: '+(me?'you cleared':'air traffic control cleared')+' the jet '+(n?'through '+n+' waypoint'+(n===1?'':'s')+' ':'')+'to land at '+DOCKS[i].name+'.';}
 function onJetCall(m){
   jet.remote=null;
-  setCall({dock:m.dock,x:m.x,y:m.y,z:m.z,h:m.h,t0:m.at/1000,hold:!!m.hold,wait:m.wait});
+  const via=cleanVia(m.via);
+  setCall({dock:m.dock,x:m.x,y:m.y,z:m.z,h:m.h,t0:m.at/1000,hold:!!m.hold,wait:m.wait,via:via});
   if(m.hold){toast('The jet will wait at '+DOCKS[m.dock].name+' until the host sends it on.');return;}
+  if(m.atc){toast(atcText(via.length,m.dock,m.by===net.you));atcPanel();return;}
   toast((m.by===net.you?'The jet is on its way to ':'The jet has been called to ')+DOCKS[m.dock].name+'.');
 }
 function jetStatusText(st){
@@ -4647,7 +4740,7 @@ function jetFromRoom(j){
   jetReset();
   if(!j)return;
   if(j.release)jet.rel={x:j.release.x,y:j.release.y,z:j.release.z,h:j.release.h,t0:j.release.at/1000};
-  if(j.call)setCall({dock:j.call.dock,x:j.call.x,y:j.call.y,z:j.call.z,h:j.call.h,t0:j.call.at/1000,hold:!!j.call.hold,wait:j.call.wait});
+  if(j.call)setCall({dock:j.call.dock,x:j.call.x,y:j.call.y,z:j.call.z,h:j.call.h,t0:j.call.at/1000,hold:!!j.call.hold,wait:j.call.wait,via:cleanVia(j.call.via)});
   jet.pilot=j.pilot===undefined?null:j.pilot;jet.pass=j.pass||[];
   if(j.last&&jet.pilot!==null){jet.remote=j.last;Object.assign(jet.pose,j.last);}
 }
@@ -5115,6 +5208,7 @@ function renderPlay(){
   const btn=function(t,f){const b=document.createElement('button');b.type='button';b.className='ghost';b.textContent=t;b.addEventListener('click',f);el.appendChild(b);};
   if(!inRoom()||net.host)btn(race?'Racing…':(inRoom()?'Start a race for everyone':'Race to the campsite')+(raceBest&&!inRoom()?' (best '+fmtTime(raceBest)+')':''),function(){if(!race)raceButton();});
   if(inRoom()&&net.host)btn(tagState?'Stop tag':'Start tag (2 min)',function(){if(tagState)tagStop();else tagStart();});
+  if(atcMay())btn('Air traffic control: route the jet',openATC);
   if(!inRoom()||net.host||net.admin){
     if(jet.call&&jet.call.hold)btn('Send the jet on from '+DOCKS[jet.call.dock].name,function(){releaseJet();renderPlay();});
     else{const st=jetStatus(nowS());if(st.at!==undefined&&jet.pilot===null)btn('Hold the jet at '+DOCKS[st.at].name,function(){holdJet();renderPlay();});}
@@ -5271,8 +5365,45 @@ function mapBase(){
   c.putImageData(img,0,0);
   return cv;
 }
+/* ---------- air traffic control on the map ----------
+   The host and admins (anyone, on your own) open it from the pause card: click the map to add waypoints,
+   then pick the dock the jet should land at. Everyone sees the jet's route on the map. */
+let atcOn=false,atcRoute=[];
+function atcMay(){return!inRoom()||net.host||net.admin;}
+function openATC(){
+  if(!atcMay()){toast('Only the host and admins can be air traffic control.');return false;}
+  if(document.pointerLockElement&&document.exitPointerLock)document.exitPointerLock();
+  atcOn=true;atcRoute=[];toggleMap(true);atcPanel();
+  return true;
+}
+function closeATC(){atcOn=false;atcRoute=[];toggleMap(false);}
+function atcPanel(){
+  const el=$('atc'),btns=$('atcBtns'),m=$('map');if(!el||!btns||!btns.appendChild)return;
+  el.hidden=!atcOn;if(m&&m.classList)m.classList.toggle('atc',atcOn);
+  /* the map sits under the pause card: while air traffic control is open, the pause card steps aside */
+  if(document.body&&document.body.classList)document.body.classList.toggle('atcmode',atcOn);
+  const hint=$('mapHint');if(hint)hint.hidden=atcOn;
+  if(!atcOn)return;
+  const st=jetStatus(nowS()),cur=jet.call&&jet.call.via&&jet.call.via.length&&nowS()<(callPlan()||{}).tLand?jet.call.via.length:0;
+  $('atcMsg').textContent='Air traffic control. '+(jet.pilot!==null?'Someone is flying the jet, so it can’t be routed right now.':(atcRoute.length?atcRoute.length+' waypoint'+(atcRoute.length===1?'':'s')+' picked (up to '+ATC_MAX+'). Now choose where the jet lands.':'Click the map to add waypoints for the jet (up to '+ATC_MAX+'), then choose where it lands.'))+(cur?' The jet is flying a route right now.':' Jet: '+(jetStatusText(st)||'on a private flight')+'.');
+  btns.innerHTML='';
+  const mk=function(t,f,cls){const b=document.createElement('button');b.type='button';b.className='ghost'+(cls?' '+cls:'');b.textContent=t;b.addEventListener('click',f);btns.appendChild(b);return b;};
+  DOCKS.forEach(function(d,i){mk('Land at '+d.name,function(){atcSend(i);});});
+  if(atcRoute.length){mk('Undo',function(){atcRoute.pop();drawMap();atcPanel();});mk('Clear route',function(){atcRoute=[];drawMap();atcPanel();});}
+  mk('Close',closeATC,'warn');
+}
+function atcClick(e){
+  if(!atcOn)return;
+  const cv=$('mapCanvas'),r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width*W,z=(e.clientY-r.top)/r.height*D;
+  if(x<0||z<0||x>=W||z>=D)return;
+  if(atcRoute.length>=ATC_MAX){toast('Tower: that’s the most waypoints a route can have.');return;}
+  atcRoute.push([Math.round(x),Math.round(z)]);
+  drawMap();atcPanel();
+}
 function toggleMap(v){
   mapOpen=v===undefined?!mapOpen:v;
+  if(!mapOpen&&atcOn){atcOn=false;atcRoute=[];atcPanel();}
   const el=$('map');if(!el)return;
   el.hidden=!mapOpen;
   if(mapOpen&&(!mapImg||performance.now()-mapT>8000)){mapImg=mapBase();mapT=performance.now();}
@@ -5297,6 +5428,19 @@ function drawMap(){
     c.fillStyle='#fff';c.fillText(p[0],p[1]*k,p[2]*k-14);
   });
   if(myBed){c.fillStyle='#e04040';c.fillRect(myBed.x*k-5,myBed.z*k-4,10,8);c.fillStyle='#fff';c.fillRect(myBed.x*k-5,myBed.z*k-4,4,8);}
+  /* the route air traffic control has the jet flying, and the one being picked */
+  const line=function(pts,col,dash){
+    if(pts.length<2)return;
+    c.save();c.strokeStyle=col;c.lineWidth=3;if(c.setLineDash)c.setLineDash(dash);c.beginPath();
+    pts.forEach(function(p,n){if(n)c.lineTo(p[0]*k,p[1]*k);else c.moveTo(p[0]*k,p[1]*k);});c.stroke();c.restore();
+    pts.forEach(function(p,n){if(!n)return;c.fillStyle=col;c.beginPath();c.arc(p[0]*k,p[1]*k,4,0,Math.PI*2);c.fill();});
+  };
+  const C2=jet.call&&jet.call.via&&jet.call.via.length?callPlan():null;
+  if(C2&&nowS()<C2.tLand){const d=DOCKS[jet.call.dock];line([[jet.pose.x,jet.pose.z]].concat(jet.call.via,[[d.cx,d.cz]]),'#7fd0ff',[8,6]);}
+  if(atcOn&&atcRoute.length){
+    line([[jet.pose.x,jet.pose.z]].concat(atcRoute),'#ffd34a',[]);
+    atcRoute.forEach(function(p,n){c.fillStyle='#14202a';c.font='700 11px Barlow, system-ui, sans-serif';c.fillText(String(n+1),p[0]*k,p[1]*k+1);});
+  }
   /* the jet */
   const q=jet.pose;c.save();c.translate(q.x*k,q.z*k);c.rotate(q.h);c.fillStyle='#ffffff';c.beginPath();c.moveTo(9,0);c.lineTo(-7,-6);c.lineTo(-4,0);c.lineTo(-7,6);c.closePath();c.fill();c.strokeStyle='#2a6fd6';c.lineWidth=1.5;c.stroke();c.restore();
   /* other players */
@@ -5770,7 +5914,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
