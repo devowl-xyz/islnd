@@ -64,7 +64,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await board(a);
   check('boarding in single player puts you in the pilot seat', await a.evaluate(() => window.__isle.jet.seat === 'pilot'));
   const p0 = await pose(a);
-  await a.keyboard.down('KeyW'); await wait(2500); await a.keyboard.up('KeyW');
+  // hold W until the throttle builds up (the test browser draws slowly, so this can take a while)
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction((p0) => { const J = window.__isle.jet; return J.thr > 0.45 && Math.hypot(J.pose.x - p0.x, J.pose.z - p0.z) > 0.6; }, p0, { timeout: 30000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
   const p1 = await pose(a);
   const thr = await a.evaluate(() => ({ thr: window.__isle.jet.thr, spd: window.__isle.jet.spd }));
   check('throttle moves the jet', thr.thr > 0.4 && thr.spd > 2 && Math.hypot(p1.x - p0.x, p1.z - p0.z) > 0.5, { thr, p0, p1 });

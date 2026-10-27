@@ -101,6 +101,10 @@ const AIR = [
   { x0: 126, x1: 131, z0: 92, z1: 95, y0: 11, y1: 15 }
 ];
 const LOUNGE = { x0: 135, x1: 149, z0: 107, z1: 111, y0: 12, y1: 16 };
+// North Shore's helipad (same numbers as public/index.html) is fixed, and the helicopter parks on it.
+AIR.push({ x0: 289, x1: 302, z0: 28, z1: 41, y0: 1, y1: 12 });
+const HELI_HOME = { x: 295.5, y: 12, z: 34.5, h: -Math.PI / 2 };
+const ROPE_MAX = 16;
 const LOUNGE_PETS = ['hoot', 'snowy', 'biscuit', 'mochi', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
@@ -206,6 +210,11 @@ function claimPet(room, peer) {
 function isOwlPeer(p) { return !!p && !!p.skin && (p.skin.pet === 'hoot' || p.skin.pet === 'snowy'); }
 function palaceState(room) { return { guests: [...room.palace.guests], pets: [...room.palace.pets] }; }
 function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }, palaceState(room), extra)); }
+/* the helicopter: where it is, who flies it, the rope, who has been snatched up, and its bridge */
+function num(v, lo, hi, d) { return typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
+function cleanPose(m, d) { return { x: num(m && m.x, -50, W + 50, d.x), y: num(m && m.y, 0, H + 40, d.y), z: num(m && m.z, -50, D + 50, d.z), h: num(m && m.h, -1e4, 1e4, d.h) }; }
+function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), bridge: h.bridge }; }
+function heliNews(room, extra) { broadcast(room, Object.assign({ t: 'heli' }, heliState(room), extra)); }
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));
 }
@@ -265,6 +274,13 @@ function leave(peer) {
   if (peer.id === room.hostId) { if (room.tagTimer) clearTimeout(room.tagTimer); closeRoom(room, 'The host left, so the room closed.'); return; }
   broadcast(room, { t: 'left', id: peer.id, name: peer.name });
   if (room.palace && room.palace.guests.delete(peer.id)) palaceNews(room, { act: 'left', peer: peer.id });
+  if (room.heli) {
+    const h = room.heli, k = h.captives.indexOf(peer.id);
+    let changed = false;
+    if (k >= 0) { h.captives.splice(k, 1); changed = true; }
+    if (h.pilot === peer.id) { h.pilot = null; changed = true; }
+    if (changed) heliNews(room, { act: 'left', peer: peer.id });
+  }
   // whoever was it in tag left: pass it to someone else, or stop if too few are left
   if (room.tag && room.tag.it === peer.id) {
     if (room.peers.size < 2) endTag(room);
@@ -307,12 +323,14 @@ function handle(peer, msg) {
       peer.skin = cleanSkin(msg.skin);
       peer.admin = false;
       const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null } };
+      const hp = cleanPose(msg.heli, HELI_HOME);
+      r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null });
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r) });
       return;
     }
     case 'seed': {
@@ -335,7 +353,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r) });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r) });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -402,6 +420,62 @@ function handle(peer, msg) {
       else if (j.pass.length < 4) j.pass.push(peer.id);
       else return send(peer.ws, { t: 'boardNo', why: 'full' });
       jetSeats(room);
+      return;
+    }
+    case 'heliBoard': {
+      // only Hoot's and Snowy's owners fly it, one at a time, and not while they've been snatched up
+      if (!room) return;
+      const h = room.heli;
+      if (!isOwlPeer(peer)) return send(peer.ws, { t: 'heliNo', why: 'owl' });
+      if (h.captives.includes(peer.id)) return send(peer.ws, { t: 'heliNo', why: 'captive' });
+      if (h.pilot !== null && h.pilot !== peer.id) return send(peer.ws, { t: 'heliNo', why: 'busy' });
+      h.pilot = peer.id;
+      heliNews(room, { act: 'board', by: peer.id });
+      return;
+    }
+    case 'heliPos': {
+      if (!room || room.heli.pilot !== peer.id) return;
+      const h = room.heli, p = cleanPose(msg, h);
+      h.x = p.x; h.y = p.y; h.z = p.z; h.h = p.h; h.rope = num(msg.r, 0, ROPE_MAX, 0); h.down = !!msg.d;
+      if (!h.down && h.rope < 0.5) h.rope = 0;
+      broadcast(room, { t: 'heliPos', x: h.x, y: h.y, z: h.z, h: h.h, r: h.rope, d: h.down ? 1 : 0 }, peer.id);
+      return;
+    }
+    case 'heliLeave': {
+      if (!room || room.heli.pilot !== peer.id) return;
+      const h = room.heli, p = cleanPose(msg, h);
+      h.x = p.x; h.y = p.y; h.z = p.z; h.h = p.h; h.pilot = null;
+      // it stays right where it was left, rope and all
+      heliNews(room, { act: 'leave', by: peer.id });
+      return;
+    }
+    case 'heliGrab': {
+      // the pilot's rope snatches up someone close under its hook; nobody gets a choice
+      if (!room) return;
+      const h = room.heli, target = room.peers.get(msg.peer);
+      if (h.pilot !== peer.id || !h.down || h.rope < 2 || !target || target.id === peer.id || h.captives.includes(target.id) || !target.pos) return;
+      const ex = h.x, ey = h.y + 0.4 - h.rope, ez = h.z;
+      if (Math.hypot(target.pos.x - ex, target.pos.z - ez) > 3.5 || target.pos.y < ey - 3.5 || target.pos.y > ey + 2) return;
+      if (h.captives.length >= 4) return;
+      h.captives.push(target.id);
+      heliNews(room, { act: 'grab', by: peer.id, peer: target.id });
+      return;
+    }
+    case 'heliRelease': {
+      // only the pilot or the host (or an admin) lets people go
+      if (!room) return;
+      const h = room.heli;
+      if (h.pilot !== peer.id && peer.id !== room.hostId && !peer.admin) return send(peer.ws, { t: 'heliNo', why: 'release' });
+      if (!h.captives.length) return;
+      const freed = h.captives.splice(0);
+      heliNews(room, { act: 'release', by: peer.id, freed });
+      return;
+    }
+    case 'heliBridge': {
+      if (!room || room.heli.pilot !== peer.id) return;
+      const h = room.heli;
+      h.bridge = msg.on ? cleanPose(msg, h) : null;
+      heliNews(room, { act: 'bridge', by: peer.id });
       return;
     }
     case 'palace': {
@@ -559,7 +633,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
