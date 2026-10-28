@@ -85,6 +85,35 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const end = await me(a);
   check('at the bottom you step out by Biscuit and Mochi’s cottage', !(await a.evaluate(() => window.__isle.cable.riding())) && Math.hypot(end.x - 233.5, end.z - 285.5) < 1 && Math.abs(end.y - 18) < 1 && /cottage/.test(await a.textContent('#toast')), end);
 
+  // ----- skiing -----
+  const rk = await a.evaluate(() => window.__isle.racks()[0]);
+  await put(a, rk[0], rk[1] + 0.1, rk[2]); await wait(600);
+  check('a ski rack stands on the summit station', (await a.evaluate(() => window.__isle.rack())) === 0 && /put on skis/.test(await hint(a)), await hint(a));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E puts skis on', await a.evaluate(() => window.__isle.skiing()) && /Skis on/.test(await a.textContent('#toast')));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('and E at the rack takes them off', !(await a.evaluate(() => window.__isle.skiing())));
+  // down the snowy slope west of the summit
+  await put(a, 230.5, 38.2, 259.5, Math.PI * 0.8); await wait(500);
+  await a.evaluate(() => window.__isle.cmd('/ski'));
+  const top = await me(a);
+  await a.waitForFunction((y) => window.__isle.player.y < y - 2.5, top.y, { timeout: 30000 }).catch(() => {});
+  const down = await a.evaluate(() => { const P = window.__isle.player; return { y: P.y, sp: Math.hypot(P.vx, P.vz), mode: document.getElementById('coords').textContent }; });
+  check('on skis you slide away downhill on your own', down.y < top.y - 2.5 && down.sp > 2 && /Skiing/.test(down.mode), { top, down });
+  await a.keyboard.down('KeyS'); await wait(2500); await a.keyboard.up('KeyS');
+  check('S slows you down', (await a.evaluate(() => { const P = window.__isle.player; return Math.hypot(P.vx, P.vz); })) < Math.max(1.5, down.sp));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E anywhere takes your skis off', !(await a.evaluate(() => window.__isle.skiing())));
+
+  // ----- the helicopter's cockpit -----
+  await a.evaluate(() => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'hoot' }); I.heli.put(100.5, 40, 92.5, 0); P.fly = true; P.x = 100.5; P.y = 41; P.z = 93.5; I.heli.board(); });
+  await wait(400);
+  if ((await a.evaluate(() => window.__isle.camAt().third))) { await a.keyboard.press('KeyV'); await wait(400); }
+  const ck = await a.evaluate(() => { const c = window.__isle.camAt(), h = window.__isle.heli.state(); return { c, h: { x: h.x, y: h.y, z: h.z } }; });
+  check('first person in the helicopter puts your eyes in the cockpit', !ck.c.third && Math.hypot(ck.c.x - ck.h.x - 0.5, ck.c.z - ck.h.z + 0.3) < 0.6 && ck.c.y - ck.h.y > 1.8 && ck.c.y - ck.h.y < 2.4, ck);
+  await a.keyboard.press('KeyV'); await wait(300);
+  await a.evaluate(() => window.__isle.heli.leave());
+
   // ----- the parachute -----
   await put(a, 80.5, 70, 92.5); await a.evaluate(() => { window.__isle.player.vy = 0; });
   await a.waitForFunction(() => window.__isle.player.vy < -8, null, { timeout: 10000 }).catch(() => {});
@@ -116,8 +145,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await g.waitForFunction((id) => window.__isle.skis.list()[1].rider === id, aid, { timeout: 8000 }).catch(() => {});
   check('in a room everyone sees who is on a jet ski', (await skis(g))[1].rider === aid && (await a.evaluate(() => window.__isle.skis.mine())) === 1);
   const g0 = (await skis(g))[1];
-  await a.keyboard.down('KeyW'); await wait(2000); await a.keyboard.up('KeyW');
-  await wait(800);
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction((q) => { const s = window.__isle.skis.list()[1]; return Math.hypot(s.x - q.x, s.z - q.z) > 3; }, g0, { timeout: 20000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
+  await wait(1500);
   const g1 = (await skis(g))[1], a1 = (await skis(a))[1];
   check('and sees it ride about', Math.hypot(g1.x - g0.x, g1.z - g0.z) > 1 && Math.hypot(g1.x - a1.x, g1.z - a1.z) < 1.5, { g0, g1, a1 });
   await g.evaluate(() => window.__isle.net.ws.send(JSON.stringify({ t: 'skiBoard', k: 1 })));
@@ -136,7 +167,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => window.__isle.player.vy < -8, null, { timeout: 10000 }).catch(() => {});
   await a.evaluate(() => window.__isle.openChute());
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()][0]; return p && p.av && p.av.chute && p.av.chute.visible; }, null, { timeout: 8000 }).catch(() => {});
+  await g.waitForFunction(() => true);
   check('others see your parachute', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()][0]; return !!(p && p.av && p.av.chute && p.av.chute.visible); }));
+
+  await a.waitForFunction(() => !window.__isle.chute(), null, { timeout: 40000 }).catch(() => {});
+  await a.evaluate(() => window.__isle.cmd('/ski'));
+  await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()][0]; return p && p.av && p.av.skiGear && p.av.skiGear.visible; }, null, { timeout: 8000 }).catch(() => {});
+  check('and your skis', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()][0]; return !!(p && p.av && p.av.skiGear && p.av.skiGear.visible); }));
 
   await browser.close();
   server.close();
