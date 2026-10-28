@@ -104,6 +104,11 @@ const LOUNGE = { x0: 135, x1: 149, z0: 107, z1: 111, y0: 12, y1: 16 };
 // North Shore's helipad (same numbers as public/index.html) is fixed, and the helicopter parks on it.
 AIR.push({ x0: 289, x1: 302, z0: 28, z1: 41, y0: 1, y1: 12 });
 const HELI_HOME = { x: 295.5, y: 12, z: 34.5, h: -Math.PI / 2 };
+// The jet ski jetty and the steps down to it from the campsite (same numbers as public/index.html) are fixed, in every layout.
+AIR.push({ x0: 186, x1: 203, z0: 219, z1: 220, y0: 9, y1: 22 });
+const SKI_HOME = [[187.5, 221.6], [189.5, 221.6], [191.5, 221.6], [193.5, 221.6], [195.5, 221.6]];
+// The cable car's two stations (same numbers as public/index.html) are fixed; it only runs in the spread layout.
+const CABLE_BOXES = { spread: [{ x0: 230, x1: 240, z0: 255, z1: 263, y0: 37, y1: 47 }, { x0: 229, x1: 237, z0: 278, z1: 286, y0: 16, y1: 26 }], classic: [] };
 const ROPE_MAX = 16;
 const LOUNGE_PETS = ['hoot', 'snowy', 'biscuit', 'mochi', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
@@ -112,7 +117,7 @@ function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]
 const LAYOUTS = {};
 for (const name in SHIFTS) {
   const [tx, tz] = SHIFTS[name].th, [cx, cz] = SHIFTS[name].cot;
-  LAYOUTS[name] = { OD: [shiftObj(OD_TREE, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)) };
+  LAYOUTS[name] = { OD: [shiftObj(OD_TREE, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)), CABLE: CABLE_BOXES[name] || [] };
 }
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
@@ -130,6 +135,7 @@ function thCell(x, y, z, L) {
   if (L.OD.some(inB)) return 'base';
   if (inB(LOUNGE)) return 'lounge';
   if (AIR.some(inB)) return 'base';
+  if (L.CABLE.some(inB)) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
   if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
@@ -228,9 +234,23 @@ function broadcast(room, msg, exceptId) {
 }
 function peerList(room) {
   const a = [];
-  room.peers.forEach((p) => a.push({ id: p.id, name: p.name, host: p.id === room.hostId, admin: p.admin, skin: p.skin, food: !!p.food }));
+  room.peers.forEach((p) => a.push({ id: p.id, name: p.name, host: p.id === room.hostId, admin: p.admin, skin: p.skin, food: !!p.food, frozen: !!p.frozen }));
   return a;
 }
+/* host and admin tools: the time and weather everyone shares, locked builds, and the jet skis */
+const WEATHERS = ['clear', 'rain', 'snow', 'storm'];
+function cleanEnv(m, d) {
+  d = d || { time: 12, weather: 'clear', cycle: false };
+  return { time: num(m && m.time, 0, 24, d.time) % 24, weather: m && WEATHERS.includes(m.weather) ? m.weather : d.weather, cycle: m && m.cycle !== undefined ? !!m.cycle : d.cycle, at: Date.now() };
+}
+function isBoss(room, peer) { return peer.id === room.hostId || !!peer.admin; }
+function lockAt(room, x, y, z) { return room.locks.find((o) => x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && y >= o.y0 && y <= o.y1) || null; }
+// a locked build can only be changed by whoever locked it, and by the host
+function lockedFor(room, peer, x, y, z) { if (peer.id === room.hostId) return null; const o = lockAt(room, x, y, z); return o && o.owner !== peer.id ? o : null; }
+function locksNews(room, extra) { broadcast(room, Object.assign({ t: 'locks', locks: room.locks }, extra)); }
+const SKI_MAX_V = 25;
+function skiState(room) { return room.skis.map((q) => ({ x: q.x, z: q.z, h: q.h, rider: q.rider })); }
+function skisNews(room, extra) { broadcast(room, Object.assign({ t: 'skis', skis: skiState(room) }, extra)); }
 function canEditAt(room, peer, x, z) {
   return peer.id === room.hostId || peer.admin || onField(x, z);
 }
@@ -278,6 +298,8 @@ function leave(peer) {
   if (peer.id === room.hostId) { if (room.tagTimer) clearTimeout(room.tagTimer); closeRoom(room, 'The host left, so the room closed.'); return; }
   broadcast(room, { t: 'left', id: peer.id, name: peer.name });
   if (room.palace && room.palace.guests.delete(peer.id)) palaceNews(room, { act: 'left', peer: peer.id });
+  if (room.skis && room.skis.some((q) => q.rider === peer.id)) { room.skis.forEach((q) => { if (q.rider === peer.id) q.rider = null; }); skisNews(room); }
+  if (room.locks && room.locks.some((o) => o.owner === peer.id)) { room.locks = room.locks.filter((o) => o.owner !== peer.id); locksNews(room, { act: 'left' }); }
   if (room.heli) {
     const h = room.heli, k = h.captives.indexOf(peer.id);
     let changed = false;
@@ -333,10 +355,12 @@ function handle(peer, msg) {
         pets: (msg.heli && Array.isArray(msg.heli.pets) ? msg.heli.pets : []).filter((id, k, a) => HELI_PETS.includes(id) && a.indexOf(id) === k).slice(0, 4) });
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
+      r.env = cleanEnv(msg.env); r.locks = []; r.lockSeq = 1;
+      r.skis = SKI_HOME.map((h, k) => { const q = Array.isArray(msg.skis) ? msg.skis[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), z: num(q && q.z, 1, D - 1, h[1]), h: num(q && q.h, -1e4, 1e4, Math.PI / 2), rider: null }; });
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r) });
       return;
     }
     case 'seed': {
@@ -359,7 +383,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r) });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r) });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -384,11 +408,12 @@ function handle(peer, msg) {
       // opening or shutting a door is not building: anyone may, anywhere, as long as it stays the same half of a door
       const was = room.edits.has(i) ? room.edits.get(i) : baseDoor(x, y, z, room.lay);
       const door = isDoor(b) && isDoor(was) && doorTop(b) === doorTop(was);
-      const ok = peer.tokens >= 1 && (door || (!floor && th !== 'base' && (th ? thOk : canEditAt(room, peer, x, z)) && !(b === 0 && y < 1)));
+      const locked = !door && !!lockedFor(room, peer, x, y, z);
+      const ok = peer.tokens >= 1 && !locked && (door || (!floor && th !== 'base' && (th ? thOk : canEditAt(room, peer, x, z)) && !(b === 0 && y < 1)));
       if (!ok) {
         // Tell the sender what the cell really holds so it can undo its guess.
         const cur = room.edits.has(i) ? room.edits.get(i) : null;
-        send(peer.ws, { t: 'revert', i, b: cur, why: peer.tokens < 1 ? 'rate' : (floor ? 'floor' : (th === 'base' ? 'tree' : (th ? 'owl' : 'perm'))) });
+        send(peer.ws, { t: 'revert', i, b: cur, why: peer.tokens < 1 ? 'rate' : locked ? 'lock' : (floor ? 'floor' : (th === 'base' ? 'tree' : (th ? 'owl' : 'perm'))) });
         return;
       }
       peer.tokens -= 1;
@@ -693,6 +718,129 @@ function handle(peer, msg) {
       heliNews(room, { act: msg.home ? 'home' : 'spawn', by: peer.id });
       return;
     }
+    case 'env': {
+      // /time and /weather: the host and admins set them for everyone
+      if (!room || !isBoss(room, peer)) return;
+      const cur = room.env, nowH = cur.cycle ? (cur.time + (Date.now() - cur.at) / 1000 * 24 / 1200) % 24 : cur.time;
+      room.env = cleanEnv(msg, { time: nowH, weather: cur.weather, cycle: cur.cycle });
+      broadcast(room, Object.assign({ t: 'env', by: peer.id, what: msg.what === 'weather' ? 'weather' : 'time' }, room.env));
+      return;
+    }
+    case 'freeze': {
+      // the host can freeze anyone but themselves; admins can freeze guests
+      if (!room || !isBoss(room, peer)) return;
+      const on = !!msg.on, ids = [];
+      room.peers.forEach((p) => {
+        if (p.id === room.hostId || p.id === peer.id) return;
+        if (p.admin && peer.id !== room.hostId) return;
+        if (msg.all || p.id === msg.peer) { p.frozen = on; ids.push(p.id); }
+      });
+      broadcast(room, { t: 'frozen', ids, on, by: peer.id });
+      return;
+    }
+    case 'give': {
+      if (!room || !isBoss(room, peer) || !Number.isInteger(msg.b) || msg.b < 1 || msg.b > MAX_BLOCK) return;
+      if (msg.all) { broadcast(room, { t: 'given', all: true, b: msg.b, by: peer.id }); return; }
+      const target = room.peers.get(msg.peer);
+      if (!target) return;
+      send(target.ws, { t: 'given', to: target.id, b: msg.b, by: peer.id });
+      if (target !== peer) send(peer.ws, { t: 'given', to: target.id, b: msg.b, by: peer.id });
+      return;
+    }
+    case 'announce': {
+      if (!room || !isBoss(room, peer) || typeof msg.text !== 'string') return;
+      const text = msg.text.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100);
+      if (!text) return;
+      broadcast(room, { t: 'announce', text, name: peer.name, by: peer.id });
+      return;
+    }
+    case 'lock': {
+      // lock the build round you: up to 3 each (any number for the host and admins), not over anyone else's
+      if (!room) return;
+      const n = (v) => (Number.isInteger(v) ? v : NaN);
+      const o = { x0: n(msg.x0), x1: n(msg.x1), z0: n(msg.z0), z1: n(msg.z1), y0: n(msg.y0), y1: n(msg.y1) };
+      if (![o.x0, o.x1, o.z0, o.z1, o.y0, o.y1].every(isFinite) || o.x1 < o.x0 || o.z1 < o.z0 || o.y1 < o.y0) return;
+      const big = isBoss(room, peer) ? 65 : 33;
+      if (o.x1 - o.x0 + 1 > big || o.z1 - o.z0 + 1 > big) return send(peer.ws, { t: 'locks', locks: room.locks, no: 'size' });
+      o.x0 = Math.max(0, o.x0); o.z0 = Math.max(0, o.z0); o.x1 = Math.min(W - 1, o.x1); o.z1 = Math.min(D - 1, o.z1); o.y0 = Math.max(0, o.y0); o.y1 = Math.min(H - 1, o.y1);
+      if (!isBoss(room, peer) && room.locks.filter((q) => q.owner === peer.id).length >= 3) return send(peer.ws, { t: 'locks', locks: room.locks, no: 'many' });
+      if (room.locks.some((q) => q.owner !== peer.id && q.x0 <= o.x1 && o.x0 <= q.x1 && q.z0 <= o.z1 && o.z0 <= q.z1 && q.y0 <= o.y1 && o.y0 <= q.y1)) return send(peer.ws, { t: 'locks', locks: room.locks, no: 'overlap' });
+      if (room.locks.length >= 200) return;
+      room.locks.push(Object.assign(o, { id: room.lockSeq++, owner: peer.id, name: peer.name }));
+      locksNews(room, { act: 'lock', by: peer.id });
+      return;
+    }
+    case 'unlock': {
+      if (!room) return;
+      const boss = isBoss(room, peer), had = room.locks.length;
+      if (msg.all) room.locks = room.locks.filter((o) => !boss && o.owner !== peer.id);
+      else {
+        const o = room.locks.find((q) => q.id === msg.id);
+        if (!o) return;
+        if (o.owner !== peer.id && !boss) return send(peer.ws, { t: 'locks', locks: room.locks, no: 'owner' });
+        room.locks = room.locks.filter((q) => q !== o);
+      }
+      if (room.locks.length !== had) locksNews(room, { act: 'unlock', by: peer.id });
+      return;
+    }
+    case 'paste': {
+      // /paste and /undo from the host or an admin: many blocks at once, each checked like an edit
+      if (!room || !isBoss(room, peer) || !Array.isArray(msg.cells) || msg.cells.length > 32000) return;
+      const out = [];
+      let no = 0;
+      for (let k = 0; k + 1 < msg.cells.length; k += 2) {
+        const i = msg.cells[k], b = msg.cells[k + 1];
+        if (!Number.isInteger(i) || i < 0 || i >= VOX || !Number.isInteger(b) || b < 0 || b > MAX_BLOCK) continue;
+        const x = i % W, y = Math.floor(i / (W * D)), z = Math.floor(i / W) % D;
+        const th = thCell(x, y, z, room.lay);
+        if (isFloor(x, y, z) || th === 'base' || (th && !thMay(th, peer.skin && peer.skin.pet)) || y < 1 || lockedFor(room, peer, x, y, z)) { no++; continue; }
+        room.edits.set(i, b);
+        out.push(i, b);
+      }
+      if (out.length) broadcast(room, { t: 'pasted', edits: out, by: peer.id, no });
+      else send(peer.ws, { t: 'pasted', edits: [], by: peer.id, no });
+      return;
+    }
+    case 'fireworks': {
+      // anyone may set off a show, every few seconds
+      if (!room) return;
+      const now = Date.now();
+      if (now - (peer.fwT || 0) < 5000) return;
+      peer.fwT = now;
+      const x = num(msg.x, -50, W + 50, 0), y = num(msg.y, 0, H + 20, 20), z = num(msg.z, -50, D + 50, 0);
+      broadcast(room, { t: 'fireworks', x, y, z, seed: Number.isInteger(msg.seed) ? msg.seed >>> 0 : 1, by: peer.id });
+      return;
+    }
+    case 'skiBoard': {
+      if (!room || !Number.isInteger(msg.k) || !room.skis[msg.k]) return;
+      const q = room.skis[msg.k];
+      if (room.skis.some((s) => s.rider === peer.id)) return;
+      if (q.rider !== null) return send(peer.ws, { t: 'skis', skis: skiState(room), no: 'busy' });
+      q.rider = peer.id;
+      skisNews(room, { act: 'board', by: peer.id });
+      return;
+    }
+    case 'skiPos': {
+      if (!room || !Number.isInteger(msg.k) || !room.skis[msg.k] || room.skis[msg.k].rider !== peer.id) return;
+      const q = room.skis[msg.k];
+      q.x = num(msg.x, 1, W - 1, q.x); q.z = num(msg.z, 1, D - 1, q.z); q.h = num(msg.h, -1e4, 1e4, q.h);
+      broadcast(room, { t: 'skiPos', k: msg.k, x: q.x, z: q.z, h: q.h, v: num(msg.v, -SKI_MAX_V, SKI_MAX_V, 0) }, peer.id);
+      return;
+    }
+    case 'skiLeave': {
+      if (!room || !Number.isInteger(msg.k) || !room.skis[msg.k] || room.skis[msg.k].rider !== peer.id) return;
+      const q = room.skis[msg.k];
+      q.x = num(msg.x, 1, W - 1, q.x); q.z = num(msg.z, 1, D - 1, q.z); q.h = num(msg.h, -1e4, 1e4, q.h); q.rider = null;
+      skisNews(room, { act: 'leave', by: peer.id });
+      return;
+    }
+    case 'skiHome': {
+      // /despawn skis: the host or an admin sends the free ones back to the jetty
+      if (!room || !isBoss(room, peer)) return;
+      room.skis.forEach((q, k) => { if (q.rider === null) { q.x = SKI_HOME[k][0]; q.z = SKI_HOME[k][1]; q.h = Math.PI / 2; } });
+      skisNews(room, { act: 'home', by: peer.id });
+      return;
+    }
     case 'unboard': {
       if (room) unboard(room, peer);
       return;
@@ -709,7 +857,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
