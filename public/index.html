@@ -6109,6 +6109,7 @@ function tpPlace(w){
     return at?tpTo(at.x,at.y,at.z,'the owls’ treehouse'):tpTo(x,TH.PY+2,TH.cz+0.5,'the owls’ treehouse');
   }
   if(id==='atlantis'){
+    if(mySkin.pet!=='goldie'){tpTo(AT.x1+3.5,SEA+0.3,AT.cz+0.5,'the sea above Goldie’s house (only Goldie’s owner can go in)');return true;}
     const at=standAt([[AT.cx+0.5,7,AT.cz+0.5],[AT.cx+2.5,7,AT.cz+0.5],[AT.cx-1.5,7,AT.cz+0.5]],4);
     return at?tpTo(at.x,at.y,at.z,'Goldie’s house'):tpTo(AT.cx+0.5,6,AT.cz+0.5,'Goldie’s house');
   }

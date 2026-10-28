@@ -29,15 +29,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // Goldie: bubble dash. Swim underwater east of the dock, out in the sea.
   await pose(a, 162.5, 6, 80.5, -Math.PI / 2); await wait(800);
-  await a.keyboard.down('KeyW'); await wait(1500);
-  const s0 = await P(a); await wait(1500); const s1 = await P(a); await a.keyboard.up('KeyW');
-  const plain = Math.hypot(s1.x - s0.x, s1.z - s0.z);
+  const speed = () => a.evaluate(() => { const P = window.__isle.player; return Math.hypot(P.vx, P.vz); });
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction(() => { const P = window.__isle.player; return Math.hypot(P.vx, P.vz) > 2.4; }, null, { timeout: 20000 }).catch(() => {});
+  await wait(500); const plain = await speed(); await a.keyboard.up('KeyW');
   await pose(a, 162.5, 6, 78.5, -Math.PI / 2); await wait(500); // open water, clear of the taxiway's stilts
   await a.keyboard.press('KeyT'); await wait(300);
   check('T: Goldie’s Bubble Dash', await a.evaluate(() => window.__isle.power.dash()) && /Bubble Dash/.test(await a.textContent('#toast')));
-  await a.keyboard.down('KeyW'); await wait(1500);
-  const d0 = await P(a); await wait(1500); const d1 = await P(a); await a.keyboard.up('KeyW');
-  const fast = Math.hypot(d1.x - d0.x, d1.z - d0.z);
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction(() => { const P = window.__isle.player; return Math.hypot(P.vx, P.vz) > 9; }, null, { timeout: 20000 }).catch(() => {});
+  await wait(300); const fast = await speed(); await a.keyboard.up('KeyW');
   check('you swim much faster with Goldie', fast > plain * 2, { plain, fast });
   check('Goldie leads the way', await a.evaluate(() => { const I = window.__isle, f = I.pets.follower(), P = I.player; return f && Math.hypot(f.x - P.x, f.z - P.z) < 3; }));
   await a.keyboard.down('Shift'); await wait(900); await a.keyboard.up('Shift');

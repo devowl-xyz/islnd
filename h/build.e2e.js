@@ -47,7 +47,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.up('KeyW');
   const f1 = await me(a);
   check('you can’t walk or jump over a fence', f1.z > 88.9, f1);
-  await put(a, 81.5, 15, 88.5, 0); await wait(800);
+  await put(a, 81.5, 15, 88.5, 0);
+  await a.waitForFunction(() => { const P = window.__isle.player; return P.onGround && P.y < 14.9; }, null, { timeout: 10000 }).catch(() => {});
   const f2 = await me(a);
   check('but you can stand on top of one, a block and a half up', Math.abs(f2.y - 14.5) < 0.05, f2);
   // ----- signs -----
