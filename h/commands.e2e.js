@@ -33,6 +33,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await say(a, '/help');
   const help = (await lines(a)).join('\n');
   check('/help lists the commands in the chat log', ['/spawn', '/despawn', '/clear', '/tp', '/home', '/fly', '/pet', '/jet', '/block', '/where'].every((c) => help.includes(c)), help);
+  await say(a, '/help tp');
+  check('/help and a command explains it', /\/tp x y z \| player/.test(await last(a)), await last(a));
   check('and commands aren’t said out loud as chat', !(await lines(a)).some((l) => /^Player: \/help/.test(l)));
   // pressing / opens the chat box with the slash typed, ready for a command, even right after another one
   await a.keyboard.press('Slash'); await wait(400);

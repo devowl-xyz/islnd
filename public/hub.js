@@ -20,7 +20,8 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 45; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice
+const MAX_BLOCK = 47; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence
+const SIGN = 46, SIGN_MAX = 60;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
 function isDoor(b) { return b >= DOOR && b <= DOOR_TOP_OPEN; }
@@ -251,6 +252,10 @@ function locksNews(room, extra) { broadcast(room, Object.assign({ t: 'locks', lo
 const SKI_MAX_V = 25;
 function skiState(room) { return room.skis.map((q) => ({ x: q.x, z: q.z, h: q.h, rider: q.rider })); }
 function skisNews(room, extra) { broadcast(room, Object.assign({ t: 'skis', skis: skiState(room) }, extra)); }
+/* signs: the words on each sign block, which anyone who may change that block may write */
+function cleanSignText(t) { return String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, SIGN_MAX); }
+function signList(room) { const a = []; room.signs.forEach((v, i) => { if (room.edits.get(i) === SIGN) a.push([i, v.t, v.r]); }); return a; }
+function signGone(room, i) { if (room.signs.delete(i)) broadcast(room, { t: 'sign', i, text: null }); }
 function canEditAt(room, peer, x, z) {
   return peer.id === room.hostId || peer.admin || onField(x, z);
 }
@@ -356,11 +361,13 @@ function handle(peer, msg) {
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.env = cleanEnv(msg.env); r.locks = []; r.lockSeq = 1;
+      r.signs = new Map();
+      (Array.isArray(msg.signs) ? msg.signs : []).slice(0, 4000).forEach((q) => { if (Array.isArray(q) && Number.isInteger(q[0]) && q[0] >= 0 && q[0] < VOX) r.signs.set(q[0], { t: cleanSignText(q[1]), r: q[2] ? 1 : 0 }); });
       r.skis = SKI_HOME.map((h, k) => { const q = Array.isArray(msg.skis) ? msg.skis[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), z: num(q && q.z, 1, D - 1, h[1]), h: num(q && q.h, -1e4, 1e4, Math.PI / 2), rider: null }; });
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r) });
       return;
     }
     case 'seed': {
@@ -383,7 +390,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r) });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r) });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -419,6 +426,7 @@ function handle(peer, msg) {
       peer.tokens -= 1;
       room.edits.set(i, b);
       broadcast(room, { t: 'edit', x, y, z, b, by: peer.id });
+      if (b !== SIGN) signGone(room, i);
       return;
     }
     case 'role': {
@@ -718,6 +726,21 @@ function handle(peer, msg) {
       heliNews(room, { act: msg.home ? 'home' : 'spawn', by: peer.id });
       return;
     }
+    case 'sign': {
+      // the words on a sign: the cell must hold a sign, and the writer must be allowed to change it
+      if (!room || !Number.isInteger(msg.i) || msg.i < 0 || msg.i >= VOX || room.edits.get(msg.i) !== SIGN) return;
+      const now = Date.now();
+      if (now - (peer.signT || 0) < 300) return;
+      peer.signT = now;
+      const i = msg.i, x = i % W, y = Math.floor(i / (W * D)), z = Math.floor(i / W) % D;
+      const th = thCell(x, y, z, room.lay);
+      const may = !isFloor(x, y, z) && th !== 'base' && (th ? thMay(th, peer.skin && peer.skin.pet) : canEditAt(room, peer, x, z)) && !lockedFor(room, peer, x, y, z);
+      if (!may) return;
+      const v = { t: cleanSignText(msg.text), r: msg.r ? 1 : 0 };
+      room.signs.set(i, v);
+      broadcast(room, { t: 'sign', i, text: v.t, r: v.r, by: peer.id });
+      return;
+    }
     case 'env': {
       // /time and /weather: the host and admins set them for everyone
       if (!room || !isBoss(room, peer)) return;
@@ -796,6 +819,7 @@ function handle(peer, msg) {
         if (isFloor(x, y, z) || th === 'base' || (th && !thMay(th, peer.skin && peer.skin.pet)) || y < 1 || lockedFor(room, peer, x, y, z)) { no++; continue; }
         room.edits.set(i, b);
         out.push(i, b);
+        if (b !== SIGN && room.signs.has(i)) room.signs.delete(i);
       }
       if (out.length) broadcast(room, { t: 'pasted', edits: out, by: peer.id, no });
       else send(peer.ws, { t: 'pasted', edits: [], by: peer.id, no });
@@ -857,7 +881,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
