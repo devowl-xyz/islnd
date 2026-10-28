@@ -84,7 +84,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nb = await me(a);
   check('/tp and a name takes you to it', Math.hypot(nb.x - ds[1].x, nb.z - ds[1].z) < 2, { nb, bob: ds[1] });
   // /tp to the jet, the helicopter and the pets' homes
-  const places = await a.evaluate(() => { const I = window.__isle; return { jet: I.jet.pose, heli: I.heli.state(), TH: I.th.TH, AT: I.AT, COT: I.cot.COT, DEN: I.DEN, PAD: I.paddock }; });
+  const places = await a.evaluate(() => { const I = window.__isle; return { jet: I.jet.pose, heli: I.heli.state(), TH: I.th.TH, AT: I.at.AT, COT: I.cot.COT, DEN: I.den.DEN, PAD: I.paddock }; });
   const tpCheck = async (word, near) => {
     await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.x = 80.5; P.y = 13; P.z = 92.5; });
     const ok = await a.evaluate((w) => window.__isle.cmd('/tp ' + w), word);
