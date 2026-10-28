@@ -271,7 +271,7 @@ body.touch .desk{display:none}
         <dt>Space</dt><dd>Jump. Tap twice to fly</dd>
         <dt>Shift</dt><dd>Sprint, or fly down</dd>
         <dt>Left click</dt><dd>Break a block</dd>
-        <dt>Right click</dt><dd>Place a block</dd>
+        <dt>Right click</dt><dd>Place a block (or Ctrl and click)</dd>
         <dt>Middle click</dt><dd>Copy the block you look at</dd>
         <dt>1 to 0, wheel</dt><dd>Choose a block</dd>
         <dt>B</dt><dd>Open the block picker, with beds, doors and coloured blocks</dd>
@@ -3302,10 +3302,13 @@ function look(dx,dy,s){
   if(P.pitch>1.55)P.pitch=1.55;if(P.pitch<-1.55)P.pitch=-1.55;
 }
 let drag=null;
+/* Ctrl and click works as a right click (handy on a Mac trackpad or a one-button mouse) */
+function clickButton(e){return e.button===0&&e.ctrlKey?2:e.button;}
 canvas.addEventListener('mousedown',function(e){
   if(!playing||touch)return;
-  if(locked){e.preventDefault();startHold(e.button);}
-  else if(noLock){drag={x:e.clientX,y:e.clientY,t:performance.now(),moved:false,btn:e.button};}
+  const btn=clickButton(e);
+  if(locked){e.preventDefault();startHold(btn);}
+  else if(noLock){drag={x:e.clientX,y:e.clientY,t:performance.now(),moved:false,btn:btn};}
 });
 window.addEventListener('mousemove',function(e){
   if(!playing)return;

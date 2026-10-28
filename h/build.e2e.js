@@ -29,6 +29,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   let a = await open(null, ctxA);
   await play(a);
   check('signs and fences are in the block picker', await a.evaluate(() => window.__isle.picker.picks.includes(46) && window.__isle.picker.picks.includes(47)));
+  // ----- Ctrl and click is a right click -----
+  const bricks = () => a.evaluate(() => { let n = 0; for (let x = 74; x <= 88; x++) for (let z = 84; z <= 96; z++) for (let y = 13; y <= 15; y++) if (window.__isle.get(x, y, z) === 8) n++; return n; });
+  await a.evaluate(() => { const I = window.__isle; I.setSlot(I.sel(), 8); });
+  await put(a, 80.5, 13, 92.5, 0, -0.7); await wait(500);
+  const nb0 = await bricks();
+  await a.keyboard.down('Control'); await a.mouse.click(450, 300); await a.keyboard.up('Control'); await wait(500);
+  check('Ctrl and click places a block, like a right click', (await bricks()) === nb0 + 1, { nb0, now: await bricks() });
+  await a.mouse.click(450, 300); await wait(500);
+  check('and a plain click still breaks it', (await bricks()) === nb0);
   // ----- fences -----
   await a.evaluate(() => { for (let x = 78; x <= 84; x++) window.__isle.setBlock(x, 13, 88, 47); });
   check('fences go down', (await a.evaluate(() => [78, 81, 84].map((x) => window.__isle.get(x, 13, 88)))).join() === '47,47,47');
