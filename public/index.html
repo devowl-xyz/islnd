@@ -4620,37 +4620,91 @@ function angDiff(a,b){let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+
 function buildJetModel(){
   const g=new THREE.Group(),body=new THREE.Group();g.add(body);
   const lam=function(c,o){return new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));};
-  const white=lam(0xf4f6f8),stripe=lam(0x2a6fd6),dark=lam(0x1d2733),gold=lam(0xf2c230);
-  const glass=lam(0x22384f,{transparent:true,opacity:0.55});
-  const m=function(geo,mat,x,y,z){const o=new THREE.Mesh(geo,mat);o.position.set(x||0,y||0,z||0);body.add(o);return o;};
-  const fus=m(new THREE.CylinderGeometry(1.05,1.05,7.4,24).rotateZ(Math.PI/2),white);
-  /* nose and tail are outer half-shells, so they don't poke into the cabin */
-  m(new THREE.SphereGeometry(1,24,16,Math.PI/2,Math.PI).scale(2.3,1.05,1.05),white,3.7);
-  m(new THREE.SphereGeometry(1,20,12,-Math.PI/2,Math.PI).scale(2.6,0.85,0.85),white,-3.9,0.15);
-  m(new THREE.SphereGeometry(1,20,12,0,Math.PI*2,0,Math.PI/2).scale(1.4,0.7,0.95),glass,4.3,0.35);
-  m(new THREE.CylinderGeometry(1.07,1.07,7.2,24,1,true,Math.PI*0.6,Math.PI*0.25).rotateZ(Math.PI/2),stripe);
-  m(new THREE.CylinderGeometry(1.07,1.07,7.2,24,1,true,Math.PI*1.15,Math.PI*0.25).rotateZ(Math.PI/2),stripe);
-  /* windows: dark from outside, clear from inside */
-  for(let i=0;i<5;i++){const x=2.2-i*1.2;m(new THREE.SphereGeometry(0.2,10,8,0,Math.PI).scale(1,1,0.4),dark,x,0.25,1.02);m(new THREE.SphereGeometry(0.2,10,8,Math.PI,Math.PI).scale(1,1,0.4),dark,x,0.25,-1.02);}
-  m(new THREE.BoxGeometry(0.7,1.25,0.06),stripe,2.95,-0.1,1.04);
+  const white=lam(0xf4f6f8),stripe=lam(0x2a6fd6),dark=lam(0x1d2733),gold=lam(0xf2c230),belly=lam(0xc9d0d8),metal=lam(0xa9b2bc),tyre=lam(0x22262b);
+  const glass=lam(0x1d3550,{transparent:true,opacity:0.6});
+  const glow=function(c){return new THREE.MeshBasicMaterial({color:c});};
+  const m=function(geo,mat,x,y,z,parent){const o=new THREE.Mesh(geo,mat);o.position.set(x||0,y||0,z||0);(parent||body).add(o);return o;};
+  const PI=Math.PI;
+  /* the body: a long tube, a pointed nose and a tail cone sweeping up. Every outer skin faces outwards
+     only, so from inside the cabin you look straight out through the windows and the canopy */
+  const fus=m(new THREE.CylinderGeometry(1.05,1.05,7.4,28,1,true).rotateZ(PI/2),white);
+  const lathe=function(pts,mat,x,y,rot){const ge=new THREE.LatheGeometry(pts.map(function(p){return new THREE.Vector2(p[0],p[1]);}),28);ge.rotateZ(rot);const o=m(ge,mat,x,y,0);return o;};
+  const nose=[];for(let i=0;i<=12;i++){const t=i/12;nose.push([1.05*Math.sqrt(Math.max(0,1-Math.pow(t,1.7))),t*2.45]);}
+  lathe(nose,white,3.7,0,-PI/2);
+  const tailC=[];for(let i=0;i<=10;i++){const t=i/10;tailC.push([1.05-0.72*Math.pow(t,1.15),-t*2.9]);}
+  tailC.push([0,-2.95]);tailC.reverse();   /* tip first, so its faces point outwards */
+  const tc=lathe(tailC,white,-3.7,0,-PI/2);tc.rotation.z=-0.09;
+  /* a grey belly, a blue cheat line with a gold pinstripe under the windows, and the airline's name */
+  m(new THREE.CylinderGeometry(1.06,1.06,7.4,28,1,true,PI*0.78,PI*0.44).rotateZ(PI/2),belly);
   [-1,1].forEach(function(sd){
-    const w=m(new THREE.BoxGeometry(2.4,0.16,5),white,-0.2,-0.45,sd*3.3);w.rotation.y=sd*0.38;
-    const tip=m(new THREE.BoxGeometry(0.6,0.7,0.12),stripe,-1.25,-0.15,sd*5.75);tip.rotation.y=sd*0.38;
-    const st=m(new THREE.BoxGeometry(1.2,0.12,1.9),white,-4.7,0.9,sd*1.1);st.rotation.y=sd*0.4;
-    m(new THREE.CylinderGeometry(0.42,0.36,2,16).rotateZ(Math.PI/2),white,-2.6,0.55,sd*1.45);
-    m(new THREE.CircleGeometry(0.34,16).rotateY(Math.PI/2),dark,-1.59,0.55,sd*1.45);
-    const gl=m(new THREE.CircleGeometry(0.3,16).rotateY(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0}),-3.61,0.55,sd*1.45);
-    (jet.glows||(jet.glows=[])).push(gl);
-    m(new THREE.CylinderGeometry(0.07,0.07,0.9,8),dark,-0.4,-1.35,sd*1.2);
-    m(new THREE.CylinderGeometry(0.16,0.16,0.12,12).rotateX(Math.PI/2),dark,-0.4,-1.8,sd*1.2);
+    const a0=sd>0?PI*0.56:PI*1.31;
+    m(new THREE.CylinderGeometry(1.065,1.065,7.4,28,1,true,a0,PI*0.13).rotateZ(PI/2),stripe);
+    m(new THREE.CylinderGeometry(1.068,1.068,7.4,28,1,true,a0+PI*0.135,PI*0.02).rotateZ(PI/2),gold);
   });
-  const fin=m(new THREE.BoxGeometry(1.6,2,0.14),white,-4.5,1.7);fin.rotation.z=-0.5;
-  m(new THREE.BoxGeometry(1.1,0.5,0.16),gold,-4.9,2.3);
-  m(new THREE.CylinderGeometry(0.06,0.06,0.9,8),dark,3.2,-1.35);
-  m(new THREE.CylinderGeometry(0.15,0.15,0.12,12).rotateX(Math.PI/2),dark,3.2,-1.8);
+  /* windows: dark from outside, clear from inside */
+  for(let i=0;i<5;i++){const x=2.2-i*1.2;m(new THREE.SphereGeometry(0.2,10,8,0,PI).scale(1,1.15,0.4),dark,x,0.25,1.02);m(new THREE.SphereGeometry(0.2,10,8,PI,PI).scale(1,1.15,0.4),dark,x,0.25,-1.02);}
+  const nameC=document.createElement('canvas');nameC.width=512;nameC.height=64;
+  {const c=nameC.getContext&&nameC.getContext('2d');if(c&&c.fillText){c.clearRect(0,0,512,64);c.fillStyle='#2a6fd6';c.font='italic 700 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ISLAND AIR',256,34);}}
+  const nameT=new THREE.CanvasTexture(nameC),nameM=new THREE.MeshBasicMaterial({map:nameT,transparent:true});
+  [-1,1].forEach(function(sd){const p=m(new THREE.PlaneGeometry(2.6,0.33),nameM,0.4,0.72,sd*0.82);p.rotation.y=sd>0?0:PI;p.rotation.x=sd*-0.62;});
+  /* the windscreen: dark panels wrapping round the top of the nose; clear from the pilot's seat */
+  m(new THREE.SphereGeometry(1,24,10,PI*0.62,PI*0.76,PI*0.2,PI*0.26).scale(1.9,1.06,1.07),glass,3.85,0.02,0);
+  for(const a of [-0.3,0.3]){const fr=m(new THREE.BoxGeometry(0.05,0.55,0.05),dark,4.45,0.62,a*1.45);fr.rotation.z=-0.75;}
+  /* the door on the left side, and its frame */
+  m(new THREE.BoxGeometry(0.72,1.28,0.04),stripe,2.95,-0.1,1.05);
+  m(new THREE.BoxGeometry(0.62,1.18,0.045),white,2.95,-0.1,1.055);
+  m(new THREE.BoxGeometry(0.14,0.05,0.05),metal,3.15,-0.15,1.08);
+  /* swept, tapered wings with winglets, under a fairing, with lights on the tips */
+  const wing=new THREE.Shape();wing.moveTo(1.4,0);wing.lineTo(-1.3,0);wing.lineTo(-3.0,4.6);wing.lineTo(-2.05,4.6);wing.lineTo(1.4,0);
+  [-1,1].forEach(function(sd){
+    const wg=new THREE.ExtrudeGeometry(wing,{depth:0.14,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.05,bevelSegments:1});
+    wg.rotateX(PI/2);if(sd<0)wg.scale(1,1,-1);wg.translate(0,0.07,0);
+    const w=m(wg,white,0.6,-0.55,sd*0.75);w.rotation.x=sd*-0.06;
+    const wl=m(new THREE.BoxGeometry(0.9,0.95,0.08),stripe,-2.15,-0.05,sd*5.38);wl.rotation.x=sd*0.25;wl.rotation.y=0;
+    m(new THREE.SphereGeometry(0.07,8,6),glow(sd>0?0x30ff60:0xff3030),-1.9,-0.25,sd*5.42);
+    for(const f of [0.4,1.6])m(new THREE.CylinderGeometry(0.07,0.04,0.9,6).rotateZ(PI/2),belly,-1.0-f*0.6,-0.68,sd*(0.9+f*1.6));
+    m(new THREE.SphereGeometry(1,16,8).scale(1.4,0.35,0.55),belly,0.1,-0.75,sd*0.75);
+  });
+  /* the engines on the back of the body: pylons, a lipped intake with the fan and spinner inside, and
+     the exhaust cone (which glows when they run) */
+  [-1,1].forEach(function(sd){
+    m(new THREE.BoxGeometry(0.9,0.12,0.6),white,-2.55,0.55,sd*1.0);
+    m(new THREE.CylinderGeometry(0.44,0.36,2.0,20).rotateZ(PI/2),white,-2.6,0.55,sd*1.45);
+    m(new THREE.CylinderGeometry(0.445,0.445,0.5,20,1,true).rotateZ(PI/2),stripe,-2.0,0.55,sd*1.45);
+    const lip=m(new THREE.TorusGeometry(0.4,0.05,8,20),metal,-1.6,0.55,sd*1.45);lip.rotation.y=PI/2;
+    m(new THREE.CircleGeometry(0.37,20).rotateY(PI/2),dark,-1.66,0.55,sd*1.45);
+    m(new THREE.ConeGeometry(0.12,0.22,12).rotateZ(-PI/2),metal,-1.62,0.55,sd*1.45);
+    m(new THREE.ConeGeometry(0.2,0.45,14).rotateZ(PI/2),metal,-3.75,0.55,sd*1.45);
+    const gl=m(new THREE.CircleGeometry(0.3,16).rotateY(-PI/2),new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0}),-3.61,0.55,sd*1.45);
+    (jet.glows||(jet.glows=[])).push(gl);
+  });
+  /* a T-tail: a swept fin in the airline's colours, with the tailplane on top */
+  const fin=new THREE.Shape();fin.moveTo(0,0);fin.lineTo(-1.9,0);fin.lineTo(-2.55,2.0);fin.lineTo(-1.6,2.0);fin.lineTo(0,0);
+  const fg=new THREE.ExtrudeGeometry(fin,{depth:0.14,bevelEnabled:false});fg.translate(0,0,-0.07);
+  m(fg,white,-3.9,0.6,0);
+  const band=new THREE.Shape();band.moveTo(-0.55,0.5);band.lineTo(-2.0,0.5);band.lineTo(-2.3,1.4);band.lineTo(-1.25,1.4);band.lineTo(-0.55,0.5);
+  const bg=new THREE.ExtrudeGeometry(band,{depth:0.16,bevelEnabled:false});bg.translate(0,0,-0.08);m(bg,stripe,-3.9,0.6,0);
+  m(new THREE.BoxGeometry(0.5,0.18,0.17),gold,-5.85,2.2,0);
+  const tp=new THREE.Shape();tp.moveTo(0,0);tp.lineTo(-0.9,0);tp.lineTo(-1.25,1.5);tp.lineTo(-0.75,1.5);tp.lineTo(0,0);
+  [-1,1].forEach(function(sd){const tg=new THREE.ExtrudeGeometry(tp,{depth:0.08,bevelEnabled:false});tg.rotateX(PI/2);if(sd<0)tg.scale(1,1,-1);m(tg,white,-5.35,2.62,sd*0.05);});
+  /* beacons top and bottom, a white tail light, aerials */
+  const bcn=[m(new THREE.SphereGeometry(0.07,8,6),glow(0xff2020),-0.4,1.08,0),m(new THREE.SphereGeometry(0.07,8,6),glow(0xff2020),0.4,-1.08,0)];
+  m(new THREE.SphereGeometry(0.06,8,6),glow(0xffffff),-6.6,0.32,0);
+  m(new THREE.BoxGeometry(0.25,0.3,0.03),dark,1.2,1.15,0).rotation.z=-0.5;
+  m(new THREE.BoxGeometry(0.2,0.22,0.03),dark,-1.6,1.1,0).rotation.z=-0.5;
+  /* landing gear: two wheels on the nose leg and on each main leg, with doors; it folds away in flight */
+  const gear=new THREE.Group();body.add(gear);
+  const leg=function(x,z,len){
+    m(new THREE.CylinderGeometry(0.06,0.06,len,8),metal,x,-0.95-len/2+0.1,z,gear);
+    [-0.13,0.13].forEach(function(dz){m(new THREE.CylinderGeometry(0.18,0.18,0.12,14).rotateX(PI/2),tyre,x,-1.37,z+dz,gear);m(new THREE.CylinderGeometry(0.08,0.08,0.13,10).rotateX(PI/2),metal,x,-1.37,z+dz,gear);});
+    m(new THREE.BoxGeometry(0.6,0.03,0.04),belly,x,-0.92,z+0.28,gear);
+  };
+  leg(3.3,0,0.5);leg(-0.35,1.15,0.55);leg(-0.35,-1.15,0.55);
+  m(new THREE.SphereGeometry(0.08,8,6),glow(0xfff3b0),3.55,-0.9,0,gear);
   buildJetInterior(body,m,lam);
   g.rotation.order='YZX';
   scene.add(g);
+  jet.gear=gear;jet.beacons=bcn;
   return g;
 }
 /* inside the jet: a cream cabin with four seats and windows to look out of, and up front the cockpit
@@ -4703,7 +4757,7 @@ function buildJetInterior(body,m,lam){
   ring(2.6,3.75,150*D2R,390*D2R);
   m(new THREE.BoxGeometry(0.55,0.36,0.55),leather,JSEATS.pilot[0],JSEATS.pilot[1]+0.8-0.18,0);
   m(new THREE.BoxGeometry(0.14,0.95,0.55),leather,JSEATS.pilot[0]-0.32,JSEATS.pilot[1]+0.8+0.35,0);
-  m(new THREE.BoxGeometry(0.7,0.95,1.8),dash,4.1,-0.6,0);
+  m(new THREE.BoxGeometry(0.6,0.62,1.3),dash,4.05,-0.42,0);
   m(new THREE.BoxGeometry(0.45,0.06,1.7),glow(0x1b2026,0x0a0c0f),3.9,-0.1,0);
   const dc=document.createElement('canvas');dc.width=512;dc.height=160;
   const dt=new THREE.CanvasTexture(dc);
@@ -4850,6 +4904,10 @@ function jetTick(dt){
   o.position.set(q.x,q.y,q.z);
   o.rotation.set(q.r,-q.h,q.p);
   (jet.glows||[]).forEach(function(gl){gl.material.opacity=Math.min(0.9,speed/20);});
+  /* the wheels fold away once it's flying well clear of the ground; the beacons blink */
+  jet.gearT=(jet.gearT||0)-dt;
+  if(jet.gear&&jet.gearT<=0){jet.gearT=0.3;const gap=groundGap(q.x,q.y-1.3,q.z);jet.gear.visible=speed<10||gap<5;}
+  if(jet.beacons){const on=(clock*1.2%1)<0.15;jet.beacons.forEach(function(b){b.visible=on;});}
   drawJetPanels(dt,speed);
   updateJetHint();
 }
