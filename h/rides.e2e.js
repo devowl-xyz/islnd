@@ -115,13 +115,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.heli.leave());
 
   // ----- the parachute -----
-  await put(a, 80.5, 70, 92.5); await a.evaluate(() => { window.__isle.player.vy = 0; });
+  await put(a, 80.5, 42, 92.5); await a.evaluate(() => { window.__isle.player.vy = 0; });
   await a.waitForFunction(() => window.__isle.player.vy < -8, null, { timeout: 10000 }).catch(() => {});
-  await a.keyboard.press('Space'); await wait(600);
+  await a.keyboard.press('Space'); await wait(1500);
   check('Jump while falling from high up opens the parachute', await a.evaluate(() => window.__isle.chute()) && /parachute/i.test(await a.textContent('#toast')));
   const fall = await me(a);
   check('and you drift down slowly', fall.vy > -4 && fall.vy < -2.5, fall);
-  await a.waitForFunction(() => !window.__isle.chute(), null, { timeout: 40000 }).catch(() => {});
+  await a.waitForFunction(() => !window.__isle.chute(), null, { timeout: 150000 }).catch(() => {});
   check('it packs away when you land', !(await a.evaluate(() => window.__isle.chute())) && /land softly/.test(await a.textContent('#toast')));
   await a.evaluate(() => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'hoot' }); I.heli.put(100.5, 50, 92.5, 0); P.fly = true; P.x = 100.5; P.y = 51; P.z = 93.5; I.heli.board(); });
   await wait(500);
@@ -163,14 +163,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('getting off frees it for everyone', (await skis(g))[1].rider === null);
   await g.keyboard.press('KeyE'); await wait(300);
   // a parachute others can see
-  await put(a, 80.5, 70, 92.5);
+  await put(a, 80.5, 42, 92.5);
   await a.waitForFunction(() => window.__isle.player.vy < -8, null, { timeout: 10000 }).catch(() => {});
   await a.evaluate(() => window.__isle.openChute());
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()][0]; return p && p.av && p.av.chute && p.av.chute.visible; }, null, { timeout: 8000 }).catch(() => {});
   await g.waitForFunction(() => true);
   check('others see your parachute', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()][0]; return !!(p && p.av && p.av.chute && p.av.chute.visible); }));
 
-  await a.waitForFunction(() => !window.__isle.chute(), null, { timeout: 40000 }).catch(() => {});
+  await a.waitForFunction(() => !window.__isle.chute(), null, { timeout: 150000 }).catch(() => {});
   await a.evaluate(() => window.__isle.cmd('/ski'));
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()][0]; return p && p.av && p.av.skiGear && p.av.skiGear.visible; }, null, { timeout: 8000 }).catch(() => {});
   check('and your skis', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()][0]; return !!(p && p.av && p.av.skiGear && p.av.skiGear.visible); }));

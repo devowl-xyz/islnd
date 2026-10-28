@@ -2813,7 +2813,7 @@ function update(dt){
     if(jump&&lastHitH&&sub<0.9)P.vy=Math.max(P.vy,6.8);
   }else{
     /* under a parachute you sink at a steady pace */
-    if(P.chute)P.vy+=(CHUTE_VY-P.vy)*Math.min(1,dt*3);
+    if(P.chute)P.vy+=(CHUTE_VY-P.vy)*Math.min(1,dt*6);
     else{P.vy-=28*dt;if(P.vy<-55)P.vy=-55;}
     /* the owl lets you down gently */
     if(P.lift&&P.vy<-3.2)P.vy=-3.2;
