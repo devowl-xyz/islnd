@@ -25,7 +25,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const me = (p) => p.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z, vy: P.vy, fly: P.fly }; });
   const skis = (p) => p.evaluate(() => window.__isle.skis.list());
   const hint = (p) => p.evaluate(() => document.getElementById('jethint').textContent);
-  const put = (p, x, y, z, yaw) => p.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q[0]; P.y = q[1]; P.z = q[2]; P.yaw = q[3] || 0; }, [x, y, z, yaw]);
+  const put = (p, x, y, z, yaw) => p.evaluate((q) => { const P = window.__isle.player; window.__isle.noChute(); P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q[0]; P.y = q[1]; P.z = q[2]; P.yaw = q[3] || 0; }, [x, y, z, yaw]);
 
   const ctxA = await browser.newContext({ viewport: { width: 900, height: 600 } });
   let a = await open(null, ctxA);
