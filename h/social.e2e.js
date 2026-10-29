@@ -113,7 +113,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const t0 = await a.evaluate(() => window.__isle.social.tag());
   check('the host starts tag and someone is it', t0 && (t0.it === (await a.evaluate(() => window.__isle.net.you)) || t0.it === (await g.evaluate(() => window.__isle.net.you))), t0);
   await g.waitForFunction(() => /Tag/.test(document.getElementById('gamehud').textContent) && !document.getElementById('gamehud').hidden, null, { timeout: 8000 }).catch(() => {});
-  check('the HUD shows who’s it and the time left', /Tag/.test(await g.textContent('#gamehud')) && /it/.test(await g.textContent('#gamehud')));
+  check('the HUD shows who’s it and the time left', /Tag/.test(await g.textContent('#gamehud')) && /\bit\b/i.test(await g.textContent('#gamehud')));
   const ids = { a: await a.evaluate(() => window.__isle.net.you), g: await g.evaluate(() => window.__isle.net.you) };
   const itP = t0.it === ids.a ? a : g, other = itP === a ? g : a, otherId = itP === a ? ids.g : ids.a;
   await wait(1700);
@@ -122,7 +122,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await pose(other, 81.5, 13, 96.5); await pose(itP, 80.8, 13, 96.5);
   await a.waitForFunction((id) => window.__isle.social.tag() && window.__isle.social.tag().it === id, otherId, { timeout: 10000 }).catch(() => {});
   check('touching someone passes it on', (await a.evaluate(() => window.__isle.social.tag().it)) === otherId && (await g.evaluate(() => window.__isle.social.tag().it)) === otherId);
-  await other.evaluate((id) => window.__isle.net.ws.send(JSON.stringify({ t: 'tagged', target: id })), t0.it); await wait(500);
+  /* try to tag straight back the moment you're it (inside the page, so slow test frames don't let the 3 s pass first) */
+  await other.evaluate((id) => new Promise((res) => { const I = window.__isle, t0 = Date.now(); (function go() { const tg = I.social.tag(); if (tg && tg.it === I.net.you) { I.net.ws.send(JSON.stringify({ t: 'tagged', target: id })); res(); } else if (Date.now() - t0 > 8000) res(); else setTimeout(go, 20); })(); }), t0.it); await wait(500);
   check('no tagging straight back', (await a.evaluate(() => window.__isle.social.tag().it)) === otherId);
   await pose(other, 100.5, 13, 96.5); await wait(300);
   await a.evaluate(() => window.__isle.net.ws.send(JSON.stringify({ t: 'tagStop' })));
