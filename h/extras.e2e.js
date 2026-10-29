@@ -263,6 +263,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and you wade through it', await a.evaluate(() => window.__isle.potty.inSewage()));
   await put(a, 80.5, 13, 92.5);
 
+  // ----- Pemberton, the owls' penguin butler -----
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' })); await wait(500);
+  const bp = await a.evaluate(() => window.__isle.butler.pose());
+  const hall = await a.evaluate(() => window.__isle.butler.hall());
+  check('Pemberton keeps the treehouse hall', bp.x >= hall.x0 && bp.x <= hall.x1 + 1 && bp.z >= hall.z0 && bp.z <= hall.z1 + 1 && bp.y === hall.y0, [bp, hall]);
+  const nearButler = () => a.evaluate(() => { const I = window.__isle, b = I.butler.pose(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); });
+  await nearButler(); await wait(400);
+  check('he greets an owl owner who comes home', /Welcome home|kettle/.test((await a.evaluate(() => window.__isle.butler.said())) || ''), await a.evaluate(() => window.__isle.butler.said()));
+  const served = [];
+  for (let k = 0; k < 4; k++) { await nearButler(); await a.keyboard.press('KeyE'); await wait(300); served.push(await a.evaluate(() => window.__isle.butler.said())); }
+  check('E: a cup of tea, a snack for your owl, a polish and the news', /tea/i.test(served[0]) && /snack|Mice/i.test(served[1]) && /polish/i.test(served[2]) && /news/i.test(served[3]), served);
+  check('and you’re holding the tea', await a.evaluate(() => window.__isle.butler.tea()));
+  const refused = await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
+  check('he politely refuses anyone else', /Terribly sorry/.test(refused || ''), refused);
+  await a.evaluate(() => window.__isle.cmd('/home')); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
