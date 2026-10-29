@@ -81,6 +81,38 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { window.__isle.heli.leave(); window.__isle.noChute(); window.__isle.heli.put(295.5, 12, 34.5, -Math.PI / 2); window.__isle.setSkin({ pet: 'none' }); window.__isle.cmd('/despawn skis'); });
   check('and /despawn skis brings it back to the jetty', !(await skis(a))[2].land && Math.hypot((await skis(a))[2].x - home[2][0], (await skis(a))[2].z - home[2][1]) < 0.01);
 
+  // ----- bicycles by the meadow, for pet owners -----
+  const bikes = (p) => p.evaluate(() => window.__isle.bikes.list());
+  const bh = await a.evaluate(() => window.__isle.bikes.home);
+  check('six bikes are parked by the meadow', (await bikes(a)).length === 6 && (await bikes(a)).every((b, k) => Math.hypot(b.x - bh[k][0], b.z - bh[k][1]) < 0.01));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await put(a, 87.5, 13, 101.6, 0); await wait(600);
+  check('without a pet the hint says they’re for pet owners', /for pet owners/.test(await hint(a)), await hint(a));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('and you can’t get on', (await a.evaluate(() => window.__isle.bikes.mine())) === null && /for pet owners/.test(await a.textContent('#toast')));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await put(a, 87.5, 13, 101.6, 0); await wait(600);
+  check('with a pet, E to ride the bike', /ride the red bike/.test(await hint(a)), await hint(a));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E gets on', (await a.evaluate(() => window.__isle.bikes.mine())) === 0);
+  const b0 = await me(a);
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction((q) => { const P = window.__isle.player; return Math.hypot(P.x - q.x, P.z - q.z) > 4; }, b0, { timeout: 20000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
+  const b1 = await me(a), bk1 = (await bikes(a))[0];
+  check('W pedals you along, on the bike', Math.hypot(b1.x - b0.x, b1.z - b0.z) > 4 && Math.hypot(bk1.x - b1.x, bk1.z - b1.z) < 0.3 && /Cycling/.test(await a.textContent('#coords')), { b0, b1, bk1 });
+  const y0 = await a.evaluate(() => window.__isle.player.yaw);
+  await a.keyboard.down('KeyD'); await wait(900); await a.keyboard.up('KeyD');
+  check('D steers to the right', (await a.evaluate(() => window.__isle.player.yaw)) < y0 - 0.1);
+  await a.keyboard.press('KeyE'); await wait(300);
+  const parked = (await bikes(a))[0];
+  check('E gets off and parks it there', (await a.evaluate(() => window.__isle.bikes.mine())) === null && parked.rider === null && Math.hypot(parked.x - bh[0][0], parked.z - bh[0][1]) > 3);
+  await a.close();
+  a = await open(null, ctxA); await play(a);
+  check('it stays where you left it after a reload', Math.hypot((await bikes(a))[0].x - parked.x, (await bikes(a))[0].z - parked.z) < 0.05);
+  await a.evaluate(() => window.__isle.cmd('/despawn bikes'));
+  check('/despawn bikes puts them back in the rack', Math.hypot((await bikes(a))[0].x - bh[0][0], (await bikes(a))[0].z - bh[0][1]) < 0.01);
+
   // ----- the cable car -----
   const cab = await a.evaluate(() => ({ on: window.__isle.cable.on(), A: window.__isle.cable.A, B: window.__isle.cable.B }));
   check('the cable car runs (in the spread layout)', cab.on);
@@ -186,6 +218,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await g.waitForFunction(() => window.__isle.skis.list()[1].rider === null, null, { timeout: 8000 }).catch(() => {});
   check('getting off frees it for everyone', (await skis(g))[1].rider === null);
   await g.keyboard.press('KeyE'); await wait(300);
+  // bikes in a room
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await put(a, 88.7, 13, 101.6, 0); await wait(600);
+  await a.keyboard.press('KeyE');
+  await g.waitForFunction((id) => window.__isle.bikes.list()[1].rider === id, aid, { timeout: 8000 }).catch(() => {});
+  check('in a room everyone sees who’s on a bike', (await g.evaluate(() => window.__isle.bikes.list()[1].rider)) === aid);
+  await g.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await wait(400);
+  await g.evaluate(() => window.__isle.net.ws.send(JSON.stringify({ t: 'bikeBoard', k: 2 })));
+  await wait(800);
+  check('and the room keeps the bikes for pet owners', (await a.evaluate(() => window.__isle.bikes.list()[2].rider)) === null && /for pet owners/.test(await g.textContent('#toast')));
+  await a.keyboard.press('KeyE');
+  await g.waitForFunction(() => window.__isle.bikes.list()[1].rider === null, null, { timeout: 8000 }).catch(() => {});
+  check('getting off frees it', (await g.evaluate(() => window.__isle.bikes.list()[1].rider)) === null);
   // a parachute others can see
   await put(a, 80.5, 42, 92.5);
   await a.waitForFunction(() => window.__isle.player.vy < -8, null, { timeout: 10000 }).catch(() => {});
