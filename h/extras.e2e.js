@@ -78,6 +78,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/tp lighthouse'));
   const lp = await me(a);
   check('/tp lighthouse takes you to its door', Math.hypot(lp.x - LH.cx, lp.z - LH.cz) < 6, lp);
+  // walk in through the door and all the way up the spiral to the lamp room
+  {
+    const cx = LH.cx, cz = LH.cz;
+    const ring = [[cx - 0.5, cz + 1.5], [cx - 0.5, cz + 0.5], [cx - 0.5, cz - 0.5], [cx + 0.5, cz - 0.5], [cx + 1.5, cz - 0.5], [cx + 1.5, cz + 0.5], [cx + 1.5, cz + 1.5], [cx + 0.5, cz + 1.5]];
+    const route = [[cx + 0.5, cz + 2.5], [cx + 0.5, cz + 1.5]];
+    for (let r = 0; r < 6; r++) ring.forEach((q) => route.push(q));
+    await put(a, cx + 0.5, LH.G, cz + 4.5, 0);
+    await a.keyboard.down('KeyW');
+    let top = false;
+    for (const q of route) {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 12000) {
+        const at = await a.evaluate((q) => { const P = window.__isle.player; P.yaw = Math.atan2(-(q[0] - P.x), -(q[1] - P.z)); return { d: Math.hypot(q[0] - P.x, q[1] - P.z), y: P.y }; }, q);
+        if (at.y >= LH.L + 1 - 0.01) { top = true; break; }
+        if (at.d < 0.25) break;
+        await wait(60);
+      }
+      if (top) break;
+    }
+    await a.keyboard.up('KeyW');
+    const up = await me(a);
+    check('you walk in through the door and up the spiral stairs to the lamp room', top && up.y >= LH.L + 1 - 0.01, up);
+  }
   await a.evaluate(() => window.__isle.cmd('/time noon'));
   await wait(2500);
   check('by day the beam is off', !(await a.evaluate(() => { const b = window.__isle.lighthouse.beam(); return b && b.on; })));

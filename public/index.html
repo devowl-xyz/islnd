@@ -8906,18 +8906,21 @@ function buildLighthouse(){
     else S(x,y,z,dx===0&&dz===0?B.STONE:0);
   }
   /* the door, and a lamp over it */
-  S(o.cx,o.G,o.cz+2,0);S(o.cx,o.G+1,o.cz+2,0);S(o.cx,o.G+2,o.cz+3,B.LAMP);
+  S(o.cx,o.G,o.cz+2,B.DOOR_OPEN);S(o.cx,o.G+1,o.cz+2,B.DOOR_TOP_OPEN);S(o.cx,o.G+2,o.cz+3,B.LAMP);
   S(o.cx,o.G-1,o.cz+3,B.STONE);S(o.cx,o.G-1,o.cz+4,B.STONE);
-  /* the spiral: one stone stair a step, round the ring of eight cells by the pillar */
-  const ring=[[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1],[1,0],[1,1]];
-  const dirOf=function(a,b){const ddx=b[0]-a[0],ddz=b[1]-a[1];return ddz<0?0:ddx>0?1:ddz>0?2:3;};
-  const last=L;
-  for(let y=o.G;y<=last;y++){
-    const k=(y-o.G)%8,c=ring[k],n=ring[(k+1)%8];
-    S(o.cx+c[0],y,o.cz+c[1],B.STAIR_STONE+dirOf(c,n));
+  /* the spiral, round the ring of eight cells by the pillar: a flat landing in each corner and a stone stair along
+     each side, always walked up from its low end, so it climbs one block a side. It starts in the corner just
+     inside the door, and the stair over the doorway is high enough to walk under. */
+  const corners=[[-1,1],[-1,-1],[1,-1],[1,1]],edges=[[-1,0],[0,-1],[1,0],[0,1]];
+  const top=L-o.G,gap=new Set();
+  for(let k=0;k<=top;k++){
+    const e=edges[k%4],c=corners[(k+1)%4];
+    S(o.cx+e[0],o.G+k,o.cz+e[1],B.STAIR_STONE+k%4);
+    if(k<top)S(o.cx+c[0],o.G+k,o.cz+c[1],B.STONE);
+    /* the lamp room floor leaves room over the last few steps */
+    if(k>=top-2)gap.add(e.join());
+    if(k>=top-2&&k<top)gap.add(c.join());
   }
-  /* the lamp room floor (with a gap over the top of the stairs), its glass walls, the lamp and a red roof */
-  const kl=(last-o.G)%8,gap=new Set([kl,(kl+7)%8,(kl+6)%8].map(function(k){return ring[k].join();}));
   for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++){
     const x=o.cx+dx,z=o.cz+dz,m=Math.max(Math.abs(dx),Math.abs(dz));
     if(m<=1&&(dx||dz)&&gap.has(dx+','+dz))continue;
