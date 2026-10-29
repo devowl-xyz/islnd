@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 61; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides
+const MAX_BLOCK = 87; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -184,14 +184,15 @@ function cleanName(s) {
   return s || 'Player';
 }
 /* Skins are a few colours and style names; anything else is dropped. */
-const SKIN_COLORS = ['skin', 'hair', 'shirt', 'pants', 'shoes', 'hat', 'rod'];
+const SKIN_COLORS = ['skin', 'hair', 'shirt', 'pants', 'shoes', 'hat', 'rod', 'petHat', 'petCollar', 'petSaddle'];
 const SKIN_STYLES = {
   kind: ['person', 'rod'],
   hairStyle: ['short', 'long', 'none'], face: ['eyes', 'smile', 'visor'], hatStyle: ['none', 'cap', 'beanie', 'crown'],
   headWrap: ['front', 'all'],
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
-  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse']
+  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse'],
+  petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie'], petCollarStyle: ['none', 'plain', 'bell', 'bandana'], petSaddleStyle: ['none', 'plain', 'fancy']
 };
 const HEX6 = /^#[0-9a-f]{6}$/i, PX256 = /^[0-9a-f]{256}$/;
 function cleanSkin(raw) {
@@ -931,7 +932,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: msg.zp ? 1 : 0, ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }

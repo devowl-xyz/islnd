@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node h/run.js && node h/run.js touch && node h/rooms.e2e.js && node h/water.e2e.js && node h/jet.e2e.js && node h/pets.e2e.js && node h/treehouse.e2e.js && node h/atlantis.e2e.js && node h/cottage.e2e.js && node h/den.e2e.js && node h/spread.e2e.js && node h/horse.e2e.js && node h/sleep.e2e.js && node h/food.e2e.js && node h/owl.e2e.js && node h/fish.e2e.js && node h/social.e2e.js && node h/powers.e2e.js && node h/palace.e2e.js && node h/airport.e2e.js && node h/atc.e2e.js && node h/heli.e2e.js && node h/commands.e2e.js && node h/p2p.e2e.js && node h/mobile.e2e.js && node h/tools.e2e.js && node h/rides.e2e.js && node h/build.e2e.js"
+    "test": "node h/run.js && node h/run.js touch && node h/rooms.e2e.js && node h/water.e2e.js && node h/jet.e2e.js && node h/pets.e2e.js && node h/treehouse.e2e.js && node h/atlantis.e2e.js && node h/cottage.e2e.js && node h/den.e2e.js && node h/spread.e2e.js && node h/horse.e2e.js && node h/sleep.e2e.js && node h/food.e2e.js && node h/owl.e2e.js && node h/fish.e2e.js && node h/social.e2e.js && node h/powers.e2e.js && node h/palace.e2e.js && node h/airport.e2e.js && node h/atc.e2e.js && node h/heli.e2e.js && node h/commands.e2e.js && node h/p2p.e2e.js && node h/mobile.e2e.js && node h/tools.e2e.js && node h/rides.e2e.js && node h/build.e2e.js && node h/extras.e2e.js"
   },
   "dependencies": {
     "ws": "^8.22.0"
