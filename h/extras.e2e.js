@@ -120,6 +120,17 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/home'));
   await a.waitForFunction(() => window.__isle.wild.counts().flies > 0, null, { timeout: 15000 }).catch(() => {});
   check('and butterflies flutter over the meadow by day', (await a.evaluate(() => window.__isle.wild.counts().flies)) > 0);
+  check('the flocks are seagulls, crows and sparrows', (await a.evaluate(() => window.__isle.wild.kinds().join())) === 'gull,gull,crow,sparrow');
+  await a.waitForFunction(() => window.__isle.wild.pigeons().some((q) => q.mode === 'ground'), null, { timeout: 20000 }).catch(() => {});
+  const pg = await a.evaluate(() => window.__isle.wild.pigeons().findIndex((q) => q.mode === 'ground'));
+  check('pigeons strut about on the ground near you', pg >= 0);
+  if (pg >= 0) {
+    await a.evaluate((k) => { const q = window.__isle.wild.pigeons()[k], P = window.__isle.player; P.fly = true; P.x = q.x + 1.5; P.y = q.y; P.z = q.z; }, pg);
+    await a.waitForFunction((k) => window.__isle.wild.pigeons()[k].mode === 'fly', pg, { timeout: 8000 }).catch(() => {});
+    check('and flutter off when you walk up to them', (await a.evaluate((k) => window.__isle.wild.pigeons()[k].mode, pg)) === 'fly');
+    await a.evaluate(() => { window.__isle.player.fly = false; });
+    await a.evaluate(() => window.__isle.cmd('/home'));
+  }
 
   // ----- chat bubbles and reactions -----
   await a.evaluate(() => window.__isle.social.chat('Hello there, this is a long message that should wrap onto more than one line of the bubble'));
