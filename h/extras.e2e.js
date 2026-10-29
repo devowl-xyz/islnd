@@ -131,10 +131,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.photo.toggle(false));
 
   // ----- crashing the jet -----
-  const aimJet = (p) => p.evaluate(() => { const I = window.__isle, q = I.jet.pose, P = I.player;
-    /* low over the meadow heading east, flat out, at a stone wall */
-    for (let z = 84; z <= 100; z++) for (let y = 13; y <= 30; y++) I.setBlock(96, y, z, 3);
-    q.x = 66; q.y = 20; q.z = 92.5; q.h = 0; q.p = 0; q.r = 0; I.jet.spd = 30; I.jet.thr = 1; P.yaw = -Math.PI / 2; P.pitch = 0; });
+  const aimJet = (p, small) => p.evaluate((small) => { const I = window.__isle, q = I.jet.pose, P = I.player;
+    /* low over the meadow heading east, flat out, at a stone wall (a small one in a room, where edits are rate limited) */
+    if (small) { for (let z = 89; z <= 96; z++) for (let y = 19; y <= 21; y++) I.setBlock(96, y, z, 3); }
+    else for (let z = 84; z <= 100; z++) for (let y = 13; y <= 30; y++) I.setBlock(96, y, z, 3);
+    q.x = small ? 84 : 66; q.y = 20; q.z = 92.5; q.h = 0; q.p = 0; q.r = 0; I.jet.spd = 30; I.jet.thr = 1; P.yaw = -Math.PI / 2; P.pitch = 0; }, !!small);
   await put(a, 80.5, 13, 92.5, 0);
   await a.evaluate(() => window.__isle.cmd('/spawn jet')); await wait(500);
   await a.evaluate(() => { const q = window.__isle.jet.pose, P = window.__isle.player; P.x = q.x + 1; P.y = q.y - 1.5; P.z = q.z; });
@@ -221,8 +222,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await g.evaluate(() => window.__isle.toggleBoard());
   await g.waitForFunction(() => window.__isle.jet.seat && window.__isle.jet.seat !== 'pilot', null, { timeout: 8000 }).catch(() => {});
   check('a guest hops aboard as a passenger', !!(await g.evaluate(() => window.__isle.jet.seat)));
-  await aimJet(a);
-  await g.waitForFunction(() => window.__isle.crash.booms() > 0, null, { timeout: 30000 }).catch(() => {});
+  await aimJet(a, true);
+  await g.waitForFunction(() => window.__isle.crash.booms() > 0, null, { timeout: 60000 }).catch(() => {});
   check('in a room everyone sees the jet blow up', (await g.evaluate(() => window.__isle.crash.booms())) > 0);
   const gc = await g.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return { seat: I.jet.seat, d: Math.hypot(P.x - b.x, P.z - b.z) }; });
   check('and the passenger wakes up on East Beach too', gc.seat === null && gc.d < 1.5, gc);
