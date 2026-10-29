@@ -137,7 +137,6 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     check('a seagull swoops down and carries off Biscuit while it’s a biscuit', (await a.evaluate(() => window.__isle.silly.steal())) === 'carry');
     await a.waitForFunction(() => !window.__isle.silly.steal(), null, { timeout: 30000 }).catch(() => {});
     check('then drops it, and Biscuit is itself again', !(await a.evaluate(() => window.__isle.food.mine())));
-    await a.evaluate(() => window.__isle.setSkin({ pet: 'none' })); await wait(300);
   }
   // a storm blows the lighthouse lamp's fuse
   await a.evaluate(() => window.__isle.cmd('/weather storm'));
