@@ -4177,7 +4177,7 @@ function initNet(){
   try{nName.value=localStorage.getItem(NAME_KEY)||'';}catch(e){}
   const pre=params&&params.get('room');
   if(pre)nCode.value=pre.toUpperCase().slice(0,5);
-  nHost.addEventListener('click',function(){if(!ready){netMsg('The island is still loading. Try again in a moment.');return;}connect(function(){netSend({t:'host',name:myName(),skin:mySkin,layout:LAYOUT,palace:[...palace.mine],heli:{x:heli.x,y:heli.y,z:heli.z,h:heli.h,bridge:heli.bridge,pets:heli.pets},env:{time:envHour(),weather:env.weather,cycle:env.cycle},signs:signsList(),skis:skis.map(function(q){return{x:q.x,z:q.z,h:q.h};})});});});
+  nHost.addEventListener('click',function(){if(!ready){netMsg('The island is still loading. Try again in a moment.');return;}connect(function(){netSend({t:'host',name:myName(),skin:mySkin,layout:LAYOUT,palace:[...palace.mine],heli:{x:heli.x,y:heli.y,z:heli.z,h:heli.h,bridge:heli.bridge,pets:heli.pets,skis:heli.skis},env:{time:envHour(),weather:env.weather,cycle:env.cycle},signs:signsList(),skis:skis.map(function(q){return{x:q.x,z:q.z,h:q.h,y:q.y};})});});});
   const join=function(){
     const code=(nCode.value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     if(code.length<5){netMsg('Room codes are 5 letters and numbers.',true);return;}
@@ -4976,7 +4976,7 @@ function nearJet(){
 let hintLast='',heliBtnKey='';
 function updateJetHint(){
   let h='';
-  if(heli.seat)h='<b>W</b>/<b>S</b> <b>A</b>/<b>D</b> fly · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>H</b> rope '+(heli.down?'up':'down')+(heli.captives.length+heli.pets.length+heli.dummies.length?' · <b>J</b> let '+(heli.captives.length+heli.pets.length+heli.dummies.length)+' go':'')+' · <b>K</b> bridge '+(heli.bridge?'in':'out')+' · <b>E</b> get out';
+  if(heli.seat)h='<b>W</b>/<b>S</b> <b>A</b>/<b>D</b> fly · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>H</b> rope '+(heli.down?'up':'down')+(heli.captives.length+heli.pets.length+heli.dummies.length+heli.skis.length?' · <b>J</b> let '+(heli.captives.length+heli.pets.length+heli.dummies.length+heli.skis.length)+' go':'')+' · <b>K</b> bridge '+(heli.bridge?'in':'out')+' · <b>E</b> get out';
   else if(heliCaptive())h='Kidnapped by '+heliName(heli.pilot)+'! You can’t get away until you’re let go.';
   else if(P.cable){const st=cabState(P.cable.k);h=st.moving?'Riding the cable car · arriving in '+Math.ceil(st.left)+' s':'Riding the cable car · <b>E</b> to get out';}
   else if(P.ski!==null)h='<b>W</b>/<b>S</b> throttle · <b>A</b>/<b>D</b> steer · <b>E</b> to get off';
@@ -5031,10 +5031,24 @@ function heliLoad(){
     if(s&&s.bridge&&[s.bridge.x,s.bridge.y,s.bridge.z,s.bridge.h].every(isFinite))heli.bridge=s.bridge;
     /* (this runs before the pet list further down exists, so the names are spelled out here) */
     heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse'].indexOf(id)>=0;}):[];
-  }catch(e){heli.pets=[];}
+    heli.skis=s&&Array.isArray(s.skis)?s.skis.filter(function(k,i,a){return Number.isInteger(k)&&k>=0&&k<5&&a.indexOf(k)===i;}):[];
+  }catch(e){heli.pets=[];heli.skis=[];}
   heli.pilot=null;heli.seat=false;heli.rope=0;heli.down=false;heli.captives=[];heli.dummies=[];heli.remote=null;heli.vx=heli.vy=heli.vz=0;
+  if(!heli.skis)heli.skis=[];
 }
-function heliSave(){if(inRoom())return;try{localStorage.setItem(HELI_KEY,JSON.stringify({x:heli.x,y:heli.y,z:heli.z,h:heli.h,bridge:heli.bridge,pets:heli.pets}));}catch(e){}}
+function heliSave(){if(inRoom())return;try{localStorage.setItem(HELI_KEY,JSON.stringify({x:heli.x,y:heli.y,z:heli.z,h:heli.h,bridge:heli.bridge,pets:heli.pets,skis:heli.skis}));}catch(e){}}
+/* jet skis the rope has lifted: hanging from the hook, or tucked up under the belly once it's wound in */
+function heliSkiSpot(k){
+  const j=heli.skis.indexOf(k);if(j<0)return null;
+  if(heli.rope>2){const e=heliRopeEnd();return{x:e.x+(j%2?0.5:-0.5)*(heli.skis.length>1?1:0),y:e.y-0.85-Math.floor(j/2)*0.7,z:e.z,h:heli.h};}
+  const w=heliWorld(0.1,-0.5-j*0.55,0);return{x:w.x,y:w.y,z:w.z,h:heli.h};
+}
+/* let go: they drop straight down, on to the water (to ride again) or on to dry land, where they're stuck */
+function dropHeliSkis(){
+  const n=[];
+  heli.skis.forEach(function(k){const s=skis[k],sp=heliSkiSpot(k);if(!s)return;if(sp){s.x=sp.x;s.z=sp.z;s.h=sp.h;}skiSettle(s);n.push(skiName(k));});
+  heli.skis=[];if(n.length)heli.relT=performance.now();skisSave();return n;
+}
 /* pets the rope has snatched up: hanging from the hook while the rope is down, in the back of the cabin once it's up */
 function heliPetSpot(id){
   const k=heli.pets.indexOf(id);if(k<0)return null;
@@ -5207,7 +5221,7 @@ function drawHeliDash(dt){
   c.fillStyle='#8fa0b0';c.font='600 13px sans-serif';c.textAlign='left';c.fillText('ROPE',408,44);
   c.fillStyle=heli.down?'#ffb347':'#57c27a';c.font='700 16px sans-serif';c.fillText(heli.down?Math.round(heli.rope)+' m DOWN':'UP',408,66);
   c.fillStyle='#8fa0b0';c.font='600 13px sans-serif';c.fillText('ABOARD',408,96);
-  const n=heli.captives.length+heli.pets.length+heli.dummies.length;
+  const n=heli.captives.length+heli.pets.length+heli.dummies.length+heli.skis.length;
   c.fillStyle=n?'#ff8f7a':'#cfd8e0';c.font='700 22px sans-serif';c.fillText(String(n),408,124);
   d.t.needsUpdate=true;
 }
@@ -5281,12 +5295,12 @@ function heliRopeKey(){
 }
 function heliRelease(){
   if(!heli.seat&&!(inRoom()&&(net.host||net.admin))){toast('Only the pilot or the host can let people go.');return false;}
-  if(!heli.captives.length&&!heli.pets.length&&!heli.dummies.length){toast('Nobody is aboard to let go.');return false;}
+  if(!heli.captives.length&&!heli.pets.length&&!heli.dummies.length&&!heli.skis.length){toast('Nobody is aboard to let go.');return false;}
   /* letting go winds the rope up too, so the hook doesn't snatch them straight back */
   if(heli.seat&&heli.down){heli.down=false;}
   heli.relT=performance.now();
   if(inRoom())netSend({t:'heliRelease'});
-  else{heli.relT=performance.now();const n=heli.pets.map(heliPetName).concat(dropHeliDummies());heli.pets=[];heliSave();toast(n.join(' and ')+(n.length>1?' drop':' drops')+' down'+(heli.pets.length||n.length?' and head'+(n.length>1?'':'s')+' home':'')+'.');}
+  else{heli.relT=performance.now();const n=heli.pets.map(heliPetName).concat(dropHeliDummies(),dropHeliSkis());heli.pets=[];heliSave();toast(n.join(' and ')+(n.length>1?' drop':' drops')+' down'+(heli.pets.length||n.length?' and head'+(n.length>1?'':'s')+' home':'')+'.');}
   return true;
 }
 function setHeliBridge(on){
@@ -5362,6 +5376,18 @@ function heliTick(dt){
       else{heli.dummies.push(d.id);toast('Got '+d.name+'!');}
     });
   }
+  /* jet skis too: any nobody is riding */
+  if(relOk&&heli.seat&&heli.down&&heli.rope>2&&heli.skis.length<3){
+    const e=heliRopeEnd(),now=performance.now();
+    skis.forEach(function(s,k){
+      if(s.rider!==null||heli.skis.indexOf(k)>=0)return;
+      const sy=s.land?s.y:WATER_Y;if(Math.hypot(s.x-e.x,s.z-e.z)>2.2||sy<e.y-2.6||sy>e.y+0.8)return;
+      if(now-(heli.grabT['ski:'+k]||0)<800)return;
+      heli.grabT['ski:'+k]=now;
+      if(inRoom())netSend({t:'heliGrabSki',k:k});
+      else{heli.skis.push(k);heliSave();toast('Got the '+skiName(k)+'!');}
+    });
+  }
   /* pets too: ones waiting at home, and ones following someone else (not your own) */
   if(relOk&&heli.seat&&heli.down&&heli.rope>2&&heli.pets.length<4){
     const e=heliRopeEnd(),now=performance.now(),seen=[];
@@ -5401,6 +5427,10 @@ function onHeli(m){
   const nd=Array.isArray(m.dummies)?m.dummies.filter(Number.isInteger):[];
   if(heli.dummies.some(function(id){return nd.indexOf(id)<0;})){const keep=heli.dummies.filter(function(id){return nd.indexOf(id)>=0;});const drop=heli.dummies.filter(function(id){return nd.indexOf(id)<0;});heli.dummies=drop;dropHeliDummies();heli.dummies=keep;}
   heli.dummies=nd;
+  const nsk=Array.isArray(m.skis)?m.skis.filter(function(k){return Number.isInteger(k)&&k>=0&&k<5;}):[];
+  if(heli.skis.some(function(k){return nsk.indexOf(k)<0;})){const keep=heli.skis.filter(function(k){return nsk.indexOf(k)>=0;});heli.skis=heli.skis.filter(function(k){return nsk.indexOf(k)<0;});dropHeliSkis();heli.skis=keep;}
+  heli.skis=nsk;
+  if(m.act==='grabSki'&&m.by===net.you)toast('Got the '+skiName(m.ski)+'!');
   if(m.act==='grabDummy'&&m.by===net.you){const d=dummies.filter(function(q){return q.id===m.dummy;})[0];if(d)toast('Got '+d.name+'!');}
   const hadPets=heli.pets.slice();
   const np=Array.isArray(m.pets)?m.pets.filter(function(id){return PET_IDS.indexOf(id)>=0;}):[];
@@ -6479,7 +6509,7 @@ function renderPlay(){
   if(heli.seat){
     btn(heli.down?'Wind the rope up (H)':'Let the rope down (H)',function(){heliRopeKey();renderPlay();});
     btn(heli.bridge?'Fold the bridge in (K)':'Put the bridge out (K)',function(){setHeliBridge(!heli.bridge);renderPlay();});
-    if(heli.captives.length||heli.pets.length||heli.dummies.length)btn('Let everyone go (J)',function(){heliRelease();renderPlay();});
+    if(heli.captives.length||heli.pets.length||heli.dummies.length||heli.skis.length)btn('Let everyone go (J)',function(){heliRelease();renderPlay();});
     btn('Get out of the helicopter (E)',function(){leaveHeli();renderPlay();});
   }else if(inRoom()&&(net.host||net.admin)&&(heli.captives.length||heli.pets.length))btn('Free everyone from the helicopter',function(){heliRelease();});
   if(!inRoom()||net.host||net.admin){
@@ -7194,7 +7224,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={cmd:function(t){return runCommand(t);},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food){const Q=makePetModel(id,food);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={cmd:function(t){return runCommand(t);},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food){const Q=makePetModel(id,food);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
@@ -7882,12 +7912,16 @@ function cableRide(dt){
    Five at the jetty below the campsite. E to get on; W and S for the throttle, A and D (or the stick)
    to steer. They stay where they're left, on the water. In a room everyone sees everyone's. */
 const SKI_KEY='voxel-isle-skis',SKI_COLS=[0x8e44d8,0xff5fb4,0x2fbf5a,0xffc53d,0xe4473b],SKI_MAX=17;
-const skis=SKI_HOME.map(function(h){return{x:h[0],z:h[1],h:Math.PI/2,v:0,rider:null,remote:null,obj:null};});
-function skiHome(k){const s=skis[k];s.x=SKI_HOME[k][0];s.z=SKI_HOME[k][1];s.h=Math.PI/2;s.v=0;}
+const skis=SKI_HOME.map(function(h){return{x:h[0],z:h[1],h:Math.PI/2,v:0,rider:null,remote:null,obj:null,land:false,y:WATER_Y};});
+function skiHome(k){const s=skis[k];s.x=SKI_HOME[k][0];s.z=SKI_HOME[k][1];s.h=Math.PI/2;s.v=0;s.land=false;}
+const SKI_NAMES=['purple','pink','green','yellow','red'];
+function skiName(k){return(SKI_NAMES[k]||'')+' jet ski';}
+/* where a jet ski ends up after it's dropped: floating on water, or sitting on dry land */
+function skiSettle(s){s.v=0;if(skiWater(s.x,s.z)){s.land=false;return;}s.land=true;const g=surfY(s.x,s.z,Math.min(H-1,(s.y||WATER_Y)+40));s.y=g===null?WATER_Y:g+0.05;}
 function skisLoad(){
-  try{const a=JSON.parse(localStorage.getItem(SKI_KEY)||'null');if(Array.isArray(a))a.forEach(function(q,k){if(skis[k]&&q&&isFinite(q.x)&&isFinite(q.z)&&isFinite(q.h)){skis[k].x=+q.x;skis[k].z=+q.z;skis[k].h=+q.h;}});}catch(e){}
+  try{const a=JSON.parse(localStorage.getItem(SKI_KEY)||'null');if(Array.isArray(a))a.forEach(function(q,k){if(skis[k]&&q&&isFinite(q.x)&&isFinite(q.z)&&isFinite(q.h)){skis[k].x=+q.x;skis[k].z=+q.z;skis[k].h=+q.h;skis[k].y=isFinite(q.y)?+q.y:WATER_Y;skis[k].land=!!q.land;}});}catch(e){}
 }
-function skisSave(){if(inRoom())return;try{localStorage.setItem(SKI_KEY,JSON.stringify(skis.map(function(s){return{x:Math.round(s.x*100)/100,z:Math.round(s.z*100)/100,h:Math.round(s.h*1000)/1000};})));}catch(e){}}
+function skisSave(){if(inRoom())return;try{localStorage.setItem(SKI_KEY,JSON.stringify(skis.map(function(s){return{x:Math.round(s.x*100)/100,z:Math.round(s.z*100)/100,h:Math.round(s.h*1000)/1000,y:Math.round((s.y||WATER_Y)*100)/100,land:s.land?1:0};})));}catch(e){}}
 function skiWater(x,z){
   const xi=Math.floor(x),zi=Math.floor(z);
   if(xi<1||zi<1||xi>=W-1||zi>=D-1)return false;
@@ -7939,10 +7973,12 @@ function skiMesh(col,k){
 }
 function nearSki(){
   let best=-1,bd=2.8;
-  skis.forEach(function(s,k){if(s.rider!==null)return;const d=Math.hypot(P.x-s.x,P.z-s.z);if(d<bd&&Math.abs(P.y-WATER_Y)<3.5){bd=d;best=k;}});
+  skis.forEach(function(s,k){if(s.rider!==null||heli.skis.indexOf(k)>=0)return;const d=Math.hypot(P.x-s.x,P.z-s.z);if(d<bd&&Math.abs(P.y-(s.land?s.y:WATER_Y))<3.5){bd=d;best=k;}});
   return best;
 }
 function skiBoard(k){
+  if(heli.skis.indexOf(k)>=0){toast('That jet ski is hanging from the helicopter.');return false;}
+  if(skis[k].land){toast('That jet ski is on dry land. Lift it back to the water with the helicopter.');return false;}
   if(P.ride)dismount(true);
   if(inRoom()){netSend({t:'skiBoard',k:k});return true;}
   skis[k].rider=-1;startSki(k);return true;
@@ -7993,8 +8029,10 @@ function skisTick(dt){
       s.x+=(lx-s.x)*q;s.z+=(lz-s.z)*q;s.h+=angDiff(s.h,r.h)*q;s.v=r.v||0;
       if(Math.abs(s.v)>5&&Math.random()<dt*Math.abs(s.v))splash(s.x-Math.cos(s.h)*1.3,WATER_Y,s.z-Math.sin(s.h)*1.3,3,0.5);
     }
-    const y=skiY(k,clock);
-    s.obj.position.set(s.x,y,s.z);s.obj.rotation.set(0,-s.h,Math.min(0.12,Math.abs(s.v)*0.008));
+    const hs=heli.skis.indexOf(k)>=0?heliSkiSpot(k):null;
+    if(hs){s.x=hs.x;s.z=hs.z;s.h=hs.h;}
+    const y=hs?hs.y:(s.land?s.y:skiY(k,clock));
+    s.obj.position.set(s.x,y,s.z);s.obj.rotation.set(0,-s.h,hs?0:Math.min(0.12,Math.abs(s.v)*0.008));
     s.obj.visible=Math.hypot(s.x-cam.x,s.z-cam.z)<VIEW_R;
   }
 }
@@ -8003,7 +8041,7 @@ function onSkis(m){
     const s=skis[k];if(!s||!q)return;
     const was=s.rider;
     s.rider=Number.isInteger(q.rider)?q.rider:null;
-    if(s.rider===null||s.rider!==net.you){if(isFinite(q.x)&&!(was===net.you&&s.rider===net.you)){s.x=+q.x;s.z=+q.z;s.h=+q.h;}s.remote=s.rider!==null?{x:+q.x,z:+q.z,h:+q.h,v:0}:null;}
+    if(s.rider===null||s.rider!==net.you){if(isFinite(q.x)&&!(was===net.you&&s.rider===net.you)&&heli.skis.indexOf(k)<0){s.x=+q.x;s.z=+q.z;s.h=+q.h;if(isFinite(q.y))s.y=+q.y;skiSettle(s);}s.remote=s.rider!==null?{x:+q.x,z:+q.z,h:+q.h,v:0}:null;}
     if(s.rider===net.you&&P.ski!==k)startSki(k);
     if(was===net.you&&s.rider!==net.you&&P.ski===k){P.ski=null;}
   });
@@ -8013,7 +8051,7 @@ function onSkis(m){
 function onSkiPos(m){const s=skis[m.k];if(s&&s.rider!==net.you)s.remote={x:+m.x,z:+m.z,h:+m.h,v:+m.v||0};}
 function skisHomeCmd(){
   if(inRoom()){netSend({t:'skiHome'});return true;}
-  skis.forEach(function(s,k){if(s.rider===null)skiHome(k);});skisSave();sysChat('The jet skis are back at the jetty.');return true;
+  skis.forEach(function(s,k){if(s.rider===null&&heli.skis.indexOf(k)<0)skiHome(k);});skisSave();sysChat('The jet skis are back at the jetty.');return true;
 }
 
 /* ---------- skiing ----------

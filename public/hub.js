@@ -220,7 +220,7 @@ function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }
 /* the helicopter: where it is, who flies it, the rope, who has been snatched up, and its bridge */
 function num(v, lo, hi, d) { return typeof v === 'number' && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; }
 function cleanPose(m, d) { return { x: num(m && m.x, -50, W + 50, d.x), y: num(m && m.y, 0, H + 40, d.y), z: num(m && m.z, -50, D + 50, d.z), h: num(m && m.h, -1e4, 1e4, d.h) }; }
-function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), pets: h.pets.slice(), dummies: h.dummies.slice(), bridge: h.bridge }; }
+function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z, h: h.h, pilot: h.pilot, rope: h.rope, down: h.down, captives: h.captives.slice(), pets: h.pets.slice(), dummies: h.dummies.slice(), skis: h.skis.slice(), bridge: h.bridge }; }
 /* test dummies: spawned by the host and admins with /spawn, everyone sees the same ones */
 const DUMMY_MAX = 12;
 function dummyList(room) { return room.dummies.map((d) => ({ id: d.id, name: d.name, x: d.x, y: d.y, z: d.z, yaw: d.yaw })); }
@@ -250,7 +250,7 @@ function lockAt(room, x, y, z) { return room.locks.find((o) => x >= o.x0 && x <=
 function lockedFor(room, peer, x, y, z) { if (peer.id === room.hostId) return null; const o = lockAt(room, x, y, z); return o && o.owner !== peer.id ? o : null; }
 function locksNews(room, extra) { broadcast(room, Object.assign({ t: 'locks', locks: room.locks }, extra)); }
 const SKI_MAX_V = 25;
-function skiState(room) { return room.skis.map((q) => ({ x: q.x, z: q.z, h: q.h, rider: q.rider })); }
+function skiState(room) { return room.skis.map((q) => ({ x: q.x, z: q.z, h: q.h, y: q.y, rider: q.rider })); }
 function skisNews(room, extra) { broadcast(room, Object.assign({ t: 'skis', skis: skiState(room) }, extra)); }
 /* signs: the words on each sign block, which anyone who may change that block may write */
 function cleanSignText(t) { return String(t == null ? '' : t).replace(/[\u0000-\u001f\u007f<>]/g, '').trim().slice(0, SIGN_MAX); }
@@ -357,13 +357,14 @@ function handle(peer, msg) {
       const hp = cleanPose(msg.heli, HELI_HOME);
       r.dummies = []; r.dummySeq = 1;
       r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], dummies: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
-        pets: (msg.heli && Array.isArray(msg.heli.pets) ? msg.heli.pets : []).filter((id, k, a) => HELI_PETS.includes(id) && a.indexOf(id) === k).slice(0, 4) });
+        pets: (msg.heli && Array.isArray(msg.heli.pets) ? msg.heli.pets : []).filter((id, k, a) => HELI_PETS.includes(id) && a.indexOf(id) === k).slice(0, 4),
+        skis: (msg.heli && Array.isArray(msg.heli.skis) ? msg.heli.skis : []).filter((k, i, a) => Number.isInteger(k) && k >= 0 && k < 5 && a.indexOf(k) === i).slice(0, 3) });
       r.palace = { guests: new Set(), pets: new Set((Array.isArray(msg.palace) ? msg.palace : []).filter((id) => PAL_PETS.includes(id) && id !== peer.skin.pet)) };
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.env = cleanEnv(msg.env); r.locks = []; r.lockSeq = 1;
       r.signs = new Map();
       (Array.isArray(msg.signs) ? msg.signs : []).slice(0, 4000).forEach((q) => { if (Array.isArray(q) && Number.isInteger(q[0]) && q[0] >= 0 && q[0] < VOX) r.signs.set(q[0], { t: cleanSignText(q[1]), r: q[2] ? 1 : 0 }); });
-      r.skis = SKI_HOME.map((h, k) => { const q = Array.isArray(msg.skis) ? msg.skis[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), z: num(q && q.z, 1, D - 1, h[1]), h: num(q && q.h, -1e4, 1e4, Math.PI / 2), rider: null }; });
+      r.skis = SKI_HOME.map((h, k) => { const q = Array.isArray(msg.skis) ? msg.skis[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), z: num(q && q.z, 1, D - 1, h[1]), h: num(q && q.h, -1e4, 1e4, Math.PI / 2), y: num(q && q.y, 0, H, 10.875), rider: null }; });
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
@@ -538,17 +539,29 @@ function handle(peer, msg) {
       }
       return;
     }
+    case 'heliGrabSki': {
+      // the pilot's rope lifts a jet ski nobody is riding (up to three at once)
+      if (!room || room.heli.pilot !== peer.id || !Number.isInteger(msg.k) || !room.skis[msg.k]) return;
+      const h = room.heli, q = room.skis[msg.k];
+      if (q.rider !== null || h.skis.includes(msg.k) || h.skis.length >= 3 || !h.down) return;
+      h.skis.push(msg.k);
+      heliNews(room, { act: 'grabSki', by: peer.id, ski: msg.k });
+      return;
+    }
     case 'heliRelease': {
       // only the pilot or the host (or an admin) lets people go
       if (!room) return;
       const h = room.heli;
       if (h.pilot !== peer.id && peer.id !== room.hostId && !peer.admin) return send(peer.ws, { t: 'heliNo', why: 'release' });
-      if (!h.captives.length && !h.pets.length && !h.dummies.length) return;
-      const freed = h.captives.splice(0), pets = h.pets.splice(0), dm = h.dummies.splice(0);
+      if (!h.captives.length && !h.pets.length && !h.dummies.length && !h.skis.length) return;
+      const freed = h.captives.splice(0), pets = h.pets.splice(0), dm = h.dummies.splice(0), sk = h.skis.splice(0);
+      // jet skis drop straight down from the hook; each player's game sees whether they land on water
+      sk.forEach((k) => { const q = room.skis[k]; if (q) { q.x = h.x; q.z = h.z; q.y = h.y - (h.rope > 2 ? h.rope : 0); } });
       // the dummies drop from the helicopter: remember where, for anyone who joins later
       dm.forEach((id) => { const d = room.dummies.find((q) => q.id === id); if (d) { d.x = h.x; d.z = h.z; d.y = h.y - (h.rope > 2 ? h.rope : 0); } });
       if (dm.length) broadcast(room, { t: 'dummies', act: 'drop', dummies: dummyList(room) });
       heliNews(room, { act: 'release', by: peer.id, freed, freedPets: pets });
+      if (sk.length) skisNews(room, { act: 'drop' });
       return;
     }
     case 'heliBridge': {
@@ -839,7 +852,7 @@ function handle(peer, msg) {
       if (!room || !Number.isInteger(msg.k) || !room.skis[msg.k]) return;
       const q = room.skis[msg.k];
       if (room.skis.some((s) => s.rider === peer.id)) return;
-      if (q.rider !== null) return send(peer.ws, { t: 'skis', skis: skiState(room), no: 'busy' });
+      if (q.rider !== null || room.heli.skis.includes(msg.k)) return send(peer.ws, { t: 'skis', skis: skiState(room), no: 'busy' });
       q.rider = peer.id;
       skisNews(room, { act: 'board', by: peer.id });
       return;
@@ -861,7 +874,7 @@ function handle(peer, msg) {
     case 'skiHome': {
       // /despawn skis: the host or an admin sends the free ones back to the jetty
       if (!room || !isBoss(room, peer)) return;
-      room.skis.forEach((q, k) => { if (q.rider === null) { q.x = SKI_HOME[k][0]; q.z = SKI_HOME[k][1]; q.h = Math.PI / 2; } });
+      room.skis.forEach((q, k) => { if (q.rider === null && !room.heli.skis.includes(k)) { q.x = SKI_HOME[k][0]; q.z = SKI_HOME[k][1]; q.h = Math.PI / 2; q.y = 10.875; } });
       skisNews(room, { act: 'home', by: peer.id });
       return;
     }

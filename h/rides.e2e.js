@@ -62,6 +62,25 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/despawn skis'));
   check('/despawn skis sends them back to the jetty', Math.hypot((await skis(a))[0].x - home[0][0], (await skis(a))[0].z - home[0][1]) < 0.01);
 
+  // ----- the helicopter's rope lifts jet skis -----
+  const sk2 = (await skis(a))[2];
+  await a.evaluate((q) => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'hoot' }); I.heli.put(q.x, 22, q.z, 0); P.fly = true; P.x = q.x; P.y = 23; P.z = q.z + 1; I.heli.board(); I.heli.put(q.x, 22, q.z, 0); }, sk2);
+  await wait(400);
+  await a.keyboard.press('KeyH');
+  await a.waitForFunction(() => window.__isle.heli.state().skis.includes(2), null, { timeout: 30000 }).catch(() => {});
+  check('the helicopter’s rope lifts a jet ski', (await a.evaluate(() => window.__isle.heli.state().skis)).includes(2) && /Got the green jet ski/.test(await a.textContent('#toast')));
+  await a.evaluate(() => window.__isle.heli.put(150.5, 30, 170.5, 0));
+  await wait(1500);
+  const hang = (await skis(a))[2];
+  check('and carries it off', Math.hypot(hang.x - 150.5, hang.z - 170.5) < 1.5, hang);
+  await a.keyboard.press('KeyJ');
+  await a.waitForFunction(() => !window.__isle.heli.state().skis.length, null, { timeout: 8000 }).catch(() => {});
+  const dropped = (await skis(a))[2];
+  const water = await a.evaluate((q) => window.__isle.skis.water(q.x, q.z), dropped);
+  check('J drops it, on the water or on dry land', !(await a.evaluate(() => window.__isle.heli.state().skis.length)) && dropped.land === !water, { dropped, water });
+  await a.evaluate(() => { window.__isle.heli.leave(); window.__isle.noChute(); window.__isle.heli.put(295.5, 12, 34.5, -Math.PI / 2); window.__isle.setSkin({ pet: 'none' }); window.__isle.cmd('/despawn skis'); });
+  check('and /despawn skis brings it back to the jetty', !(await skis(a))[2].land && Math.hypot((await skis(a))[2].x - home[2][0], (await skis(a))[2].z - home[2][1]) < 0.01);
+
   // ----- the cable car -----
   const cab = await a.evaluate(() => ({ on: window.__isle.cable.on(), A: window.__isle.cable.A, B: window.__isle.cable.B }));
   check('the cable car runs (in the spread layout)', cab.on);
