@@ -8010,6 +8010,8 @@ const SKI_KEY='voxel-isle-skis',SKI_COLS=[0x8e44d8,0xff5fb4,0x2fbf5a,0xffc53d,0x
 const skis=SKI_HOME.map(function(h){return{x:h[0],z:h[1],h:Math.PI/2,v:0,rider:null,remote:null,obj:null,land:false,y:WATER_Y};});
 function skiHome(k){const s=skis[k];s.x=SKI_HOME[k][0];s.z=SKI_HOME[k][1];s.h=Math.PI/2;s.v=0;s.land=false;}
 const SKI_NAMES=['purple','pink','green','yellow','red'];
+/* racing numbers painted on each ski: yellow is No. 1, green No. 2 */
+const SKI_NUMS=[3,4,2,1,5];
 function skiName(k){return(SKI_NAMES[k]||'')+' jet ski';}
 /* where a jet ski ends up after it's dropped: floating on water, or sitting on dry land */
 function skiSettle(s){s.v=0;if(skiWater(s.x,s.z)){s.land=false;return;}s.land=true;const g=surfY(s.x,s.z,Math.min(H-1,(s.y||WATER_Y)+40));s.y=g===null?WATER_Y:g+0.05;}
@@ -8061,7 +8063,7 @@ function skiMesh(col,k){
   /* the racing number on both sides */
   const nc=document.createElement('canvas');nc.width=nc.height=64;
   const c=nc.getContext&&nc.getContext('2d');
-  if(c&&c.fillText){c.fillStyle='#ffffff';c.beginPath();c.arc(32,32,29,0,Math.PI*2);c.fill();c.fillStyle='#1b2630';c.font='700 40px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String((k||0)+1),32,35);}
+  if(c&&c.fillText){c.fillStyle='#ffffff';c.beginPath();c.arc(32,32,29,0,Math.PI*2);c.fill();c.fillStyle='#1b2630';c.font='700 40px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(SKI_NUMS[k||0]||(k||0)+1),32,35);}
   const nm=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(nc),transparent:true});
   [-1,1].forEach(function(s){const p=add(new THREE.PlaneGeometry(0.3,0.3),nm,-0.75,0.27,s*0.565);p.rotation.y=s>0?0:Math.PI;});
   return g;
