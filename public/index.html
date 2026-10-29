@@ -362,23 +362,35 @@ const B={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,LOG:5,LEAVES:6,PLANKS:7,BRICK:8,GLA
   RED:33,ORANGE:34,YELLOW:35,GREEN:36,CYAN:37,BLUE:38,PURPLE:39,PINK:40,BROWN:41,BLACK:42,GREY:43,SNOWWHITE:44,
   ICE:45,
   /* a sign (a post and a board with words on it) and a fence */
-  SIGN:46,FENCE:47};
-const MAXB=47;
+  SIGN:46,FENCE:47,
+  /* slabs (half blocks), stairs and slides; stairs and slides come four ways round: north, east, south, west */
+  SLAB_WOOD:48,SLAB_STONE:49,STAIR_WOOD:50,STAIR_STONE:54,SLIDE:58};
+const MAXB=61;
+const DV=[[0,-1],[1,0],[0,1],[-1,0]];
+function isSlab(b){return b===B.SLAB_WOOD||b===B.SLAB_STONE;}
+function isStair(b){return b>=B.STAIR_WOOD&&b<B.SLIDE;}
+function isSlide(b){return b>=B.SLIDE&&b<B.SLIDE+4;}
+function stairDir(b){return(b-B.STAIR_WOOD)%4;}
+function slideDir(b){return b-B.SLIDE;}
+/* the first of a family of turned blocks (what the picker shows) */
+function familyBase(b){return isStair(b)?b-stairDir(b):(isSlide(b)?B.SLIDE:b);}
+/* which way you're facing, as 0 north, 1 east, 2 south, 3 west */
+function facingDir(){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);return Math.abs(fz)>=Math.abs(fx)?(fz<0?0:2):(fx>0?1:3);}
 const PAINTS=[[B.RED,'Red',[214,52,52]],[B.ORANGE,'Orange',[240,128,36]],[B.YELLOW,'Yellow',[236,200,30]],[B.GREEN,'Green',[52,170,72]],[B.CYAN,'Cyan',[30,190,214]],[B.BLUE,'Blue',[36,110,206]],[B.PURPLE,'Purple',[132,84,214]],[B.PINK,'Pink',[226,70,186]],[B.BROWN,'Brown',[120,72,30]],[B.BLACK,'Black',[48,48,54]],[B.GREY,'Grey',[140,142,148]],[B.SNOWWHITE,'White',[240,240,244]]];
 function isBed(b){return b===B.BED||b===B.BED_HEAD;}
 function isDoor(b){return b>=B.DOOR&&b<=B.DOOR_TOP_OPEN;}
 function doorOpen(b){return b===B.DOOR_OPEN||b===B.DOOR_TOP_OPEN;}
 function doorTop(b){return b===B.DOOR_TOP||b===B.DOOR_TOP_OPEN;}
 /* blocks drawn as their own shapes rather than full cubes; they let light through and don't hide their neighbours */
-function isShape(b){return(b>=B.BED&&b<=B.DOOR_TOP_OPEN)||b===B.SIGN||b===B.FENCE;}
+function isShape(b){return(b>=B.BED&&b<=B.DOOR_TOP_OPEN)||(b>=B.SIGN&&b<=MAXB);}
 /* how high a block stops you: beds are half height, open doors let you through */
-function cellTop(b){return b===0||b===B.WATER||b===B.SIGN||doorOpen(b)?0:(isBed(b)?0.5625:1);}
+function cellTop(b){return b===0||b===B.WATER||b===B.SIGN||doorOpen(b)?0:(isBed(b)?0.5625:(isSlab(b)||isSlide(b)?0.5:1));}
 const NAMES=['Air','Grass','Dirt','Stone','Sand','Log','Leaves','Planks','Brick','Glass','Concrete','Lamp','Water',
   'Clay','Gravel','Deepstone','Granite','Basalt','Coal ore','Copper ore','Iron ore','Crystal','Bedrock','Sandstone','Marble','Gold','Snow',
-  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence']);
+  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence','Wood slab','Stone slab','Wood stairs','Wood stairs','Wood stairs','Wood stairs','Stone stairs','Stone stairs','Stone stairs','Stone stairs','Slide','Slide','Slide','Slide']);
 const HOTBAR=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANKS,B.BRICK,B.GLASS,B.WHITE,B.LAMP,B.WATER];
 /* everything in the block picker, in order */
-const PICKS=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.SANDSTONE,B.SNOW,B.LOG,B.PLANKS,B.LEAVES,B.BRICK,B.WHITE,B.GLASS,B.LAMP,B.WATER,B.BED,B.DOOR,B.SIGN,B.FENCE,
+const PICKS=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.SANDSTONE,B.SNOW,B.LOG,B.PLANKS,B.LEAVES,B.BRICK,B.WHITE,B.GLASS,B.LAMP,B.WATER,B.BED,B.DOOR,B.SIGN,B.FENCE,B.SLAB_WOOD,B.SLAB_STONE,B.STAIR_WOOD,B.STAIR_STONE,B.SLIDE,
   B.CLAY,B.GRAVEL,B.GRANITE,B.MARBLE,B.BASALT,B.DEEP,B.COAL,B.COPPER,B.IRON,B.GOLD,B.CRYSTAL,B.ICE].concat(PAINTS.map(function(p){return p[0];}));
 const SAVE_KEY='voxel-isle-edits-v3',OLD_SAVES=[['voxel-isle-edits-v2',480],['voxel-isle-edits-v1',160]];
 const NAME_KEY='voxel-isle-name';
@@ -828,6 +840,8 @@ BT[B.BED]=[31,8,31];BT[B.BED_HEAD]=[32,8,31];BT[B.DOOR]=BT[B.DOOR_OPEN]=[8,8,34]
 PAINTS.forEach(function(p,i){BT[p[0]]=[36+i,36+i,36+i];});
 BT[B.ICE]=[48,48,48];
 BT[B.SIGN]=BT[B.FENCE]=[8,8,8];
+BT[B.SLAB_WOOD]=[8,8,8];BT[B.SLAB_STONE]=[3,3,3];
+for(let k=0;k<4;k++){BT[B.STAIR_WOOD+k]=[8,8,8];BT[B.STAIR_STONE+k]=[3,3,3];BT[B.SLIDE+k]=[36,36,36];}
 
 /* ---------- world data and generation ---------- */
 const vox=new Uint8Array(W*H*D);
@@ -2546,6 +2560,24 @@ function addBox(out,x,y,z,x0,z0,a,b,tiles,lt){
     out.i.push(base,base+1,base+2,base,base+2,base+3);
   }
 }
+/* a ramp: 1 high along its back edge, down to a lip the way it faces (d: 0 north, 1 east, 2 south, 3 west) */
+function addWedge(out,x,y,z,x0,z0,d,tile,lt){
+  const uv=tileUV(tile),ds=IN/ATLW,L=0.06;
+  /* built facing north (high at z=1, low at z=0), then turned */
+  const turn=function(p){const a=p[0],c=p[2];return d===0?[a,p[1],c]:d===1?[1-c,p[1],a]:d===2?[1-a,p[1],1-c]:[c,p[1],1-a];};
+  const quad=function(pts,sh){
+    const base=out.p.length/3,cs=[[0,0],[1,0],[1,1],[0,1]];
+    pts.forEach(function(q,k){const w=turn(q);out.p.push(x-x0+w[0],y+w[1],z-z0+w[2]);out.u.push(uv[0]+cs[k][0]*ds,uv[1]+cs[k][1]*ds);out.c.push(sh*lt,sh*0.2,sh*0.2);});
+    /* both ways round, so it shows whichever side you see it from */
+    out.i.push(base,base+1,base+2,base,base+2,base+3,base,base+2,base+1,base,base+3,base+2);
+  };
+  quad([[0,L,0],[1,L,0],[1,1,1],[0,1,1]],1);          /* the slope */
+  quad([[0,0,0],[1,0,0],[1,0,1],[0,0,1]],0.5);         /* underneath */
+  quad([[0,0,1],[1,0,1],[1,1,1],[0,1,1]],0.68);        /* the back */
+  quad([[0,0,0],[1,0,0],[1,L,0],[0,L,0]],0.68);        /* the lip */
+  quad([[0,0,0],[0,0,1],[0,1,1],[0,L,0]],0.8);         /* the sides */
+  quad([[1,0,0],[1,0,1],[1,1,1],[1,L,0]],0.8);
+}
 /* which way a bed points: from its foot to its head */
 function bedDir(b,x,y,z){
   const want=b===B.BED?B.BED_HEAD:B.BED;
@@ -2569,6 +2601,13 @@ function addShape(out,b,x,y,z,x0,z0){
     else addBox(out,x,y,z,x0,z0,[0.05,0.5,0.455],[0.95,1,0.545],wood,lt);
     return;
   }
+  if(isSlab(b)||isStair(b)){
+    const t=BT[b][0],tl=[t,t,t,t,t,t];
+    addBox(out,x,y,z,x0,z0,[0,0,0],[1,0.5,1],tl,lt);
+    if(isStair(b)){const d=stairDir(b);addBox(out,x,y,z,x0,z0,[d===1?0.5:0,0.5,d===2?0.5:0],[d===3?0.5:1,1,d===0?0.5:1],tl,lt);}
+    return;
+  }
+  if(isSlide(b)){addWedge(out,x,y,z,x0,z0,slideDir(b),BT[b][0],lt);return;}
   if(b===B.FENCE){
     const wood=[PL,PL,PL,PL,PL,PL];
     addBox(out,x,y,z,x0,z0,[0.375,0,0.375],[0.625,1,0.625],wood,lt);
@@ -2745,6 +2784,21 @@ function respawn(){
 }
 let zoneBlocked=false,palStuck=false;
 function inTHZone(x,y,z){const Z=TH_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
+/* the solid part of a stair (a half block, and a half-depth block on its high side) or a slide (a ramp),
+   against a box with its feet at ay0 */
+function shapeHits(b,cx,cy,cz,ax0,ax1,ay0,az0,az1){
+  const lx0=ax0-cx,lx1=ax1-cx,lz0=az0-cz,lz1=az1-cz,ly0=ay0-cy;
+  if(isStair(b)){
+    if(ly0<0.5-1e-4)return true;
+    const d=stairDir(b);let hx0=0,hx1=1,hz0=0,hz1=1;
+    if(d===0)hz1=0.5;else if(d===2)hz0=0.5;else if(d===1)hx0=0.5;else hx1=0.5;
+    return ly0<1-1e-4&&lx1>hx0&&lx0<hx1&&lz1>hz0&&lz0<hz1;
+  }
+  /* a slide is 1 high at its back and slopes down to nothing the way it faces */
+  const d=slideDir(b),cl=function(v){return Math.max(0,Math.min(1,v));};
+  const t=d===0?1-cl(lz1):d===2?cl(lz0):d===1?cl(lx0):1-cl(lx1);
+  return ly0<Math.max(0.06,1-t)-1e-4;
+}
 function boxHits(x,y,z){
   if(!isOwlOwner()&&inTHZone(x,y,z)){zoneBlocked='tree';return true;}
   if(!palStuck&&!palMay()&&inPALZone(x,y,z)){zoneBlocked='palace';return true;}
@@ -2753,18 +2807,21 @@ function boxHits(x,y,z){
   if(denLocked()&&inDenZone(x,y,z)){zoneBlocked='den';return true;}
   if(!loungeMember()&&inLoungeZone(x,y,z)){zoneBlocked='lounge';return true;}
   const x0=Math.floor(x-PR),x1=Math.floor(x+PR),y0=Math.floor(y),y1=Math.floor(y+bodyH()-1e-4),z0=Math.floor(z-PR),z1=Math.floor(z+PR);
-  for(let yy=y0;yy<=y1;yy++)for(let zz=z0;zz<=z1;zz++)for(let xx=x0;xx<=x1;xx++){const b=get(xx,yy,zz);if(b!==0&&b!==B.WATER){const tp=cellTop(b);if(tp>=1||(tp>0&&y<yy+tp-1e-4))return true;}}
+  for(let yy=y0;yy<=y1;yy++)for(let zz=z0;zz<=z1;zz++)for(let xx=x0;xx<=x1;xx++){const b=get(xx,yy,zz);if(b!==0&&b!==B.WATER){if(isStair(b)||isSlide(b)){if(shapeHits(b,xx,yy,zz,x-PR,x+PR,y,z-PR,z+PR))return true;continue;}const tp=cellTop(b);if(tp>=1||(tp>0&&y<yy+tp-1e-4))return true;}}
   /* a fence reaches half a block higher than its cell, so you can't hop over it */
   if(y<y0+FENCE_H-1-1e-4)for(let zz=z0;zz<=z1;zz++)for(let xx=x0;xx<=x1;xx++)if(get(xx,y0-1,zz)===B.FENCE)return true;
   return false;
 }
 let hitH=null;
+let stepAllowed=false;
 function moveAxis(axis,d){
   if(d===0)return;
   const n=Math.max(1,Math.ceil(Math.abs(d)/0.1)),step=d/n;
   for(let s=0;s<n;s++){
     P[axis]+=step;
     if(boxHits(P.x,P.y,P.z)){
+      /* a low step (a slab, a stair, a slide) you just walk up */
+      if(axis!=='y'&&stepAllowed){let up=0;for(let u=0.1;u<=0.61;u+=0.1){if(!boxHits(P.x,P.y+u,P.z)){up=u;break;}}if(up){P.y+=up;continue;}}
       P[axis]-=step;
       let lo=0,hi=Math.abs(step);const sg=step<0?-1:1;
       for(let k=0;k<6;k++){
@@ -2832,7 +2889,14 @@ function update(dt){
   jumpWas=jump;
   const k=1-Math.exp(-((fl||dash)?7:((P.onGround||swim)?14:3.5))*dt);
   const CUR=2.8;
-  if(P.skis&&!fl&&!swim&&!P.ride&&!dash)skiSlide(dt,ix,iz);
+  const under=P.onGround&&!fl?get(Math.floor(P.x),Math.floor(P.y-0.05),Math.floor(P.z)):0;
+  P.sliding=isSlide(under)&&!swim;
+  if(P.sliding){
+    /* whee: down the slope it goes, faster and faster, with a little steering */
+    const dv=DV[slideDir(under)];P.vx+=(dv[0]*26+wx*4)*dt;P.vz+=(dv[1]*26+wz*4)*dt;
+    const sp=Math.hypot(P.vx,P.vz);if(sp>16){P.vx*=16/sp;P.vz*=16/sp;}
+  }
+  else if(P.skis&&!fl&&!swim&&!P.ride&&!dash)skiSlide(dt,ix,iz);
   else{P.vx+=(wx*speed+flow.x*CUR-P.vx)*k;P.vz+=(wz*speed+flow.z*CUR-P.vz)*k;}
   if(fl||dash){
     const up=(jump?1:0)-(sprintKey?1:0);
@@ -2858,7 +2922,9 @@ function update(dt){
   }
   const wasGround=P.onGround;
   P.onGround=false;hitH=null;
+  stepAllowed=wasGround&&!fl;
   moveAxis('x',P.vx*dt);moveAxis('z',P.vz*dt);
+  stepAllowed=false;
   /* auto jump: walking into a one-block step with open space above it */
   if(hitH&&wasGround&&!fl&&!swim&&(il>0.1||(P.skis&&Math.hypot(P.vx,P.vz)>2))&&P.vy<=0){
     const ax=P.x+(hitH.axis==='x'?hitH.sg*0.15:0),az=P.z+(hitH.axis==='z'?hitH.sg*0.15:0);
@@ -2875,6 +2941,7 @@ function update(dt){
   mode=P.dash&&dash?'Swimming with Goldie':P.lift?(P.lift.kind==='dragon'?(P.lift.phase==='up'?'Flying on Cinder':'Cinder is landing'):PETS[mySkin.pet].name+(P.lift.phase==='up'?' is carrying you':' is letting you down')):P.fly?'Flying':(P.ride?(swim?'Clover is swimming':(sprintKey&&il>0?'Galloping':'Riding Clover')):(swim?'Swimming':(sprintKey&&il>0?'Sprinting':'Walking')));
   if(P.chute)mode='Parachuting';
   else if(P.bike!==null)mode='Cycling';
+  else if(P.sliding)mode='Sliding';
   else if(P.skis&&!fl&&!swim)mode='Skiing';
 }
 /* splash droplets */
@@ -3019,6 +3086,14 @@ function drawIcon(cv,b){
     if(shade){c.fillStyle='rgba(0,0,0,'+shade+')';c.fillRect(0,0,S,S);}
     c.restore();
   };
+  if(isSlab(b)||isStair(b)||isSlide(b)){
+    const tl=tileAt(BT[b][0]),pat=function(x,y,w,h,sh){c.save();c.setTransform(k,0,0,k,0,0);c.drawImage(atlas,tl[0],tl[1],S,S,x,y,w,h);if(sh){c.fillStyle='rgba(0,0,0,'+sh+')';c.fillRect(x,y,w,h);}c.restore();};
+    if(isSlab(b)){pat(8,30,48,8,0);pat(8,38,48,20,0.25);}
+    else if(isStair(b)){pat(8,14,24,6,0);pat(8,20,24,18,0.25);pat(32,32,24,6,0);pat(8,38,48,20,0.25);}
+    else{c.save();c.setTransform(k,0,0,k,0,0);c.beginPath();c.moveTo(8,10);c.lineTo(56,54);c.lineTo(8,54);c.closePath();c.clip();pat(8,10,48,44,0.1);c.restore();
+      c.save();c.setTransform(k,0,0,k,0,0);c.strokeStyle='rgba(255,255,255,.6)';c.lineWidth=3;c.beginPath();c.moveTo(12,16);c.lineTo(50,50);c.stroke();c.restore();}
+    return;
+  }
   if(b===B.SIGN||b===B.FENCE){
     const tl=tileAt(8),wood=function(x,y,w,h,sh){c.save();c.setTransform(k,0,0,k,0,0);c.drawImage(atlas,tl[0],tl[1],S,S,x,y,w,h);if(sh){c.fillStyle='rgba(0,0,0,'+sh+')';c.fillRect(x,y,w,h);}c.restore();};
     if(b===B.SIGN){wood(29,34,6,24,0.25);wood(8,8,48,30,0);c.save();c.setTransform(k,0,0,k,0,0);c.fillStyle='#2b1a0c';[16,23,30].forEach(function(y){c.fillRect(14,y,36-(y%3)*4,3);});c.restore();}
@@ -3145,7 +3220,8 @@ function placeBlock(){
   if(!target.nx&&!target.ny&&!target.nz)return;
   const x=target.x+target.nx,y=target.y+target.ny,z=target.z+target.nz;
   if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;
-  const cur=get(x,y,z),b=HOTBAR[sel];
+  const cur=get(x,y,z);let b=HOTBAR[sel];
+  if(isStair(b)||isSlide(b))b=familyBase(b)+facingDir();
   if(cur!==0&&cur!==B.WATER)return;
   /* water can go where you stand; solid blocks can't */
   if(b!==B.WATER&&P.x+PR>x&&P.x-PR<x+1&&P.z+PR>z&&P.z-PR<z+1&&P.y+bodyH()>y&&P.y<y+1)return;
@@ -7240,7 +7316,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={cmd:function(t){return runCommand(t);},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food){const Q=makePetModel(id,food);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:nearBike,home:BIKE_HOME},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={cmd:function(t){return runCommand(t);},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},shapeOf:function(base){return familyBase(base)+facingDir();},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food){const Q=makePetModel(id,food);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:nearBike,home:BIKE_HOME},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');

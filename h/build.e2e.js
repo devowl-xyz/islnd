@@ -38,6 +38,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Ctrl and click places a block, like a right click', (await bricks()) === nb0 + 1, { nb0, now: await bricks() });
   await a.mouse.click(450, 300); await wait(500);
   check('and a plain click still breaks it', (await bricks()) === nb0);
+  // ----- slabs, stairs and slides -----
+  check('slabs, stairs and slides are in the block picker', await a.evaluate(() => [48, 49, 50, 54, 58].every((b) => window.__isle.picker.picks.includes(b))));
+  const facing = await a.evaluate(() => { const I = window.__isle, P = I.player, out = []; for (const y of [0, -Math.PI / 2, Math.PI, Math.PI / 2]) { P.yaw = y; out.push(I.shapeOf(50), I.shapeOf(58)); } return out; });
+  check('stairs and slides go down facing the way you look', facing.join() === '50,58,51,59,52,60,53,61', facing);
+  await a.evaluate(() => { const I = window.__isle;
+    I.setBlock(80, 13, 86, 54); I.setBlock(80, 13, 85, 3); I.setBlock(80, 14, 85, 54); I.setBlock(80, 13, 84, 3); I.setBlock(80, 14, 84, 3); I.setBlock(80, 15, 84, 54); });
+  await put(a, 80.5, 13, 88.5, 0); await wait(400);
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction(() => window.__isle.player.z < 84.8, null, { timeout: 20000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
+  const st = await me(a);
+  check('you walk straight up stairs, no jumping', st.z < 84.8 && st.y > 15.9, st);
+  await a.evaluate(() => window.__isle.setBlock(84, 13, 90, 48));
+  await put(a, 84.5, 13, 92.5, 0); await wait(400);
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction(() => window.__isle.player.z < 90.7, null, { timeout: 20000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
+  check('and up on to a slab, half a block up', Math.abs((await me(a)).y - 13.5) < 0.05, await me(a));
+  await a.evaluate(() => { const I = window.__isle;
+    I.setBlock(88, 13, 90, 3); I.setBlock(88, 14, 90, 3); I.setBlock(88, 15, 90, 58); I.setBlock(88, 13, 89, 3); I.setBlock(88, 14, 89, 58); I.setBlock(88, 13, 88, 58); });
+  await put(a, 88.5, 16.2, 90.85, 0);
+  let fastest = 0;
+  for (let k = 0; k < 40; k++) { await wait(150); const q = await a.evaluate(() => { const P = window.__isle.player; return { z: P.z, sp: Math.hypot(P.vx, P.vz) }; }); fastest = Math.max(fastest, q.sp); if (q.z < 87.6) break; }
+  check('a slide sends you whizzing down it', (await me(a)).z < 88 && fastest > 4, { at: await me(a), fastest });
   // ----- fences -----
   await a.evaluate(() => { for (let x = 78; x <= 84; x++) window.__isle.setBlock(x, 13, 88, 47); });
   check('fences go down', (await a.evaluate(() => [78, 81, 84].map((x) => window.__isle.get(x, 13, 88)))).join() === '47,47,47');
