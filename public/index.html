@@ -6528,7 +6528,7 @@ function tpPlace(w){
     tpTo(a.x,heli.y+0.5,a.z,'the helicopter');maybeChute();return true;
   }
   if(id==='potty'){const o=pottyAt();return tpTo(o.dx-0.5,o.G,o.dz+0.5,'the porta-potty behind Biscuit and Mochi’s cottage');}
-  if(id==='lighthouse')return tpTo(LH.cx+0.5,LH.G,LH.cz+4.5,'the lighthouse');
+  if(id==='lighthouse')return tpTo(LH.cx+0.5,LH.G,LH.cz+6.5,'the lighthouse');
   if(id==='tree'){
     const x=TH.cx+0.5,at=standAt([[x,TH.PY+1,TH.z1-1.5],[x,TH.PY+1,TH.z1-3.5],[TH.x0+2.5,TH.PY+1,TH.cz+0.5],[x,TH.G+2,TH.sz1+2.5]]);
     return at?tpTo(at.x,at.y,at.z,'the owls’ treehouse'):tpTo(x,TH.PY+2,TH.cz+0.5,'the owls’ treehouse');
@@ -8888,54 +8888,63 @@ function wildTick(dt){
    On its own rocky islet out in the open sea west of the island. A red and white tower with a door on the south
    side and a spiral staircase up the inside to the lamp room and its balcony. At night its beam sweeps the sea. */
 function buildLighthouse(){
-  const o=LH,S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=b===B.WATER?WMAX:0;};
-  /* the islet: a rounded heap of rock with a sandy edge */
-  for(let dz=-9;dz<=9;dz++)for(let dx=-9;dx<=9;dx++){
-    const r=Math.hypot(dx,dz)+(ihash(o.cx+dx,o.cz+dz,77)-0.5)*1.4;
-    if(r>8.5)continue;
-    const x=o.cx+dx,z=o.cz+dz,top=r<4.6?o.G-1:(r<6.2?SEA:SEA-1-Math.floor((r-6.2)*1.2));
-    for(let y=1;y<=top;y++)S(x,y,z,y===top&&r>=4.6&&r<6.2?B.SAND:(ihash(x,y*31+z,79)>0.75?B.GRANITE:B.STONE));
+  const o=LH,L=o.L,S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=b===B.WATER?WMAX:0;};
+  /* the islet: a rounded heap of rock with a sandy beach round it */
+  for(let dz=-13;dz<=13;dz++)for(let dx=-13;dx<=13;dx++){
+    const r=Math.hypot(dx,dz)+(ihash(o.cx+dx,o.cz+dz,77)-0.5)*1.6;
+    if(r>12.5)continue;
+    const x=o.cx+dx,z=o.cz+dz,top=r<7.4?o.G-1:(r<9.4?SEA:SEA-1-Math.floor((r-9.4)*1.2));
+    for(let y=1;y<=top;y++)S(x,y,z,y===top&&r>=7.4&&r<9.4?B.SAND:(ihash(x,y*31+z,79)>0.75?B.GRANITE:B.STONE));
     for(let y=top+1;y<=SEA;y++)S(x,y,z,B.WATER);
-    for(let y=Math.max(top+1,SEA+1);y<=o.L+8;y++)S(x,y,z,0);
+    for(let y=Math.max(top+1,SEA+1);y<=L+10;y++)S(x,y,z,0);
   }
-  /* the tower: 5 by 5, bands of red and white, hollow inside with a pillar up the middle */
-  const L=o.L;
-  for(let y=o.G;y<L;y++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
-    const wall=Math.max(Math.abs(dx),Math.abs(dz))===2,x=o.cx+dx,z=o.cz+dz;
-    if(wall)S(x,y,z,Math.floor((y-o.G)/4)%2?B.SNOWWHITE:B.RED);
-    else S(x,y,z,dx===0&&dz===0?B.STONE:0);
+  /* the tower: 9 by 9 in bands of red and white, with windows, round a stone pillar with lamps set in it */
+  for(let y=o.G;y<L;y++)for(let dz=-4;dz<=4;dz++)for(let dx=-4;dx<=4;dx++){
+    const m=Math.max(Math.abs(dx),Math.abs(dz)),x=o.cx+dx,z=o.cz+dz,h=y-o.G;
+    if(m===4){
+      const win=h%5===3&&(dx===0||dz===0)&&h>2;
+      S(x,y,z,win?B.GLASS:(Math.floor(h/4)%2?B.SNOWWHITE:B.RED));
+    }else if(m<=1)S(x,y,z,m===1&&h%4===2&&(dx===0||dz===0)?B.LAMP:B.STONE);
+    else S(x,y,z,0);
   }
-  /* the door, and a lamp over it */
-  S(o.cx,o.G,o.cz+2,B.DOOR_OPEN);S(o.cx,o.G+1,o.cz+2,B.DOOR_TOP_OPEN);S(o.cx,o.G+2,o.cz+3,B.LAMP);
-  S(o.cx,o.G-1,o.cz+3,B.STONE);S(o.cx,o.G-1,o.cz+4,B.STONE);
-  /* the spiral, round the ring of eight cells by the pillar: a flat landing in each corner and a stone stair along
-     each side, always walked up from its low end, so it climbs one block a side. It starts in the corner just
-     inside the door, and the stair over the doorway is high enough to walk under. */
-  const corners=[[-1,1],[-1,-1],[1,-1],[1,1]],edges=[[-1,0],[0,-1],[1,0],[0,1]];
-  const top=L-o.G,gap=new Set();
-  for(let k=0;k<=top;k++){
-    const e=edges[k%4],c=corners[(k+1)%4];
-    S(o.cx+e[0],o.G+k,o.cz+e[1],B.STAIR_STONE+k%4);
-    if(k<top)S(o.cx+c[0],o.G+k,o.cz+c[1],B.STONE);
-    /* the lamp room floor leaves room over the last few steps */
-    if(k>=top-2)gap.add(e.join());
-    if(k>=top-2&&k<top)gap.add(c.join());
+  /* the doorway on the south side, and a lamp over it */
+  S(o.cx,o.G,o.cz+4,B.DOOR_OPEN);S(o.cx,o.G+1,o.cz+4,B.DOOR_TOP_OPEN);S(o.cx,o.G+2,o.cz+5,B.LAMP);
+  /* the spiral: two blocks wide round the pillar, a flat 2x2 landing in each corner and three steps along each
+     side, every step walked up from its low end. It starts in the corner just left of the door. */
+  const lane=[[-3,-2],[-3,-2],[2,3],[2,3]];
+  const corner=[[[-3,-2],[2,3]],[[-3,-2],[-3,-2]],[[2,3],[-3,-2]],[[2,3],[2,3]],[[-3,-2],[2,3]]];
+  const rowsOf=function(sd){return sd===0?[1,0,-1]:sd===1?[-1,0,1]:sd===2?[-1,0,1]:[1,0,-1];};
+  const cells=function(sd,r){const l=lane[sd];return sd===0||sd===2?[[l[0],r],[l[1],r]]:(sd===1?[[r,-3],[r,-2]]:[[r,2],[r,3]]);};
+  const gap=new Set(),high=new Set();
+  let y=o.G;
+  for(let side=0;y<=L;side++){
+    const sd=side%4;
+    rowsOf(sd).forEach(function(r){
+      if(y>L)return;
+      cells(sd,r).forEach(function(c){S(o.cx+c[0],y,o.cz+c[1],B.STAIR_STONE+sd);if(y>=L-2)gap.add(c.join());if(y===L)high.add(c.join());});
+      y++;
+    });
+    /* the corner landing after this side, level with the top of its last step */
+    if(y<=L){const cc=corner[(sd+1)%4];for(const cx of cc[0])for(const cz of cc[1]){S(o.cx+cx,y-1,o.cz+cz,B.STONE);if(y-1>=L-2&&y-1<L)gap.add(cx+','+cz);}}
   }
-  for(let dz=-3;dz<=3;dz++)for(let dx=-3;dx<=3;dx++){
-    const x=o.cx+dx,z=o.cz+dz,m=Math.max(Math.abs(dx),Math.abs(dz));
-    if(m<=1&&(dx||dz)&&gap.has(dx+','+dz))continue;
+  /* the lamp room floor (open over the last few steps), a balcony all round with a railing */
+  for(let dz=-5;dz<=5;dz++)for(let dx=-5;dx<=5;dx++){
+    const x=o.cx+dx,z=o.cz+dz,m=Math.max(Math.abs(dx),Math.abs(dz)),k=dx+','+dz;
+    if(high.has(k)||(m>=2&&m<=3&&gap.has(k)))continue;
     S(x,L,z,B.STONE);
-    if(m===3)S(x,L+1,z,B.FENCE);
+    if(m===5)S(x,L+1,z,B.FENCE);
   }
-  for(let y=L+1;y<=L+3;y++)for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
+  /* glass walls with black corner posts, the great lamp in the middle, a doorway out to the balcony */
+  for(let yy=L+1;yy<=L+3;yy++)for(let dz=-4;dz<=4;dz++)for(let dx=-4;dx<=4;dx++){
     const x=o.cx+dx,z=o.cz+dz,m=Math.max(Math.abs(dx),Math.abs(dz));
-    if(m===2)S(x,y,z,(Math.abs(dx)===2&&Math.abs(dz)===2)?B.BLACK:B.GLASS);
-    else if(m===0)S(x,y,z,y<L+3?B.LAMP:B.GOLD);
+    if(m===4)S(x,yy,z,(Math.abs(dx)===4&&Math.abs(dz)===4)?B.BLACK:B.GLASS);
+    else if(m===0)S(x,yy,z,yy<L+3?B.LAMP:B.GOLD);
+    else S(x,yy,z,0);
   }
-  S(o.cx,L+1,o.cz-2,0);S(o.cx,L+2,o.cz-2,0);
-  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)S(o.cx+dx,L+4,o.cz+dz,Math.max(Math.abs(dx),Math.abs(dz))===2?B.SLAB_STONE:B.RED);
-  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)S(o.cx+dx,L+5,o.cz+dz,B.RED);
-  S(o.cx,L+6,o.cz,B.BLACK);
+  for(const q of [[0,-4],[0,4],[-4,0],[4,0]]){S(o.cx+q[0],L+1,o.cz+q[1],0);S(o.cx+q[0],L+2,o.cz+q[1],0);}
+  /* a stepped red roof with a black cap */
+  for(let k=0;k<5;k++)for(let dz=-4+k;dz<=4-k;dz++)for(let dx=-4+k;dx<=4-k;dx++)S(o.cx+dx,L+4+k,o.cz+dz,B.RED);
+  S(o.cx,L+9,o.cz,B.BLACK);
 }
 /* the beam: two long soft cones of light turning round the lamp, brighter the darker it gets */
 let lhFx=null;
@@ -8946,7 +8955,7 @@ function lhTick(dt){
     const len=70,geo=new THREE.ConeGeometry(7,len,24,1,true).translate(0,-len/2,0).rotateZ(Math.PI/2);
     [0,Math.PI].forEach(function(a){const m=new THREE.Mesh(geo,mat);m.rotation.y=a;m.rotation.z=-0.04;g.add(m);});
     const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowDot(),color:0xfff0b0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));glow.scale.set(3.5,3.5,1);g.add(glow);
-    g.position.set(LH.cx+0.5,LH.L+2,LH.cz+0.5);scene.add(g);
+    g.position.set(LH.cx+0.5,LH.L+2.5,LH.cz+0.5);scene.add(g);
     lhFx={g:g,mat:mat,glow:glow,a:0};
   }
   const night=Math.max(0,Math.min(1,(0.7-envOut.L)/0.4));

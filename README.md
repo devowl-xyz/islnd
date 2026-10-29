@@ -94,7 +94,7 @@ Both work for builders in a room, and everyone sees you hanging from your owl wi
 
 **Zip lines.** Put down two **zip line posts** (in the block picker) at different heights and a cable strings itself between them: each post links to the nearest other post up to 96 blocks away. Stand under the line near its high end and press **E** to grab the hook and whizz down to the low post; **Space** lets go, and you let go by yourself when your feet touch the ground. Lines come from the blocks alone, so everyone in a room sees the same ones.
 
-**The lighthouse.** On its own rocky islet in the open sea west of the island (x 60, z 170): a red and white tower with a door on the south side, a spiral staircase up the inside, a lamp room with glass walls and a balcony. At night its beam sweeps round over the sea. **/tp lighthouse** takes you to its door.
+**The lighthouse.** On its own rocky islet in the open sea west of the island (x 60, z 170): a roomy 9 by 9 tower in red and white bands with windows, an open door on the south side, and a wide spiral staircase (two blocks across, with landings in the corners) round a stone pillar lit with lamps, up to a lamp room with glass walls and a balcony all round. At night its beam sweeps round over the sea. **/tp lighthouse** takes you to its door.
 
 **Wildlife.** Flocks of birds wheel over the island by day, fish swim in the sea and lakes, butterflies flutter over the grass in the sunshine and fireflies blink in the dark. They're just for looks, so each player sees their own.
 
