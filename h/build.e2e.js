@@ -36,8 +36,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nb0 = await bricks();
   await a.keyboard.down('Control'); await a.mouse.click(450, 300); await a.keyboard.up('Control'); await wait(500);
   check('Ctrl and click places a block, like a right click', (await bricks()) === nb0 + 1, { nb0, now: await bricks() });
+  /* look straight at the new brick, then click */
+  const nbAt = await a.evaluate(() => { for (let x = 74; x <= 88; x++) for (let z = 84; z <= 96; z++) for (let y = 13; y <= 15; y++) if (window.__isle.get(x, y, z) === 8) return [x, y, z]; return null; });
+  if (nbAt) await a.evaluate((q) => { const P = window.__isle.player, ey = P.y + 1.62, dx = q[0] + 0.5 - P.x, dy = q[1] + 0.9 - ey, dz = q[2] + 0.5 - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }, nbAt);
+  await wait(400);
   await a.mouse.click(450, 300); await wait(500);
-  check('and a plain click still breaks it', (await bricks()) === nb0);
+  check('and a plain click still breaks it', (await bricks()) === nb0, { nbAt, now: await bricks() });
   // ----- slabs, stairs and slides -----
   check('slabs, stairs and slides are in the block picker', await a.evaluate(() => [48, 49, 50, 54, 58].every((b) => window.__isle.picker.picks.includes(b))));
   const facing = await a.evaluate(() => { const I = window.__isle, P = I.player, out = []; for (const y of [0, -Math.PI / 2, Math.PI, Math.PI / 2]) { P.yaw = y; out.push(I.shapeOf(50), I.shapeOf(58)); } return out; });
@@ -167,7 +171,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('KeyE'); await wait(300);
   await a.evaluate(() => window.__isle.cmd('/despawn jet'));
   const sk = await a.evaluate(() => window.__isle.skis.list()[4]);
-  await put(a, 202.5, 17, 219.5); await wait(500);
+  await put(a, sk.x - 6, 11.2, 219.5); await wait(500);
   await aimAt(sk.x, 11, sk.z);
   await a.keyboard.press('KeyC');
   await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.veh === 'ski'; }, null, { timeout: 8000 }).catch(() => {});

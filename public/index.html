@@ -2889,7 +2889,9 @@ function update(dt){
   jumpWas=jump;
   const k=1-Math.exp(-((fl||dash)?7:((P.onGround||swim)?14:3.5))*dt);
   const CUR=2.8;
-  const under=P.onGround&&!fl?get(Math.floor(P.x),Math.floor(P.y-0.05),Math.floor(P.z)):0;
+  /* the slide under your feet (or the next one down, at the lip where two slides meet) */
+  let under=P.onGround&&!fl?get(Math.floor(P.x),Math.floor(P.y-0.05),Math.floor(P.z)):0;
+  if(P.onGround&&!fl&&!isSlide(under)){const u2=get(Math.floor(P.x),Math.floor(P.y-0.05)-1,Math.floor(P.z));if(isSlide(u2)&&(under===0||under===B.WATER))under=u2;}
   P.sliding=isSlide(under)&&!swim;
   if(P.sliding){
     /* whee: down the slope it goes, faster and faster, with a little steering */
@@ -5470,7 +5472,7 @@ function heliTick(dt){
     const e=heliRopeEnd(),now=performance.now();
     skis.forEach(function(s,k){
       if(s.rider!==null||heli.skis.indexOf(k)>=0)return;
-      const sy=s.land?s.y:WATER_Y;if(Math.hypot(s.x-e.x,s.z-e.z)>2.2||sy<e.y-2.6||sy>e.y+0.8)return;
+      const sy=s.land?s.y:WATER_Y;if(Math.hypot(s.x-e.x,s.z-e.z)>1.3||sy<e.y-2.6||sy>e.y+0.8)return;
       if(now-(heli.grabT['ski:'+k]||0)<800)return;
       heli.grabT['ski:'+k]=now;
       if(inRoom())netSend({t:'heliGrabSki',k:k});
