@@ -370,13 +370,14 @@ function handle(peer, msg) {
       r.layout = LAYOUTS[msg.layout] ? msg.layout : 'spread'; r.lay = LAYOUTS[r.layout];
       r.env = cleanEnv(msg.env); r.locks = []; r.lockSeq = 1;
       r.bikes = BIKE_HOME.map((h, k) => { const q = Array.isArray(msg.bikes) ? msg.bikes[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), y: num(q && q.y, 0, H, 13), z: num(q && q.z, 1, D - 1, h[1]), yaw: num(q && q.yaw, -1e4, 1e4, 0), rider: null }; });
+      r.potty = { uses: 0, until: 0 };
       r.signs = new Map();
       (Array.isArray(msg.signs) ? msg.signs : []).slice(0, 4000).forEach((q) => { if (Array.isArray(q) && Number.isInteger(q[0]) && q[0] >= 0 && q[0] < VOX) r.signs.set(q[0], { t: cleanSignText(q[1]), r: q[2] ? 1 : 0 }); });
       r.skis = SKI_HOME.map((h, k) => { const q = Array.isArray(msg.skis) ? msg.skis[k] : null; return { x: num(q && q.x, 1, W - 1, h[0]), z: num(q && q.z, 1, D - 1, h[1]), h: num(q && q.h, -1e4, 1e4, Math.PI / 2), y: num(q && q.y, 0, H, 10.875), rider: null }; });
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty });
       return;
     }
     case 'seed': {
@@ -399,7 +400,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r) });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -918,6 +919,29 @@ function handle(peer, msg) {
     }
     case 'unboard': {
       if (room) unboard(room, peer);
+      return;
+    }
+    case 'jetCrash': {
+      // the pilot flew the jet into the island: everyone aboard is thrown out (to East Beach) and it goes home
+      if (!room || room.jet.pilot !== peer.id) return;
+      const j = room.jet, n = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.max(-1000, Math.min(1000, Math.round(v * 100) / 100)) : d);
+      j.pilot = null; j.pass = []; j.call = null; j.park = null; j.last = null;
+      j.release = { x: n(msg.hx, 97.5), y: n(msg.hy, 14), z: n(msg.hz, 80.5), h: n(msg.hh, 0), at: Date.now() };
+      broadcast(room, { t: 'jetCrash', by: peer.id, x: n(msg.x, 0), y: n(msg.y, 30), z: n(msg.z, 0) });
+      jetSeats(room);
+      return;
+    }
+    case 'potty': {
+      // anyone can use the porta-potty behind the cottage; every third flush bursts a pipe for two minutes
+      if (!room) return;
+      const now = Date.now();
+      if (now - (peer.pottyT || 0) < 2000) return;
+      peer.pottyT = now;
+      const pt = room.potty || (room.potty = { uses: 0, until: 0 });
+      pt.uses++;
+      const burst = pt.uses % 3 === 0;
+      if (burst) pt.until = now + 120000;
+      broadcast(room, { t: 'potty', uses: pt.uses, until: pt.until, burst, by: peer.id });
       return;
     }
     case 'jet': {

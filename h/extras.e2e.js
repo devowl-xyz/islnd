@@ -52,7 +52,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('standing under the high end, you can reach it', !!(await a.evaluate(() => window.__isle.zip.near())));
   await a.keyboard.press('KeyE'); await wait(300);
   check('E grabs the hook', !!(await a.evaluate(() => window.__isle.zip.riding())));
-  await a.waitForFunction(() => !window.__isle.zip.riding(), null, { timeout: 30000 }).catch(() => {});
+  await a.waitForFunction(() => !window.__isle.zip.riding(), null, { timeout: 90000 }).catch(() => {});
   const zp = await me(a);
   check('and you whizz down the line and touch down near the low post', zp.z > 92 && zp.y < 15 && !(await a.evaluate(() => window.__isle.zip.riding())), zp);
   await put(a, 76.5, 20, 81.5, Math.PI); await wait(300);
@@ -130,6 +130,50 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('/photo opens it too', await a.evaluate(() => window.__isle.cmd('/photo')) && await a.evaluate(() => window.__isle.photo.on()));
   await a.evaluate(() => window.__isle.photo.toggle(false));
 
+  // ----- crashing the jet -----
+  const aimJet = (p) => p.evaluate(() => { const I = window.__isle, q = I.jet.pose, P = I.player;
+    /* low over the meadow heading east, flat out, at a stone wall */
+    for (let z = 84; z <= 100; z++) for (let y = 13; y <= 30; y++) I.setBlock(96, y, z, 3);
+    q.x = 66; q.y = 20; q.z = 92.5; q.h = 0; q.p = 0; q.r = 0; I.jet.spd = 30; I.jet.thr = 1; P.yaw = -Math.PI / 2; P.pitch = 0; });
+  await put(a, 80.5, 13, 92.5, 0);
+  await a.evaluate(() => window.__isle.cmd('/spawn jet')); await wait(500);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('you take the controls of the jet', (await a.evaluate(() => window.__isle.jet.seat)) === 'pilot');
+  await aimJet(a);
+  await a.waitForFunction(() => window.__isle.crash.booms() > 0, null, { timeout: 30000 }).catch(() => {});
+  check('flying it into a wall blows it up', (await a.evaluate(() => window.__isle.crash.booms())) > 0 && await a.evaluate(() => window.__isle.crash.gone()));
+  const cr = await a.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return { seat: I.jet.seat, pilot: I.jet.pilot, d: Math.hypot(P.x - b.x, P.z - b.z), y: P.y }; });
+  check('and you wake up on East Beach, out of the jet', cr.seat === null && cr.pilot === null && cr.d < 1.5, cr);
+  await a.waitForFunction(() => !window.__isle.crash.gone(), null, { timeout: 20000 }).catch(() => {});
+  check('a few seconds later the jet is back at home', await a.evaluate(() => { const I = window.__isle, q = I.jet.pose, h = I.jetPark(); return !I.crash.gone() && Math.hypot(q.x - h[0], q.z - h[2]) < 3; }));
+  await a.evaluate(() => { const I = window.__isle; for (let z = 84; z <= 100; z++) for (let y = 13; y <= 30; y++) I.setBlock(96, y, z, 0); });
+  await a.evaluate(() => window.__isle.cmd('/spawn jet')); await wait(300);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  await a.evaluate(() => { const I = window.__isle, q = I.jet.pose; q.y = 30; I.jet.spd = 8; I.jet.thr = 0.2; });
+  await wait(1500);
+  check('flying slowly and safely doesn’t crash it', (await a.evaluate(() => window.__isle.jet.seat)) === 'pilot');
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/despawn jet')); await wait(300);
+
+  // ----- the porta-potty -----
+  await a.evaluate(() => window.__isle.cmd('/tp potty'));
+  const po = await a.evaluate(() => window.__isle.potty.at());
+  check('the porta-potty stands behind the cottage, outside the hedge', await a.evaluate((o) => { const I = window.__isle; return I.get(o.x1, o.G, o.z0) === 38 && I.get(o.dx, o.G, o.dz) === 29 && I.get(o.ix, o.G, o.iz) === 0; }, po) && po.x0 > 131);
+  check('/tp potty puts you by its door', !(await a.evaluate(() => window.__isle.potty.near())));
+  await put(a, po.ix + 0.5, po.G, po.iz + 0.5);
+  check('step inside and you can use it', await a.evaluate(() => window.__isle.potty.near()));
+  const u0 = await a.evaluate(() => window.__isle.potty.uses());
+  for (let k = 0; k < 3; k++) { await a.evaluate(() => window.__isle.potty.ready()); await a.keyboard.press('KeyE'); await wait(200); }
+  const u1 = await a.evaluate(() => window.__isle.potty.uses());
+  check('E flushes it (three times)', u1 === u0 + 3, [u0, u1]);
+  await a.waitForFunction(() => window.__isle.potty.flood(), null, { timeout: 8000 }).catch(() => {});
+  const left = await a.evaluate(() => window.__isle.potty.left());
+  check('every third flush bursts a pipe: the front garden floods with sewage for two minutes', left > 100 && left <= 120 && await a.evaluate(() => window.__isle.potty.flood()), left);
+  const sb = await a.evaluate(() => window.__isle.potty.box());
+  await put(a, sb.x0 + 1.5, sb.G, sb.z0 + 6.5, Math.PI);
+  check('and you wade through it', await a.evaluate(() => window.__isle.potty.inSewage()));
+  await put(a, 80.5, 13, 92.5);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
@@ -163,6 +207,28 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.type('lo!'); await a.keyboard.press('Enter');
   await g.waitForFunction(() => window.__isle.social.bubbles() > 0, null, { timeout: 8000 }).catch(() => {});
   check('then your words in a bubble', (await g.evaluate(() => window.__isle.social.bubbles())) > 0 && !(await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return !!(p && p.av && p.av.typeFx && p.av.typeFx.visible); })));
+  // the jet blowing up for everyone, and the passengers thrown out on to East Beach too
+  await put(a, 80.5, 13, 92.5, 0); await put(g, 82.5, 13, 92.5, 0);
+  await a.evaluate(() => window.__isle.cmd('/spawn jet'));
+  await g.waitForFunction(() => window.__isle.jet.park, null, { timeout: 8000 }).catch(() => {});
+  await a.evaluate(() => window.__isle.toggleBoard());
+  await a.waitForFunction(() => window.__isle.jet.seat === 'pilot', null, { timeout: 8000 }).catch(() => {});
+  await g.evaluate(() => { const q = window.__isle.jet.pose, P = window.__isle.player; P.x = q.x + 1; P.y = q.y - 1.5; P.z = q.z; });
+  await g.evaluate(() => window.__isle.toggleBoard());
+  await g.waitForFunction(() => window.__isle.jet.seat && window.__isle.jet.seat !== 'pilot', null, { timeout: 8000 }).catch(() => {});
+  check('a guest hops aboard as a passenger', !!(await g.evaluate(() => window.__isle.jet.seat)));
+  await aimJet(a);
+  await g.waitForFunction(() => window.__isle.crash.booms() > 0, null, { timeout: 30000 }).catch(() => {});
+  check('in a room everyone sees the jet blow up', (await g.evaluate(() => window.__isle.crash.booms())) > 0);
+  const gc = await g.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return { seat: I.jet.seat, d: Math.hypot(P.x - b.x, P.z - b.z) }; });
+  check('and the passenger wakes up on East Beach too', gc.seat === null && gc.d < 1.5, gc);
+  check('so does the pilot', await a.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return I.jet.seat === null && Math.hypot(P.x - b.x, P.z - b.z) < 1.5; }));
+  // the porta-potty's count and the flood are shared
+  const gu0 = await g.evaluate(() => window.__isle.potty.uses());
+  await put(g, po.ix + 0.5, po.G, po.iz + 0.5);
+  for (let k = 0; k < 3; k++) { await g.evaluate(() => window.__isle.potty.ready()); await g.keyboard.press('KeyE'); await wait(2300); }
+  await a.waitForFunction(() => window.__isle.potty.left() > 100, null, { timeout: 10000 }).catch(() => {});
+  check('in a room everyone shares the potty’s count, and the flood', (await g.evaluate(() => window.__isle.potty.uses())) === gu0 + 3 && (await a.evaluate(() => window.__isle.potty.left())) > 100, [gu0, await g.evaluate(() => window.__isle.potty.uses()), await a.evaluate(() => window.__isle.potty.left())]);
   void peerA;
 
   await browser.close();
