@@ -83,7 +83,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ----- bicycles by the meadow, for pet owners -----
   const bikes = (p) => p.evaluate(() => window.__isle.bikes.list());
-  const bh = await a.evaluate(() => window.__isle.bikes.home);
+  const bh = await a.evaluate(() => window.__isle.bikes.home());
   check('six bikes are parked by the meadow', (await bikes(a)).length === 6 && (await bikes(a)).every((b, k) => Math.hypot(b.x - bh[k][0], b.z - bh[k][1]) < 0.01));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   await put(a, 87.5, 13, 101.6, 0); await wait(600);
