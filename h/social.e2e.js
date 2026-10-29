@@ -119,11 +119,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(1700);
   await itP.evaluate((id) => window.__isle.net.ws.send(JSON.stringify({ t: 'tagged', target: id })), otherId); await wait(500);
   check('you can’t tag someone far away', (await a.evaluate(() => window.__isle.social.tag().it)) === t0.it);
+  /* the moment you're it, step back a little and try to tag straight back (inside the page, so slow test
+     frames can't let the 3 s pass while you're still touching, which would be a fair tag back) */
+  const backTag = other.evaluate((id) => new Promise((res) => { const I = window.__isle, t0 = Date.now(); (function go() { const tg = I.social.tag(); if (tg && tg.it === I.net.you) { I.player.x += 2.2; I.net.ws.send(JSON.stringify({ t: 'tagged', target: id })); res(true); } else if (Date.now() - t0 > 15000) res(false); else setTimeout(go, 10); })(); }), t0.it);
   await pose(other, 81.5, 13, 96.5); await pose(itP, 80.8, 13, 96.5);
+  await backTag;
   await a.waitForFunction((id) => window.__isle.social.tag() && window.__isle.social.tag().it === id, otherId, { timeout: 10000 }).catch(() => {});
   check('touching someone passes it on', (await a.evaluate(() => window.__isle.social.tag().it)) === otherId && (await g.evaluate(() => window.__isle.social.tag().it)) === otherId);
-  /* try to tag straight back the moment you're it (inside the page, so slow test frames don't let the 3 s pass first) */
-  await other.evaluate((id) => new Promise((res) => { const I = window.__isle, t0 = Date.now(); (function go() { const tg = I.social.tag(); if (tg && tg.it === I.net.you) { I.player.x += 2; I.net.ws.send(JSON.stringify({ t: 'tagged', target: id })); res(); } else if (Date.now() - t0 > 8000) res(); else setTimeout(go, 20); })(); }), t0.it); await wait(500);
+  await wait(500);
   check('no tagging straight back', (await a.evaluate(() => window.__isle.social.tag().it)) === otherId);
   await pose(other, 100.5, 13, 96.5); await wait(300);
   await a.evaluate(() => window.__isle.net.ws.send(JSON.stringify({ t: 'tagStop' })));
