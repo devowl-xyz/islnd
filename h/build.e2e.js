@@ -34,7 +34,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (await a.evaluate(() => window.__isle.camAt().third)) { await a.keyboard.press('KeyV'); await wait(300); }
   await a.evaluate(() => { const I = window.__isle; I.setSlot(I.sel(), 8); I.setBlock(80, 13, 88, 3); });
   const look = (q) => a.evaluate((q) => { const P = window.__isle.player, ey = P.y + 1.62, dx = q[0] - P.x, dy = q[1] - ey, dz = q[2] - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }, q);
-  await put(a, 80.5, 13, 91.5); await look([80.5, 14, 88.5]); await wait(500);
+  await a.mouse.move(450, 300); await wait(200); await put(a, 80.5, 13, 91.5); await look([80.5, 14, 88.5]); await wait(500);
   await a.keyboard.down('Control'); await a.mouse.click(450, 300); await a.keyboard.up('Control'); await wait(500);
   check('Ctrl and click places a block, like a right click', (await a.evaluate(() => window.__isle.get(80, 14, 88))) === 8);
   await look([80.5, 14.5, 88.5]); await wait(400);
