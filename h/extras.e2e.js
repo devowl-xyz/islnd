@@ -61,6 +61,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Space lets go part way down', !(await a.evaluate(() => window.__isle.zip.riding())));
   await a.evaluate(() => window.__isle.setBlock(76, 13, 100, 0)); await wait(200);
   check('take a post away and the line goes', (await a.evaluate(() => window.__isle.zip.lines())).length === 0);
+  // three on one line and it snaps
+  await a.evaluate(() => window.__isle.setBlock(76, 13, 100, 87)); await wait(200);
+  await put(a, 76.5, 20, 81.5, Math.PI); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(300);
+  await a.evaluate(() => window.__isle.silly.zipFake(2)); await wait(600);
+  check('three on one zip line and it snaps (and you drop off)', !(await a.evaluate(() => window.__isle.zip.riding())) && (await a.evaluate(() => window.__isle.silly.zipBroken())) === 1);
+  await a.evaluate(() => window.__isle.silly.zipFake(0));
+  await put(a, 76.5, 20, 81.5, Math.PI); await wait(300);
+  check('a snapped line can’t be ridden until it’s mended', !(await a.evaluate(() => window.__isle.zip.near())));
+  await a.evaluate(() => window.__isle.setBlock(76, 13, 100, 0));
   await put(a, 80.5, 13, 92.5); await wait(1500);
 
   // ----- pet accessories -----
@@ -108,6 +118,35 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('by day birds fly over the sea', wd.birds > 0, wd);
   await a.waitForFunction(() => window.__isle.wild.counts().fish > 0, null, { timeout: 10000 }).catch(() => {});
   check('and fish swim in the sea round the lighthouse', (await a.evaluate(() => window.__isle.wild.counts().fish)) > 0);
+  // seagulls: a splat on your head (washed off in the sea), and pinching Biscuit while it's food
+  const gl = await a.evaluate(() => window.__isle.silly.gullNear());
+  check('seagulls circle near the lighthouse', !!gl && gl.d < 120, gl);
+  if (gl) {
+    await a.evaluate((g) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = g.x; P.z = g.z; P.y = 13.5; }, gl);
+    await a.evaluate(() => window.__isle.silly.rushPoop());
+    await a.waitForFunction(() => window.__isle.silly.splat(), null, { timeout: 15000 }).catch(() => {});
+    check('stand under the gulls too long and one poops on you', await a.evaluate(() => window.__isle.silly.splat()));
+    await a.evaluate(() => { const P = window.__isle.player; P.y = 9; });
+    await a.waitForFunction(() => !window.__isle.silly.splat(), null, { timeout: 8000 }).catch(() => {});
+    check('and the sea washes it off', !(await a.evaluate(() => window.__isle.silly.splat())));
+    await a.evaluate(() => window.__isle.cmd('/tp lighthouse')); await wait(300);
+    await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' })); await wait(1500);
+    await a.evaluate(() => { if (!window.__isle.food.mine()) window.__isle.food.toggle(); }); await wait(800);
+    await a.evaluate(() => window.__isle.silly.rushSteal());
+    await a.waitForFunction(() => window.__isle.silly.steal() === 'carry', null, { timeout: 15000 }).catch(() => {});
+    check('a seagull swoops down and carries off Biscuit while it’s a biscuit', (await a.evaluate(() => window.__isle.silly.steal())) === 'carry');
+    await a.waitForFunction(() => !window.__isle.silly.steal(), null, { timeout: 30000 }).catch(() => {});
+    check('then drops it, and Biscuit is itself again', !(await a.evaluate(() => window.__isle.food.mine())));
+    await a.evaluate(() => window.__isle.setSkin({ pet: 'none' })); await wait(300);
+  }
+  // a storm blows the lighthouse lamp's fuse
+  await a.evaluate(() => window.__isle.cmd('/weather storm'));
+  await a.evaluate(() => window.__isle.silly.rushFuse());
+  await a.waitForFunction(() => window.__isle.silly.fuse(), null, { timeout: 10000 }).catch(() => {});
+  check('in a storm the lighthouse lamp blows a fuse and the beam goes out', await a.evaluate(() => window.__isle.silly.fuse()) && !(await a.evaluate(() => { const b = window.__isle.lighthouse.beam(); return b && b.on; })));
+  await a.evaluate(() => window.__isle.cmd('/weather sunny'));
+  await a.waitForFunction(() => !window.__isle.silly.fuse(), null, { timeout: 10000 }).catch(() => {});
+  check('and it’s mended when the storm is over', !(await a.evaluate(() => window.__isle.silly.fuse())));
   await a.evaluate(() => window.__isle.cmd('/time midnight'));
   await a.waitForFunction(() => { const b = window.__isle.lighthouse.beam(); return b && b.on && b.op > 0.1; }, null, { timeout: 15000 }).catch(() => {});
   const b1 = await a.evaluate(() => window.__isle.lighthouse.beam());
@@ -128,6 +167,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await a.evaluate((k) => { const q = window.__isle.wild.pigeons()[k], P = window.__isle.player; P.fly = true; P.x = q.x + 1.5; P.y = q.y; P.z = q.z; }, pg);
     await a.waitForFunction((k) => window.__isle.wild.pigeons()[k].mode === 'fly', pg, { timeout: 8000 }).catch(() => {});
     check('and flutter off when you walk up to them', (await a.evaluate((k) => window.__isle.wild.pigeons()[k].mode, pg)) === 'fly');
+    await a.evaluate(() => { window.__isle.player.fly = false; });
+    await a.evaluate(() => window.__isle.cmd('/home')); await wait(600);
+    await a.keyboard.press('KeyN'); await wait(300);
+    check('N scatters pigeon seed', (await a.evaluate(() => window.__isle.silly.seeds())) === 1);
+    const crowd = () => a.evaluate(() => { const I = window.__isle, P = I.player, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), sx = P.x + fx * 2.2, sz = P.z + fz * 2.2; return I.wild.pigeons().filter((q) => q.mode === 'ground' && Math.hypot(q.x - sx, q.z - sz) < 2.5).length; });
+    await a.waitForFunction(() => { const I = window.__isle, P = I.player, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), sx = P.x + fx * 2.2, sz = P.z + fz * 2.2; return I.wild.pigeons().filter((q) => q.mode === 'ground' && Math.hypot(q.x - sx, q.z - sz) < 2.5).length >= 4; }, null, { timeout: 40000 }).catch(() => {});
+    const c1 = await crowd();
+    check('and the pigeons crowd round it', c1 >= 4, c1);
+    await wait(1500);
+    check('and stay put right next to you while they eat', (await crowd()) >= 4);
     await a.evaluate(() => { window.__isle.player.fly = false; });
     await a.evaluate(() => window.__isle.cmd('/home'));
   }
@@ -180,6 +229,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('flying it into a wall blows it up', (await a.evaluate(() => window.__isle.crash.booms())) > 0 && await a.evaluate(() => window.__isle.crash.gone()));
   const cr = await a.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return { seat: I.jet.seat, pilot: I.jet.pilot, d: Math.hypot(P.x - b.x, P.z - b.z), y: P.y }; });
   check('and you wake up on East Beach, out of the jet', cr.seat === null && cr.pilot === null && cr.d < 1.5, cr);
+  await a.waitForFunction(() => window.__isle.silly.letter(), null, { timeout: 8000 }).catch(() => {});
+  check('Bird Air writes to say sorry', await a.evaluate(() => window.__isle.silly.letter() && /BIRD AIR/.test(document.getElementById('letter').textContent) && /1st/.test(document.getElementById('letter').textContent)));
+  check('and the airport board counts the crashes', (await a.evaluate(() => window.__isle.silly.crashes())) === 1 && /Crashes: 1/.test(await a.evaluate(() => window.__isle.silly.board())), await a.evaluate(() => window.__isle.silly.board()));
+  await a.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); });
   await a.waitForFunction(() => !window.__isle.crash.gone(), null, { timeout: 20000 }).catch(() => {});
   check('a few seconds later the jet is back at home', await a.evaluate(() => { const I = window.__isle, q = I.jet.pose, h = I.jetPark(); return !I.crash.gone() && Math.hypot(q.x - h[0], q.z - h[2]) < 3; }));
   await a.evaluate(() => { const I = window.__isle; for (let z = 84; z <= 100; z++) for (let y = 13; y <= 30; y++) I.setBlock(96, y, z, 0); });
@@ -262,6 +315,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const gc = await g.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return { seat: I.jet.seat, d: Math.hypot(P.x - b.x, P.z - b.z) }; });
   check('and the passenger wakes up on East Beach too', gc.seat === null && gc.d < 1.5, gc);
   check('so does the pilot', await a.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return I.jet.seat === null && Math.hypot(P.x - b.x, P.z - b.z) < 1.5; }));
+  check('everyone in the room shares the crash count', (await g.evaluate(() => window.__isle.silly.crashes())) === (await a.evaluate(() => window.__isle.silly.crashes())) && (await a.evaluate(() => window.__isle.silly.crashes())) >= 1);
   // the porta-potty's count and the flood are shared
   const gu0 = await g.evaluate(() => window.__isle.potty.uses());
   await put(g, po.ix + 0.5, po.G, po.iz + 0.5);

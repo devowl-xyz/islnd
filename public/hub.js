@@ -927,7 +927,8 @@ function handle(peer, msg) {
       const j = room.jet, n = (v, d) => (typeof v === 'number' && isFinite(v) ? Math.max(-1000, Math.min(1000, Math.round(v * 100) / 100)) : d);
       j.pilot = null; j.pass = []; j.call = null; j.park = null; j.last = null;
       j.release = { x: n(msg.hx, 97.5), y: n(msg.hy, 14), z: n(msg.hz, 80.5), h: n(msg.hh, 0), at: Date.now() };
-      broadcast(room, { t: 'jetCrash', by: peer.id, x: n(msg.x, 0), y: n(msg.y, 30), z: n(msg.z, 0) });
+      j.crashes = (j.crashes || 0) + 1; j.lastCrash = Date.now();
+      broadcast(room, { t: 'jetCrash', by: peer.id, x: n(msg.x, 0), y: n(msg.y, 30), z: n(msg.z, 0), n: j.crashes, at: j.lastCrash });
       jetSeats(room);
       return;
     }
@@ -956,7 +957,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: msg.zp ? 1 : 0, ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
