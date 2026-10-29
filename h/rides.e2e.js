@@ -112,6 +112,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const ck = await a.evaluate(() => { const c = window.__isle.camAt(), h = window.__isle.heli.state(); return { c, h: { x: h.x, y: h.y, z: h.z } }; });
   check('first person in the helicopter puts your eyes in the cockpit', !ck.c.third && Math.hypot(ck.c.x - ck.h.x - 0.5, ck.c.z - ck.h.z + 0.3) < 0.6 && ck.c.y - ck.h.y > 1.8 && ck.c.y - ck.h.y < 2.4, ck);
   await a.keyboard.press('KeyV'); await wait(300);
+  await a.keyboard.press('KeyH');
+  await a.waitForFunction(() => window.__isle.heli.state().rope > 24, null, { timeout: 30000 }).catch(() => {});
+  check('the helicopter’s rope reaches the ground from high up (well over 16 blocks)', (await a.evaluate(() => window.__isle.heli.state().rope)) > 24, await a.evaluate(() => window.__isle.heli.state().rope));
+  await a.keyboard.press('KeyH');
+  await a.waitForFunction(() => window.__isle.heli.state().rope < 1, null, { timeout: 30000 }).catch(() => {});
   await a.evaluate(() => window.__isle.heli.leave());
 
   // ----- the parachute -----

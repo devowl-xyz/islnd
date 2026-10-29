@@ -105,6 +105,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(200);
   await a.keyboard.press('KeyC'); await wait(200);
   check('C again lets go', !(await a.evaluate(() => window.__isle.grap())));
+  // a long way off: a slab hanging in the sky 130 blocks north
+  await a.evaluate(() => { const I = window.__isle; for (let x = 77; x <= 84; x++) for (let y = 58; y <= 66; y++) I.setBlock(x, y, 20, 3); });
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = true; P.x = 80.5; P.y = 61; P.z = 150.5; P.yaw = 0; P.pitch = 0; P.vx = P.vy = P.vz = 0; });
+  await wait(300);
+  await a.keyboard.press('KeyC');
+  await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.phase === 'pull'; }, null, { timeout: 15000 }).catch(() => {});
+  const gf = await a.evaluate(() => window.__isle.grap());
+  check('the hook reaches a long way: it catches on a wall 130 blocks off', gf && gf.phase === 'pull' && Math.abs(gf.z - 21) < 0.6, gf);
+  await a.waitForFunction(() => !window.__isle.grap(), null, { timeout: 60000 }).catch(() => {});
+  check('and reels you all the way there', (await me(a)).z < 25, await me(a));
   await put(a, 80.5, 13, 94.5, 0, 1.2); await wait(300);
   await a.keyboard.press('KeyC');
   await a.waitForFunction(() => !window.__isle.grap(), null, { timeout: 10000 }).catch(() => {});

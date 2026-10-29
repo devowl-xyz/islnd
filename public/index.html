@@ -5019,7 +5019,8 @@ function updateJetHint(){
    building. The helicopter stays exactly where it's left, even in mid-air (and after a reload). */
 const HELI_PAD={x0:289,x1:302,z0:28,z1:41,y:11};
 const HELI_HOME={x:295.5,y:12,z:34.5,h:-Math.PI/2};
-const ROPE_MAX=16,HELI_SPD=11,HELI_KEY='voxel-isle-heli';
+/* the rope reaches the ground from as high as the helicopter can fly */
+const ROPE_MAX=H+40,HELI_SPD=11,HELI_KEY='voxel-isle-heli';
 const heli={x:HELI_HOME.x,y:HELI_HOME.y,z:HELI_HOME.z,h:HELI_HOME.h,pilot:null,seat:false,rope:0,down:false,captives:[],bridge:null,
   remote:null,sendT:0,saveT:0,obj:null,rotor:null,tail:null,line:null,hook:null,vx:0,vy:0,vz:0,cells:[],cellSet:new Set(),bridgeKey:'',grabT:{},spin:0};
 function heliLoad(){
@@ -5340,7 +5341,7 @@ function heliTick(dt){
   const e0=heli.y+0.4;let gnd=e0;while(gnd>e0-ROPE_MAX-1&&!solidAt(heli.x,gnd-0.5,heli.z))gnd-=1;
   const want=heli.down?Math.max(0,Math.min(ROPE_MAX,e0-gnd-0.3)):0;
   if(heli.pilot!==null&&!heli.seat&&heli.remote&&typeof heli.remote.r==='number')heli.rope+=(heli.remote.r-heli.rope)*Math.min(1,dt*8);
-  else heli.rope+=Math.max(-10*dt,Math.min(10*dt,want-heli.rope));
+  else{const rs=Math.max(10,Math.abs(want-heli.rope)*1.5)*dt;heli.rope+=Math.max(-rs,Math.min(rs,want-heli.rope));}
   /* the pilot's game snatches up anyone under the hook; the room checks it */
   const relOk=performance.now()-(heli.relT||0)>3000;
   if(relOk&&heli.seat&&inRoom()&&heli.down&&heli.rope>2){
@@ -8074,7 +8075,8 @@ function spyFig(fig,on){
 
 /* ---------- the grappling hook: C (or Hook) shoots it where you look; it catches on a block up to 48
    away and reels you in. C again, or Jump, lets go. Hoot's and Snowy's owners only ---------- */
-const GRAP_MAX=48,GRAP_OUT=70,GRAP_PULL=20;
+/* the hook reaches anything you can see, right across the island */
+const GRAP_MAX=Math.ceil(Math.hypot(W,D,H+40)),GRAP_OUT=260,GRAP_PULL=24;
 let grapFx=null;
 function grapMay(){return isOwlOwner();}
 function fireGrapple(){
@@ -8093,11 +8095,11 @@ function fireGrapple(){
 function grapTick(dt){
   const g=P.grap;if(!g)return false;
   if(g.phase==='out'){
-    g.d=Math.min(g.len,g.d+GRAP_OUT*dt);
+    g.d=Math.min(g.len,g.d+Math.max(GRAP_OUT,g.len*1.5)*dt);
     if(g.d>=g.len){if(g.miss){g.phase='back';}else{g.phase='pull';g.best=1e9;g.stuck=0;P.fly=false;}}
     return false;
   }
-  if(g.phase==='back'){g.d-=GRAP_OUT*1.5*dt;if(g.d<=0){P.grap=null;toast('Nothing to hook on to there.');}return false;}
+  if(g.phase==='back'){g.d-=Math.max(GRAP_OUT,g.len*1.5)*1.5*dt;if(g.d<=0){P.grap=null;toast('Nothing to hook on to there.');}return false;}
   const dx=g.x-P.x,dy=g.y-(P.y+0.9),dz=g.z-P.z,dist=Math.hypot(dx,dy,dz);
   if(dist<1.4){P.grap=null;P.vy=Math.max(P.vy,5);return false;}
   /* stuck against something for a moment: let go */

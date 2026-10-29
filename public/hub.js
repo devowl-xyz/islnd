@@ -110,7 +110,7 @@ AIR.push({ x0: 186, x1: 203, z0: 219, z1: 220, y0: 9, y1: 22 });
 const SKI_HOME = [[187.5, 221.6], [189.5, 221.6], [191.5, 221.6], [193.5, 221.6], [195.5, 221.6]];
 // The cable car's two stations (same numbers as public/index.html) are fixed; it only runs in the spread layout.
 const CABLE_BOXES = { spread: [{ x0: 230, x1: 240, z0: 255, z1: 263, y0: 37, y1: 47 }, { x0: 229, x1: 237, z0: 278, z1: 286, y0: 16, y1: 26 }], classic: [] };
-const ROPE_MAX = 16;
+const ROPE_MAX = H + 40; // as long as it needs to be to reach the ground
 const LOUNGE_PETS = ['hoot', 'snowy', 'biscuit', 'mochi', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
