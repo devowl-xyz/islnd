@@ -157,7 +157,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('E anywhere takes your skis off', !(await a.evaluate(() => window.__isle.skiing())));
 
   // ----- the helicopter's cockpit -----
-  await a.evaluate(() => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'hoot' }); I.heli.put(100.5, 40, 92.5, 0); P.fly = true; P.x = 100.5; P.y = 41; P.z = 93.5; I.heli.board(); });
+  await a.evaluate(() => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'hoot' }); I.heli.put(80.5, 40, 92.5, 0); P.fly = true; P.x = 80.5; P.y = 41; P.z = 93.5; I.heli.board(); });
   await wait(400);
   if ((await a.evaluate(() => window.__isle.camAt().third))) { await a.keyboard.press('KeyV'); await wait(400); }
   const ck = await a.evaluate(() => { const c = window.__isle.camAt(), h = window.__isle.heli.state(); return { c, h: { x: h.x, y: h.y, z: h.z } }; });
