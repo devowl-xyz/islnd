@@ -120,6 +120,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => !window.__isle.grap(), null, { timeout: 10000 }).catch(() => {});
   check('aimed at the empty sky it comes back', /Nothing to hook on to/.test(await a.textContent('#toast')));
 
+  // ----- the hook catches the helicopter, the jet and the jet skis, and you climb aboard -----
+  const aimAt = (x, y, z) => a.evaluate((q) => { const P = window.__isle.player, ey = P.y + 1.62, dx = q[0] - P.x, dy = q[1] - ey, dz = q[2] - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }, [x, y, z]);
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); I.heli.put(80.5, 22, 79.5, 0); });
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await aimAt(80.7, 23.6, 79.5);
+  await a.keyboard.press('KeyC');
+  await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.veh === 'heli'; }, null, { timeout: 8000 }).catch(() => {});
+  check('the hook catches on the helicopter', (await a.evaluate(() => (window.__isle.grap() || {}).veh)) === 'heli');
+  await a.waitForFunction(() => window.__isle.heli.state().seat, null, { timeout: 30000 }).catch(() => {});
+  check('and reels you in to fly it', await a.evaluate(() => window.__isle.heli.state().seat));
+  await a.evaluate(() => { const I = window.__isle; I.heli.leave(); I.noChute(); I.heli.put(295.5, 12, 34.5, -Math.PI / 2); });
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/spawn jet')); await wait(500);
+  const jp = await a.evaluate(() => Object.assign({}, window.__isle.jet.pose));
+  await aimAt(jp.x, jp.y, jp.z);
+  await a.keyboard.press('KeyC');
+  await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.veh === 'jet'; }, null, { timeout: 8000 }).catch(() => {});
+  check('the hook catches on the jet', (await a.evaluate(() => (window.__isle.grap() || {}).veh)) === 'jet');
+  await a.waitForFunction(() => !!window.__isle.jet.seat, null, { timeout: 30000 }).catch(() => {});
+  check('and you climb aboard', (await a.evaluate(() => window.__isle.jet.seat)) === 1);
+  await a.keyboard.press('KeyE'); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/despawn jet'));
+  const sk = await a.evaluate(() => window.__isle.skis.list()[4]);
+  await put(a, 202.5, 17, 219.5); await wait(500);
+  await aimAt(sk.x, 11, sk.z);
+  await a.keyboard.press('KeyC');
+  await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.veh === 'ski'; }, null, { timeout: 8000 }).catch(() => {});
+  check('the hook catches on a jet ski', (await a.evaluate(() => (window.__isle.grap() || {}).veh)) === 'ski');
+  await a.waitForFunction(() => window.__isle.skis.mine() !== null, null, { timeout: 30000 }).catch(() => {});
+  check('and you hop on', (await a.evaluate(() => window.__isle.skis.mine())) === 4);
+  await a.keyboard.press('KeyE'); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/despawn skis'));
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
