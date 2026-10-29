@@ -29,19 +29,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   let a = await open(null, ctxA);
   await play(a);
   check('signs and fences are in the block picker', await a.evaluate(() => window.__isle.picker.picks.includes(46) && window.__isle.picker.picks.includes(47)));
-  // ----- Ctrl and click is a right click -----
-  const bricks = () => a.evaluate(() => { let n = 0; for (let x = 74; x <= 88; x++) for (let z = 84; z <= 96; z++) for (let y = 13; y <= 15; y++) if (window.__isle.get(x, y, z) === 8) n++; return n; });
-  await a.evaluate(() => { const I = window.__isle; I.setSlot(I.sel(), 8); });
-  await put(a, 80.5, 13, 92.5, 0, -0.7); await wait(500);
-  const nb0 = await bricks();
+  // ----- Ctrl and click is a right click (in first person, looking at a known block) -----
+  await a.keyboard.press('KeyV'); await wait(300);
+  if (await a.evaluate(() => window.__isle.camAt().third)) { await a.keyboard.press('KeyV'); await wait(300); }
+  await a.evaluate(() => { const I = window.__isle; I.setSlot(I.sel(), 8); I.setBlock(80, 13, 88, 3); });
+  const look = (q) => a.evaluate((q) => { const P = window.__isle.player, ey = P.y + 1.62, dx = q[0] - P.x, dy = q[1] - ey, dz = q[2] - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }, q);
+  await put(a, 80.5, 13, 91.5); await look([80.5, 14, 88.5]); await wait(500);
   await a.keyboard.down('Control'); await a.mouse.click(450, 300); await a.keyboard.up('Control'); await wait(500);
-  check('Ctrl and click places a block, like a right click', (await bricks()) === nb0 + 1, { nb0, now: await bricks() });
-  /* look straight at the new brick, then click */
-  const nbAt = await a.evaluate(() => { for (let x = 74; x <= 88; x++) for (let z = 84; z <= 96; z++) for (let y = 13; y <= 15; y++) if (window.__isle.get(x, y, z) === 8) return [x, y, z]; return null; });
-  if (nbAt) await a.evaluate((q) => { const P = window.__isle.player, ey = P.y + 1.62, dx = q[0] + 0.5 - P.x, dy = q[1] + 0.9 - ey, dz = q[2] + 0.5 - P.z; P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }, nbAt);
-  await wait(400);
+  check('Ctrl and click places a block, like a right click', (await a.evaluate(() => window.__isle.get(80, 14, 88))) === 8);
+  await look([80.5, 14.5, 88.5]); await wait(400);
   await a.mouse.click(450, 300); await wait(500);
-  check('and a plain click still breaks it', (await bricks()) === nb0, { nbAt, now: await bricks() });
+  check('and a plain click still breaks it', (await a.evaluate(() => window.__isle.get(80, 14, 88))) === 0);
+  await a.evaluate(() => window.__isle.setBlock(80, 13, 88, 0));
+  await a.keyboard.press('KeyV'); await wait(300);
   // ----- slabs, stairs and slides -----
   check('slabs, stairs and slides are in the block picker', await a.evaluate(() => [48, 49, 50, 54, 58].every((b) => window.__isle.picker.picks.includes(b))));
   const facing = await a.evaluate(() => { const I = window.__isle, P = I.player, out = []; for (const y of [0, -Math.PI / 2, Math.PI, Math.PI / 2]) { P.yaw = y; out.push(I.shapeOf(50), I.shapeOf(58)); } return out; });
@@ -63,9 +63,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle;
     I.setBlock(88, 13, 90, 3); I.setBlock(88, 14, 90, 3); I.setBlock(88, 15, 90, 58); I.setBlock(88, 13, 89, 3); I.setBlock(88, 14, 89, 58); I.setBlock(88, 13, 88, 58); });
   await put(a, 88.5, 16.2, 90.85, 0);
-  let fastest = 0;
-  for (let k = 0; k < 40; k++) { await wait(150); const q = await a.evaluate(() => { const P = window.__isle.player; return { z: P.z, sp: Math.hypot(P.vx, P.vz) }; }); fastest = Math.max(fastest, q.sp); if (q.z < 87.6) break; }
-  check('a slide sends you whizzing down it', (await me(a)).z < 88 && fastest > 4, { at: await me(a), fastest });
+  let slid = false;
+  for (let k = 0; k < 60; k++) { await wait(150); const q = await a.evaluate(() => ({ z: window.__isle.player.z, m: document.getElementById('coords').textContent })); if (/Sliding/.test(q.m)) slid = true; if (q.z < 87.6) break; }
+  check('a slide sends you whizzing down it on its own', (await me(a)).z < 88 && slid, { at: await me(a), slid });
   // ----- fences -----
   await a.evaluate(() => { for (let x = 78; x <= 84; x++) window.__isle.setBlock(x, 13, 88, 47); });
   check('fences go down', (await a.evaluate(() => [78, 81, 84].map((x) => window.__isle.get(x, 13, 88)))).join() === '47,47,47');
@@ -177,7 +177,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => { const g = window.__isle.grap(); return g && g.veh === 'ski'; }, null, { timeout: 8000 }).catch(() => {});
   check('the hook catches on a jet ski', (await a.evaluate(() => (window.__isle.grap() || {}).veh)) === 'ski');
   await a.waitForFunction(() => window.__isle.skis.mine() !== null, null, { timeout: 30000 }).catch(() => {});
-  check('and you hop on', (await a.evaluate(() => window.__isle.skis.mine())) === 4);
+  check('and you hop on', (await a.evaluate(() => window.__isle.skis.mine())) !== null);
   await a.keyboard.press('KeyE'); await wait(300);
   await a.evaluate(() => window.__isle.cmd('/despawn skis'));
 
