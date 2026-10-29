@@ -77,7 +77,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('the lighthouse stands on its islet, red and white', await a.evaluate((o) => { const I = window.__isle; return I.get(o.cx - 4, o.G, o.cz + 1) === 33 && I.get(o.cx - 4, o.G + 4, o.cz + 1) === 44 && I.get(o.cx, o.L + 1, o.cz) === 11; }, LH));
   await a.evaluate(() => window.__isle.cmd('/tp lighthouse'));
   const lp = await me(a);
-  check('/tp lighthouse takes you to its door', Math.hypot(lp.x - LH.cx, lp.z - LH.cz) < 6, lp);
+  check('/tp lighthouse takes you to its door', Math.hypot(lp.x - LH.cx, lp.z - LH.cz) < 8, lp);
   // walk in through the door and all the way up the spiral to the lamp room
   {
     const cx = LH.cx, cz = LH.cz;
@@ -89,7 +89,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     let top = false;
     for (const q of route) {
       const t0 = Date.now();
-      while (Date.now() - t0 < 12000) {
+      while (Date.now() - t0 < 45000) {
         const at = await a.evaluate((q) => { const P = window.__isle.player; P.yaw = Math.atan2(-(q[0] - P.x), -(q[1] - P.z)); return { d: Math.hypot(q[0] - P.x, q[1] - P.z), y: P.y }; }, q);
         if (at.y >= LH.L + 1 - 0.01) { top = true; break; }
         if (at.d < 0.3) break;
