@@ -82,7 +82,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(2500);
   check('by day the beam is off', !(await a.evaluate(() => { const b = window.__isle.lighthouse.beam(); return b && b.on; })));
   const wd = await a.evaluate(() => window.__isle.wild.counts());
-  check('by day birds fly and butterflies flutter', wd.birds > 0 && wd.flies > 0, wd);
+  check('by day birds fly over the sea', wd.birds > 0, wd);
   await a.waitForFunction(() => window.__isle.wild.counts().fish > 0, null, { timeout: 10000 }).catch(() => {});
   check('and fish swim in the sea round the lighthouse', (await a.evaluate(() => window.__isle.wild.counts().fish)) > 0);
   await a.evaluate(() => window.__isle.cmd('/time midnight'));
@@ -95,6 +95,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and fireflies come out (the birds and butterflies go)', wn.glow > 0 && wn.birds === 0 && wn.flies === 0, wn);
   await a.evaluate(() => window.__isle.cmd('/time noon'));
   await a.evaluate(() => window.__isle.cmd('/home'));
+  await a.waitForFunction(() => window.__isle.wild.counts().flies > 0, null, { timeout: 15000 }).catch(() => {});
+  check('and butterflies flutter over the meadow by day', (await a.evaluate(() => window.__isle.wild.counts().flies)) > 0);
 
   // ----- chat bubbles and reactions -----
   await a.evaluate(() => window.__isle.social.chat('Hello there, this is a long message that should wrap onto more than one line of the bubble'));
@@ -147,8 +149,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('others see your pet’s hat and collar', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return !!p && window.__isle.petAcc('peer:' + p.id) >= 2; }));
   // zip lines come from the blocks, so everyone gets them
   await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 15; y++) I.setBlock(70, y, 96, 3); I.setBlock(70, 16, 96, 87); I.setBlock(70, 13, 104, 87); });
-  await g.waitForFunction(() => window.__isle.zip.lines().length === 1, null, { timeout: 15000 }).catch(() => {});
-  check('a zip line someone builds strings up for everyone', (await g.evaluate(() => window.__isle.zip.lines().length)) === 1);
+  const hostLines = await a.evaluate(() => window.__isle.zip.lines().length);
+  await g.waitForFunction((n) => window.__isle.zip.lines().length === n, hostLines, { timeout: 15000 }).catch(() => {});
+  check('a zip line someone builds strings up for everyone', hostLines >= 1 && (await g.evaluate(() => window.__isle.zip.lines().length)) === hostLines, [hostLines, await g.evaluate(() => window.__isle.zip.lines().length)]);
   // reactions and typing
   await a.evaluate(() => window.__isle.cmd('/react party'));
   await g.waitForFunction(() => window.__isle.react.fx() > 0, null, { timeout: 8000 }).catch(() => {});

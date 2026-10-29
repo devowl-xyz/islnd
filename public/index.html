@@ -9133,7 +9133,7 @@ function zipRide(dt){
   }
   const p=zipAt(L,z.t),ny=p.y-ZIP_HANG;
   /* your feet touch the ground (or a roof): let go and land there */
-  if(z.t>0.08&&boxHits(p.x,ny,p.z)){
+  if(z.t>0.3&&boxHits(p.x,ny,p.z)){
     let y=ny;for(let u=0;u<12&&boxHits(p.x,y,p.z);u++)y+=0.25;
     P.zip=null;
     if(!boxHits(p.x,y,p.z)){P.x=p.x;P.z=p.z;P.y=y;}
