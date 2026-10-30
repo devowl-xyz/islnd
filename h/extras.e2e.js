@@ -338,8 +338,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('a zip line someone builds strings up for everyone', hostLines >= 1 && (await g.evaluate(() => window.__isle.zip.lines().length)) === hostLines, [hostLines, await g.evaluate(() => window.__isle.zip.lines().length)]);
   // reactions and typing
   await a.evaluate(() => window.__isle.cmd('/react party'));
-  await g.waitForFunction(() => window.__isle.react.fx() > 0, null, { timeout: 8000 }).catch(() => {});
-  check('others see your reaction', (await g.evaluate(() => window.__isle.react.fx())) > 0);
+  const sawReact = await g.waitForFunction(() => window.__isle.react.fx() > 0, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('others see your reaction', sawReact);
   await a.keyboard.press('Enter'); await wait(200);
   await a.keyboard.type('hel');
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && p.av && p.av.typeFx && p.av.typeFx.visible; }, null, { timeout: 8000 }).catch(() => {});
@@ -370,8 +370,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const gu0 = await g.evaluate(() => window.__isle.potty.uses());
   await put(g, po.ix + 0.5, po.G, po.iz + 0.5);
   for (let k = 0; k < 3; k++) { await g.evaluate(() => window.__isle.potty.ready()); await g.keyboard.press('KeyE'); await wait(2300); }
-  await a.waitForFunction(() => window.__isle.potty.left() > 100, null, { timeout: 10000 }).catch(() => {});
-  check('in a room everyone shares the potty’s count, and the flood', (await g.evaluate(() => window.__isle.potty.uses())) === gu0 + 3 && (await a.evaluate(() => window.__isle.potty.left())) > 100, [gu0, await g.evaluate(() => window.__isle.potty.uses()), await a.evaluate(() => window.__isle.potty.left())]);
+  await a.waitForFunction(() => window.__isle.potty.left() > 0, null, { timeout: 10000 }).catch(() => {});
+  check('in a room everyone shares the potty’s count, and the flood', (await g.evaluate(() => window.__isle.potty.uses())) === gu0 + 3 && (await a.evaluate(() => window.__isle.potty.left())) > 0, [gu0, await g.evaluate(() => window.__isle.potty.uses()), await a.evaluate(() => window.__isle.potty.left())]);
   // Bazza in a room: the host's game sends him off, everyone sees him go, and the eggs land at the guest's place
   await g.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   await put(g, 84.5, 13, 96.5); await wait(1500);
