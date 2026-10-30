@@ -127,7 +127,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await a.evaluate(() => window.__isle.silly.rushPoop());
     await a.waitForFunction(() => window.__isle.silly.splat(), null, { timeout: 15000 }).catch(() => {});
     check('stand under the gulls too long and one poops on you', await a.evaluate(() => window.__isle.silly.splat()));
-    await a.evaluate(() => { const P = window.__isle.player; P.y = 9; });
+    await a.evaluate(() => { const I = window.__isle, P = I.player, o = I.lighthouse.LH; P.x = o.cx + 18.5; P.z = o.cz + 0.5; P.y = 9; });
     await a.waitForFunction(() => !window.__isle.silly.splat(), null, { timeout: 8000 }).catch(() => {});
     check('and the sea washes it off', !(await a.evaluate(() => window.__isle.silly.splat())));
     await a.evaluate(() => window.__isle.cmd('/tp lighthouse')); await wait(300);
@@ -273,9 +273,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await nearButler(); await wait(400);
   check('he greets an owl owner who comes home', /Welcome home|kettle/.test((await a.evaluate(() => window.__isle.butler.said())) || ''), await a.evaluate(() => window.__isle.butler.said()));
   const served = [];
-  for (let k = 0; k < 4; k++) { await nearButler(); await a.keyboard.press('KeyE'); await wait(300); served.push(await a.evaluate(() => window.__isle.butler.said())); }
+  let teaInHand = false;
+  for (let k = 0; k < 4; k++) { await nearButler(); await a.keyboard.press('KeyE'); await wait(300); served.push(await a.evaluate(() => window.__isle.butler.said())); if (k === 0) teaInHand = await a.evaluate(() => window.__isle.butler.tea()); }
   check('E: a cup of tea, a snack for your owl, a polish and the news', /tea/i.test(served[0]) && /snack|Mice/i.test(served[1]) && /polish/i.test(served[2]) && /news/i.test(served[3]), served);
-  check('and you’re holding the tea', await a.evaluate(() => window.__isle.butler.tea()));
+  check('and you’re holding the tea', teaInHand);
   const refused = await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
   check('he politely refuses anyone else', /Terribly sorry/.test(refused || ''), refused);
   await a.evaluate(() => window.__isle.cmd('/home')); await wait(300);

@@ -9707,7 +9707,7 @@ function butlerServe(){
   const what=BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];butler.service++;
   const owl=PETS[mySkin.pet].name;
   if(what==='tea'){
-    hp=HP_MAX;renderHearts();butler.cupT=performance.now()+9000;
+    hp=HP_MAX;renderHearts();butler.cupT=performance.now()+15000;
     butlerSay('Your tea, '+sirOrMadam()+'. Milk, no sugar.',5);toast('☕ You sip Pemberton’s tea. All your hearts are back.');
   }else if(what==='snack'){
     butlerSay('A little something for '+owl+', '+sirOrMadam()+'. Mice on toast.',5);
