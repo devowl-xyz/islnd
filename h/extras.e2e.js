@@ -418,7 +418,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, L.cx + 0.5, L.iy0, L.z0 - 6); await wait(1500);
   check('the iris door stays shut for anyone else', (await a.evaluate(() => window.__isle.lab.door())) < 0.1);
   await a.evaluate((L) => { const P = window.__isle.player; P.z = L.iz0 + 4.5; P.y = L.iy0; }, L); await wait(400);
-  check('and they can’t get inside', !(await a.evaluate(() => window.__isle.lab.inside())));
+  check('and if they get inside they’re put straight back out', !(await a.evaluate(() => window.__isle.lab.inside())));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, L.cx + 0.5, L.iy0, L.z0 - 6);
   const opened = await a.waitForFunction(() => window.__isle.lab.door() > 0.9, null, { timeout: 10000 }).then(() => true).catch(() => false);

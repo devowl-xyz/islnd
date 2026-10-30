@@ -10622,6 +10622,7 @@ function labStep(prevVy,dt){
   const now=performance.now();
   if(now<labState.boots&&P.vy>7.5&&prevVy<=0.5&&!P.fly)P.vy*=1.75;
   if(now<labState.gravity&&!P.fly&&P.vy<prevVy)P.vy=prevVy+(P.vy-prevVy)*0.35;
+  if(!isOwlOwner()&&labHere(P.x,P.y+0.5,P.z)&&!heli.seat){P.x=LAB.cx+0.5;P.z=LAB.z0-4.5;P.y=LAB.iy0;P.vx=P.vy=P.vz=0;P.fly=false;if(now-(labState.kickT||0)>3000){labState.kickT=now;toast('🔒 Access denied. Owl owners only.');}}
 }
 function labHidden(x,y,z){return labHere(x,y,z);}
 /* faint and see-through while cloaked */
