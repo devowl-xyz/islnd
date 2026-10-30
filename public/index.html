@@ -83,6 +83,16 @@ body:not(.touch) #chatChips{display:none!important}
 #coins[hidden]{display:none}
 #coins.pop{animation:coinpop .5s ease-out}
 @keyframes coinpop{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+#pemb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 60px);overflow:auto;box-sizing:border-box;padding:18px;border-radius:20px;background:rgba(18,20,28,.96);color:#fff;font:14px var(--body);box-shadow:0 18px 50px rgba(0,0,0,.5);pointer-events:auto;border:2px solid #c9a43a}
+#pemb[hidden]{display:none}
+#pemb .phead{display:flex;align-items:center;gap:10px;font:700 19px var(--display);color:#f2d47a;margin-bottom:10px}
+#pemb .phead b{flex:1}
+#pemb .psub{margin:12px 0 6px;font-weight:700;color:#f2d47a}
+#pemb .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+#pemb .pitem{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;font:13px var(--body);text-align:left;cursor:pointer}
+#pemb .pitem:hover{background:rgba(242,212,122,.18)}
+#pemb .pitem span{color:var(--muted);font-size:12px}
+#pemb .pitem .pic{font-size:20px;color:#fff}
 #shop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;width:min(620px,calc(100vw - 32px));max-height:calc(100vh - 60px);overflow:auto;box-sizing:border-box;padding:18px;border-radius:20px;background:rgba(20,26,34,.95);color:#fff;font:14px var(--body);box-shadow:0 18px 50px rgba(0,0,0,.5);pointer-events:auto}
 #shop[hidden]{display:none}
 #shop .shead{display:flex;align-items:center;gap:10px;font:700 20px var(--display)}
@@ -348,7 +358,7 @@ body.touch .desk{display:none}
         <dt>Island Shop</dt><dd>South of where you start: <b>E</b> by Polly the parrot to spend coins (from fishing, cracking Bazza’s eggs, races and a daily visit) on treats and hats</dd>
         <dt>Trampoline</dt><dd>Just west of where you start: land on it to bounce, hold <b>Space</b> as you land to go higher, <b>Shift</b> to stop</dd>
         <dt>Bazza</dt><dd>Biscuit and Mochi’s ostrich by the cottage gate: <b>E</b> to get him mopping up sewage or off egging someone (Biscuit’s and Mochi’s owners). Crack his eggs to get rid of them</dd>
-        <dt>Pemberton</dt><dd>The owls’ penguin butler in the treehouse hall: <b>E</b> by him for tea, a snack for your owl, a polish or the news (owl owners)</dd>
+        <dt>Pemberton</dt><dd>The owls’ penguin butler in the treehouse hall (owl owners): <b>E</b> for his service: tea and a burst of speed, a snack for your owl, a gull-proof polish, teleporting anywhere, clearing Bazza’s eggs, mending the lighthouse and fine weather. He also pops up to save you</dd>
         <dt>N</dt><dd>Scatter pigeon seed: the pigeons crowd round you</dd>
         <dt>O</dt><dd>Photo mode: hide the screen, drag the camera round, pick the time of day, save a picture</dd>
         <dt>Zip lines</dt><dd>Put two zip line posts (in the block picker) at different heights and a line strings itself between them. Stand under it and press <b>E</b> to ride down; <b>Space</b> lets go</dd>
@@ -2993,6 +3003,7 @@ function update(dt){
   if(P.chute&&!fl)speed=6.5;
   if(P.bike!==null){if(swim)bikeLeave(true);else speed=sprintKey?13:9.5;}
   if(inSewage(P.x,P.y,P.z))speed*=0.55;
+  if(performance.now()<butler.zoomT)speed*=1.45;
   /* Jump while falling from high up opens the parachute */
   if(jump&&!jumpWas&&!fl&&!swim&&!P.onGround&&P.vy<-6&&!P.chute)maybeChute();
   jumpWas=jump;
@@ -3427,7 +3438,7 @@ document.addEventListener('pointerlockchange',function(){
   /* the mouse came back just as the chat box opened again: let go of it, and keep typing in the chat box */
   if(locked&&chatOpen){try{document.exitPointerLock();}catch(e){}const ci=$('chatIn');if(ci)ci.focus();return;}
   if(locked){everLocked=true;setPlaying(true);}
-  else if(everLocked&&!pickerOpen&&!chatOpen&&!photo&&!shop.open){setPlaying(false);}
+  else if(everLocked&&!pickerOpen&&!chatOpen&&!photo&&!shop.open&&!butler.menu){setPlaying(false);}
 });
 let resetArmed=0;
 const resetBtn=$('reset');
@@ -3465,6 +3476,7 @@ window.addEventListener('keydown',function(e){
   if(e.code==='Escape'&&mapOpen){toggleMap(false);return;}
   if(e.code==='Escape'&&emoteBar){toggleEmotes(false);return;}
   if(e.code==='Escape'&&shop.open){closeShop(true);return;}
+  if(e.code==='Escape'&&butler.menu){closeButlerMenu(true);return;}
   if(e.code==='Escape'){if(!locked)setPlaying(false);return;}
   if(e.code==='KeyB'){e.preventDefault();openPicker();return;}
   if(e.code==='Space'||e.code.indexOf('Arrow')===0)e.preventDefault();
@@ -5236,7 +5248,7 @@ function updateJetHint(){
   else if(playing&&!P.sleep&&shopNear())h='<b>E</b> to shop with Polly · you have 🪙 '+shopSave.coins;
   else if(playing&&onTramp(P.x,P.z)&&P.y>=TRAMP.top-0.05&&!P.fly)h='🤸 Trampoline · hold <b>Space</b> as you land to bounce higher · <b>Shift</b> to stop';
   else if(playing&&!P.sleep&&bazNear())h=bazOwner()?(sewageOn()&&!potty.clean?'<b>E</b> to get Bazza to mop up the sewage':'<b>E</b> to give Bazza a job'):'Bazza the ostrich works for Biscuit’s and Mochi’s owners';
-  else if(playing&&!P.sleep&&butlerNear())h=isOwlOwner()?'<b>E</b> to ask Pemberton for '+({tea:'a cup of tea',snack:'a snack for '+PETS[mySkin.pet].name,polish:'a polish',news:'the news'})[BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length]]:'Pemberton the butler serves Hoot’s and Snowy’s owners';
+  else if(playing&&!P.sleep&&butlerNear())h=isOwlOwner()?'<b>E</b> for Pemberton’s service':'Pemberton the butler serves Hoot’s and Snowy’s owners';
   else if(playing&&!P.sleep&&pottyNear())h=performance.now()<potty.sitting?'🚽 Busy…':'<b>E</b> to use the porta-potty';
   else if(playing&&inSewage(P.x,P.y,P.z))h='💩 Wading through sewage · it drains away in '+Math.ceil(sewageLeft())+' s';
   else if(playing&&iceMe)h='You’re frozen! The host or an admin can unfreeze you.';
@@ -7599,7 +7611,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={cmd:function(t){return runCommand(t);},aimAt:function(){aim();return target?{x:target.x,y:target.y,z:target.z,nx:target.nx,ny:target.ny,nz:target.nz,f:[cam.fx,cam.fy,cam.fz]}:null;},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},shapeOf:function(base){return familyBase(base)+facingDir();},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food,acc){const Q=makePetModel(id,food);if(acc)dressPet(Q,acc);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},shop:{at:function(){return SHOP;},near:function(){return shopNear();},open:function(){return shop.open;},coins:function(){return shopSave.coins;},give:function(n){addCoins(n);},buy:buyItem,hats:function(){return shopSave.hats.slice();},balloon:function(){return balloonOn();},cone:function(){return performance.now()<shop.coneT;},said:function(){return shop.bub?shop.said:null;}},tramp:{T:function(){return TRAMP;},bounces:function(){return tramp.bounces;},peak:function(){return tramp.peak;},lastV:function(){return tramp.lastV;}},bazza:{pose:function(){return{x:baz.x,y:baz.y,z:baz.z};},near:function(){return bazNear();},serve:bazServe,said:function(){return baz.bub?baz.said:null;},run:function(){return baz.run?{x:baz.run.x,z:baz.run.z,who:baz.run.who,laid:baz.run.laid}:null;},go:function(){baz.force=true;},targets:function(){return bazTargets().map(function(t){return t.name;});},clean:function(){return+potty.clean||0;},home:function(){return bazHome()[0];}},butler:{pose:function(){return{x:butler.x,y:butler.y,z:butler.z};},near:function(){return butlerNear();},serve:butlerServe,said:function(){return butler.bub?butler.said:null;},hall:function(){return butlerHall();},tea:function(){return performance.now()<butler.cupT;},next:function(){return BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];},ready:function(){butler.serveT=0;}},silly:{zipFake:function(n){zipFake=n|0;},zipBroken:function(){return Object.keys(zipBroken).length;},fuse:function(){return lhFuse.blown;},rushFuse:function(){lhFuse.at=0;},splat:function(){return!!P.splat;},rushPoop:function(){gullFx.under=99;gullFx.cool=0;},gullNear:function(){const g=gullNearest(P.x,P.z);return g?{x:g.f.cx,z:g.f.cz,y:g.f.y,R:g.f.R,d:g.d}:null;},steal:function(){return gullFx.steal?gullFx.steal.phase:null;},rushSteal:function(){gullFx.foodT=99;gullFx.force=true;},seeds:function(){return seeds.list.length;},throwSeeds:throwSeeds,crashes:function(){return crashLog.n;},letter:function(){const e=$('letter');return!!e&&!e.hidden;},board:function(){return crashBoardLine();}},birdShow:function(k,x,y,z,yaw,mode,ph){const b=makeBird(k);b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;if(ph!==undefined)b.ph=ph;b.flapT=0.5;birdWings(b,mode||'fly',0);if(mode==='ground')b.g.position.y+=0.12;scene.add(b.g);return true;},crash:{go:crashJet,gone:function(){return performance.now()<jetGoneUntil;},booms:function(){return booms.length;},beach:eastBeachSpot},potty:{at:pottyAt,box:sewageBox,use:usePotty,near:pottyNear,uses:function(){return potty.uses;},left:sewageLeft,flood:function(){return!!potty.flood;},ready:function(){potty.sitting=0;},inSewage:function(){return inSewage(P.x,P.y,P.z);}},petAcc:function(key){const f=petFx.follow.get(key||'me');return f&&f.P.acc?f.P.acc.length:0;},photo:{toggle:togglePhoto,on:function(){return!!photo;},state:function(){return photo?{yaw:photo.yaw,pitch:photo.pitch,dist:photo.dist,hour:photo.hour,hideMe:photo.hideMe,last:!!photo.last}:null;},snap:photoSnap},react:{go:doReact,fx:function(){return reactFx.length;},typing:function(){return myTyping;}},lighthouse:{LH:LH,beam:function(){return lhFx?{on:lhFx.g.visible,op:lhFx.mat.opacity,a:lhFx.a}:null;}},wild:{pigeons:function(){return birds.pigeons.map(function(q){return{mode:q.mode,x:q.x,y:q.y,z:q.z};});},kinds:function(){return birds.flocks.map(function(f){return f.kind;});},counts:function(){return{birds:wild.shown,pigeons:birds.pigeons.filter(function(q){return q.mode!=='none';}).length,lhGulls:birds.perched.filter(function(q){return q.b.g.visible;}).length+birds.flocks.filter(function(f){return f.fixed;}).reduce(function(n,f){return n+f.list.filter(function(q){return q.b.g.visible;}).length;},0),gulls:birds.flocks.filter(function(f){return f.kind==='gull'&&f.list[0].b.g.visible;}).length,fish:wild.fish.filter(function(f){return f.live;}).length,flies:wild.flies.filter(function(b){return b.live;}).length,glow:wild.glow&&wild.glow.visible?wild.glowP.filter(function(q){return q.live;}).length:0};}},zip:{lines:function(){if(zipDirty)zipBuild();return zipLines.map(function(L){return{a:[L.a.x,L.a.y,L.a.z],b:[L.b.x,L.b.y,L.b.z]};});},near:function(){return zipNear();},riding:function(){return P.zip?Object.assign({},P.zip):null;},grab:function(){return zipGrab(zipNear());}},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:function(){return nearBike();},home:function(){return BIKE_HOME;}},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={cmd:function(t){return runCommand(t);},aimAt:function(){aim();return target?{x:target.x,y:target.y,z:target.z,nx:target.nx,ny:target.ny,nz:target.nz,f:[cam.fx,cam.fy,cam.fz]}:null;},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},shapeOf:function(base){return familyBase(base)+facingDir();},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food,acc){const Q=makePetModel(id,food);if(acc)dressPet(Q,acc);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},shop:{at:function(){return SHOP;},near:function(){return shopNear();},open:function(){return shop.open;},coins:function(){return shopSave.coins;},give:function(n){addCoins(n);},buy:buyItem,hats:function(){return shopSave.hats.slice();},balloon:function(){return balloonOn();},cone:function(){return performance.now()<shop.coneT;},said:function(){return shop.bub?shop.said:null;}},tramp:{T:function(){return TRAMP;},bounces:function(){return tramp.bounces;},peak:function(){return tramp.peak;},lastV:function(){return tramp.lastV;}},bazza:{pose:function(){return{x:baz.x,y:baz.y,z:baz.z};},near:function(){return bazNear();},serve:bazServe,said:function(){return baz.bub?baz.said:null;},run:function(){return baz.run?{x:baz.run.x,z:baz.run.z,who:baz.run.who,laid:baz.run.laid}:null;},go:function(){baz.force=true;},targets:function(){return bazTargets().map(function(t){return t.name;});},clean:function(){return+potty.clean||0;},home:function(){return bazHome()[0];}},pembShow:function(x,y,z,yaw){const o=makePenguin();o.g.position.set(x,y,z);o.g.rotation.y=yaw||0;scene.add(o.g);return true;},butler:{svc:butlerService,menu:function(){return butler.menu;},zoom:function(){return performance.now()<butler.zoomT;},shield:function(){return performance.now()<butler.shieldT;},away:function(){return!!butler.away;},line:pembLine,pose:function(){return{x:butler.x,y:butler.y,z:butler.z};},near:function(){return butlerNear();},serve:butlerServe,said:function(){return butler.bub?butler.said:null;},hall:function(){return butlerHall();},tea:function(){return performance.now()<butler.cupT;},next:function(){return BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];},ready:function(){butler.serveT=0;}},silly:{zipFake:function(n){zipFake=n|0;},zipBroken:function(){return Object.keys(zipBroken).length;},fuse:function(){return lhFuse.blown;},rushFuse:function(){lhFuse.at=0;},splat:function(){return!!P.splat;},rushPoop:function(){gullFx.under=99;gullFx.cool=0;},gullNear:function(){const g=gullNearest(P.x,P.z);return g?{x:g.f.cx,z:g.f.cz,y:g.f.y,R:g.f.R,d:g.d}:null;},steal:function(){return gullFx.steal?gullFx.steal.phase:null;},rushSteal:function(){gullFx.foodT=99;gullFx.force=true;},seeds:function(){return seeds.list.length;},throwSeeds:throwSeeds,crashes:function(){return crashLog.n;},letter:function(){const e=$('letter');return!!e&&!e.hidden;},board:function(){return crashBoardLine();}},birdShow:function(k,x,y,z,yaw,mode,ph){const b=makeBird(k);b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;if(ph!==undefined)b.ph=ph;b.flapT=0.5;birdWings(b,mode||'fly',0);if(mode==='ground')b.g.position.y+=0.12;scene.add(b.g);return true;},crash:{go:crashJet,gone:function(){return performance.now()<jetGoneUntil;},booms:function(){return booms.length;},beach:eastBeachSpot},potty:{at:pottyAt,box:sewageBox,use:usePotty,near:pottyNear,uses:function(){return potty.uses;},left:sewageLeft,flood:function(){return!!potty.flood;},ready:function(){potty.sitting=0;},inSewage:function(){return inSewage(P.x,P.y,P.z);}},petAcc:function(key){const f=petFx.follow.get(key||'me');return f&&f.P.acc?f.P.acc.length:0;},photo:{toggle:togglePhoto,on:function(){return!!photo;},state:function(){return photo?{yaw:photo.yaw,pitch:photo.pitch,dist:photo.dist,hour:photo.hour,hideMe:photo.hideMe,last:!!photo.last}:null;},snap:photoSnap},react:{go:doReact,fx:function(){return reactFx.length;},typing:function(){return myTyping;}},lighthouse:{LH:LH,beam:function(){return lhFx?{on:lhFx.g.visible,op:lhFx.mat.opacity,a:lhFx.a}:null;}},wild:{pigeons:function(){return birds.pigeons.map(function(q){return{mode:q.mode,x:q.x,y:q.y,z:q.z};});},kinds:function(){return birds.flocks.map(function(f){return f.kind;});},counts:function(){return{birds:wild.shown,pigeons:birds.pigeons.filter(function(q){return q.mode!=='none';}).length,lhGulls:birds.perched.filter(function(q){return q.b.g.visible;}).length+birds.flocks.filter(function(f){return f.fixed;}).reduce(function(n,f){return n+f.list.filter(function(q){return q.b.g.visible;}).length;},0),gulls:birds.flocks.filter(function(f){return f.kind==='gull'&&f.list[0].b.g.visible;}).length,fish:wild.fish.filter(function(f){return f.live;}).length,flies:wild.flies.filter(function(b){return b.live;}).length,glow:wild.glow&&wild.glow.visible?wild.glowP.filter(function(q){return q.live;}).length:0};}},zip:{lines:function(){if(zipDirty)zipBuild();return zipLines.map(function(L){return{a:[L.a.x,L.a.y,L.a.z],b:[L.b.x,L.b.y,L.b.z]};});},near:function(){return zipNear();},riding:function(){return P.zip?Object.assign({},P.zip):null;},grab:function(){return zipGrab(zipNear());}},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:function(){return nearBike();},home:function(){return BIKE_HOME;}},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
@@ -9562,7 +9574,7 @@ function gullTick(dt){
   /* standing under a circling flock for a while: one of them lets go */
   gullFx.cool-=dt;
   const gn=gullNearest(P.x,P.z);
-  const under=gn&&gn.d<gn.f.R+5&&P.y<gn.f.y-3&&!P.splat&&!jet.seat&&!heli.seat;
+  const under=gn&&gn.d<gn.f.R+5&&P.y<gn.f.y-3&&!P.splat&&!jet.seat&&!heli.seat&&performance.now()>butler.shieldT;
   gullFx.under=under?gullFx.under+dt:Math.max(0,gullFx.under-dt*0.5);
   if(under&&gullFx.under>6&&gullFx.cool<=0&&!gullFx.drop){
     const q=gn.f.list[Math.floor(Math.random()*gn.f.list.length)],o=q.b.g.position;
@@ -9675,15 +9687,20 @@ function crashBoardLine(){
   return'💥 Crashes: '+crashLog.n+' · last one '+t+' ago';
 }
 /* ---------- Pemberton, the owls' penguin butler ----------
-   A penguin in a tailcoat, white bow-tie front, red bow tie and gold monocle, with a silver tea tray, who keeps
-   the owls' treehouse. He waddles up and down the hall on the room's clock (so everyone sees him in the same
-   place), greets Hoot's and Snowy's owners when they come home, and serves them when they press E by him:
-   a cup of tea (all your hearts back), a snack for their owl, a polish of their hat and the island news.
-   Anyone else gets a very polite refusal. */
+   An emperor penguin in a tailcoat, a dove-grey waistcoat with a gold watch chain, a wing collar and red bow
+   tie, white gloves and a gold monocle, with a silver tray under a domed cover. He keeps the owls' treehouse,
+   waddling up and down the hall on the room's clock. He is, frankly, overpowered:
+   - E by him opens his service: tea (all your hearts and a burst of speed), a snack for your owl, a polish
+     that also shields you from seagulls for a while, teleporting you anywhere on the island in a puff of
+     smoke, clearing Bazza's eggs from round you, mending the lighthouse lamp, and fine weather;
+   - he pops up out of nowhere to look after Hoot's and Snowy's owners: catching them when they fall,
+     bringing tea when their hearts are low, and wiping off seagull poop;
+   - and anyone else who wanders up to the treehouse is politely launched off the property.
+   What he says depends on who you are, your owl, the time of day, the weather and what's been going on. */
 const BUTLER_NAME='Pemberton';
-const butler={obj:null,x:0,y:0,z:0,yaw:0,bub:null,bubT:0,service:0,greeted:false,serveT:0,cup:null,cupT:0};
+const butler={obj:null,x:0,y:0,z:0,yaw:0,bub:null,bubT:0,service:0,greeted:false,serveT:0,cup:null,cupT:0,said:null,
+  zoomT:0,shieldT:0,mendT:0,away:null,helpT:0,yeetT:0,recent:[],chatT:0,menu:false};
 function butlerHall(){return TH_ROOMS.filter(function(r){return r.name==='the hall';})[0];}
-/* the walk: along the hall and back, pausing at each end and by the common room door */
 function butlerPath(){
   const h=butlerHall(),y=h.y0,mz=(h.z0+h.z1+1)/2;
   return[{x:h.x0+1.5,z:mz,stop:6},{x:(h.x0+h.x1+1)/2,z:h.z0+0.6,stop:5},{x:h.x1-0.5,z:mz,stop:6},{x:(h.x0+h.x1+1)/2,z:h.z0+0.6,stop:4}].map(function(p){p.y=y;return p;});
@@ -9700,117 +9717,221 @@ function butlerPose(t){
   }
   return{x:pts[0].x,y:pts[0].y,z:pts[0].z,yaw:0,moving:false};
 }
+/* ----- the model ----- */
 function makePenguin(){
   const g=new THREE.Group(),body=new THREE.Group();g.add(body);
-  const m=function(c,o){return new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));};
-  const black=m(0x16171c),white=m(0xf7f7f2),orange=m(0xf29a2a),gold=m(0xf2c14e),red=m(0xc81e2a),silver=m(0xd8dde4),satin=m(0x2c2e36),yellow=m(0xffc23a);
+  const m=function(c,o){return new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));},ph=function(c,sh){return new THREE.MeshPhongMaterial({color:c,shininess:sh||60,specular:0x666666});};
+  const black=m(0x15161b),white=m(0xf8f8f4),cream=m(0xfff6e0),orange=m(0xf0902a),yolk=m(0xffc23a),gold=ph(0xf2c14e,90),red=m(0xb81a28),silver=ph(0xdfe4ea,120),grey=m(0x8a8f99),satin=ph(0x24262e,40),glove=m(0xffffff);
+  const lathe=function(pts,mat,seg,phiStart,phiLen){const ge=new THREE.LatheGeometry(pts.map(function(p){return new THREE.Vector2(p[0],p[1]);}),seg||28,phiStart||0,phiLen||Math.PI*2);const o=new THREE.Mesh(ge,mat);o.material.side=THREE.DoubleSide;body.add(o);return o;};
   const sph=function(par,r,sx,sy,sz,mat,x,y,z){const o=new THREE.Mesh(new THREE.SphereGeometry(r,18,14),mat);o.scale.set(sx,sy,sz);o.position.set(x,y,z);par.add(o);return o;};
-  /* the body: a black back, a white shirt front */
-  sph(body,0.32,0.9,1.2,0.85,black,0,0.5,0);
-  sph(body,0.27,0.7,1.02,0.6,white,0,0.48,-0.15);
-  /* the tailcoat: satin lapels down the front, gold buttons, and two tails behind */
+  /* a smooth pear-shaped body: black behind, a white front, a yellow blush at the throat */
+  const prof=[[0,0.02],[0.2,0.05],[0.3,0.16],[0.34,0.34],[0.33,0.55],[0.29,0.74],[0.22,0.88],[0.15,0.98],[0,1.0]];
+  lathe(prof,black);
+  const front=lathe(prof.map(function(p){return[p[0]+0.012,p[1]];}),white,24,Math.PI*0.64,Math.PI*0.72);void front;
+  sph(body,0.11,1.3,0.7,0.5,yolk,0,0.86,-0.17);
+  /* the tailcoat: satin over the shoulders and back, lapels, and two long tails */
+  const coat=lathe(prof.slice(2,8).map(function(p){return[p[0]+0.025,p[1]];}),satin,24,-Math.PI*0.62,Math.PI*1.24);void coat;
   [-1,1].forEach(function(sd){
-    const lap=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.34,0.03),satin);lap.position.set(sd*0.13,0.6,-0.255);lap.rotation.z=-sd*0.32;lap.rotation.y=sd*0.35;body.add(lap);
-    const tail=new THREE.Mesh(new THREE.BoxGeometry(0.11,0.34,0.04),black);tail.geometry.translate(0,-0.17,0);tail.position.set(sd*0.08,0.32,0.26);tail.rotation.x=0.25;tail.rotation.z=sd*0.08;body.add(tail);
+    const lap=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.36,0.02),satin);lap.position.set(sd*0.12,0.66,-0.27);lap.rotation.set(-0.15,sd*0.45,-sd*0.3);body.add(lap);
+    const tail=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.42,0.03),satin);tail.geometry.translate(0,-0.21,0);tail.position.set(sd*0.075,0.42,0.3);tail.rotation.set(0.22,0,sd*0.07);body.add(tail);
   });
-  [0.46,0.36].forEach(function(y){sph(body,0.022,1,1,0.6,gold,0,y,-0.25);});
-  /* a crisp collar and a red bow tie */
-  [-1,1].forEach(function(sd){const c=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.08,3),white);c.position.set(sd*0.05,0.82,-0.2);c.rotation.x=Math.PI;c.rotation.z=sd*0.5;body.add(c);});
-  [-1,1].forEach(function(sd){const b=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.09,8),red);b.rotation.z=sd*Math.PI/2;b.position.set(sd*0.045,0.8,-0.235);body.add(b);});
-  sph(body,0.022,1,1,1,red,0,0.8,-0.24);
-  /* the head: yellow cheek patches, bright eyes, an orange beak, and a gold monocle on a chain */
-  const head=new THREE.Group();head.position.set(0,1.02,-0.02);body.add(head);
-  sph(head,0.2,1,1,1,black,0,0,0);
-  [-1,1].forEach(function(sd){sph(head,0.06,0.5,1,1,yellow,sd*0.17,-0.03,0.02);sph(head,0.035,1,1,0.6,white,sd*0.075,0.04,-0.17);sph(head,0.02,1,1,0.6,black,sd*0.078,0.04,-0.19);});
-  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.15,8),orange);beak.rotation.x=-Math.PI/2;beak.position.set(0,-0.03,-0.24);head.add(beak);
-  const mono=new THREE.Mesh(new THREE.TorusGeometry(0.045,0.008,6,16),gold);mono.position.set(0.075,0.04,-0.195);head.add(mono);
-  const chain=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.26,4),gold);chain.position.set(0.12,-0.08,-0.16);chain.rotation.z=0.3;head.add(chain);
-  /* flippers: the right one carries a silver tray with a teapot and a cup */
+  /* a dove-grey waistcoat with gold buttons and a watch chain */
+  const vest=new THREE.Mesh(new THREE.SphereGeometry(0.2,16,12,Math.PI*0.25,Math.PI*0.5,Math.PI*0.3,Math.PI*0.4),grey);vest.scale.set(1,1.5,0.7);vest.position.set(0,0.52,-0.12);vest.rotation.y=Math.PI;body.add(vest);
+  [0.6,0.52,0.44].forEach(function(y){sph(body,0.016,1,1,0.6,gold,0,y,-0.265);});
+  const watch=new THREE.Mesh(new THREE.TorusGeometry(0.06,0.005,4,16,Math.PI),gold);watch.position.set(0.04,0.5,-0.265);watch.rotation.z=Math.PI;body.add(watch);
+  /* wing collar and bow tie */
+  [-1,1].forEach(function(sd){const c=new THREE.Mesh(new THREE.ConeGeometry(0.045,0.08,3),cream);c.position.set(sd*0.045,0.86,-0.215);c.rotation.set(Math.PI,0,sd*0.6);body.add(c);});
+  [-1,1].forEach(function(sd){const b=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.085,10),red);b.rotation.z=sd*Math.PI/2;b.position.set(sd*0.042,0.82,-0.235);body.add(b);});
+  sph(body,0.02,1,1,1,red,0,0.82,-0.24);
+  /* the head: glossy black, golden ear patches, bright eyes with white rings, an orange-lined beak, monocle */
+  const head=new THREE.Group();head.position.set(0,1.0,-0.02);body.add(head);
+  sph(head,0.19,1,1.05,1.05,black,0,0,0);
+  [-1,1].forEach(function(sd){
+    sph(head,0.065,0.45,1.1,0.9,yolk,sd*0.16,-0.04,0.03);
+    sph(head,0.042,1,1,0.6,white,sd*0.075,0.04,-0.165);sph(head,0.026,1,1,0.6,m(0x3a2010),sd*0.078,0.04,-0.182);sph(head,0.011,1,1,1,white,sd*0.07,0.052,-0.19);
+  });
+  const beak=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.17,10),black);beak.rotation.x=-Math.PI/2;beak.position.set(0,-0.04,-0.25);head.add(beak);
+  const stripe=new THREE.Mesh(new THREE.ConeGeometry(0.041,0.1,10,1,true),orange);stripe.rotation.x=-Math.PI/2;stripe.position.set(0,-0.05,-0.21);head.add(stripe);
+  const mono=new THREE.Mesh(new THREE.TorusGeometry(0.048,0.008,8,20),gold);mono.position.set(0.077,0.04,-0.188);head.add(mono);
+  const glass=new THREE.Mesh(new THREE.CircleGeometry(0.044,16),new THREE.MeshPhongMaterial({color:0xcfe8ff,transparent:true,opacity:0.35,shininess:120}));glass.position.set(0.077,0.04,-0.19);glass.rotation.y=Math.PI;head.add(glass);
+  const chain=new THREE.Mesh(new THREE.CylinderGeometry(0.004,0.004,0.3,4),gold);chain.position.set(0.12,-0.1,-0.15);chain.rotation.z=0.32;head.add(chain);
+  /* flippers in white gloves; the right one carries a silver tray with a domed cover */
   const fl=[];
   [-1,1].forEach(function(sd){
-    const p=new THREE.Group();p.position.set(sd*0.27,0.7,0);body.add(p);
-    const f=sph(p,0.1,0.35,1,0.6,black,0,-0.16,0);f.rotation.z=sd*0.15;
-    sph(p,0.045,1,1,1,white,0,-0.3,0);
+    const p=new THREE.Group();p.position.set(sd*0.3,0.74,0);body.add(p);
+    const f=sph(p,0.1,0.32,1.05,0.6,satin,0,-0.17,0);f.rotation.z=sd*0.14;
+    sph(p,0.05,1,1.1,1,glove,0,-0.32,0);
     fl.push(p);
   });
-  const tray=new THREE.Group();tray.position.set(0,-0.3,-0.18);fl[1].add(tray);
-  const plate=new THREE.Mesh(new THREE.CylinderGeometry(0.17,0.17,0.015,20),silver);tray.add(plate);
-  const pot=sph(tray,0.06,1,0.85,1,white,-0.05,0.06,0);
-  const sp=new THREE.Mesh(new THREE.ConeGeometry(0.015,0.08,6),white);sp.position.set(-0.11,0.08,0);sp.rotation.z=1.1;tray.add(sp);
-  sph(tray,0.015,1,1,1,gold,-0.05,0.12,0);
-  const cup=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.022,0.04,10),white);cup.position.set(0.07,0.03,0.02);tray.add(cup);
+  const tray=new THREE.Group();tray.position.set(0,-0.33,-0.18);fl[1].add(tray);
+  tray.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.17,0.016,24),silver));
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(0.13,18,10,0,Math.PI*2,0,Math.PI/2),silver);dome.position.y=0.01;tray.add(dome);
+  sph(tray,0.018,1,1,1,silver,0,0.15,0);
   fl[1].rotation.x=-1.25;
-  /* orange feet */
-  const feet=[];[-1,1].forEach(function(sd){feet.push(sph(body,0.08,0.8,0.3,1.2,orange,sd*0.11,0.03,-0.06));});
-  g.scale.setScalar(1.1);
-  return{g:g,body:body,head:head,feet:feet,fl:fl,t:0};
+  /* orange webbed feet */
+  const feet=[];[-1,1].forEach(function(sd){feet.push(sph(body,0.085,0.85,0.28,1.25,orange,sd*0.11,0.03,-0.07));});
+  /* a golden glow for when he does something remarkable */
+  const aura=new THREE.Mesh(new THREE.SphereGeometry(0.75,18,14),new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));aura.position.y=0.55;g.add(aura);
+  g.scale.setScalar(1.15);
+  return{g:g,body:body,head:head,feet:feet,fl:fl,dome:dome,aura:aura,t:0};
+}
+/* ----- what he says ----- */
+function sirOf(){return'sir';}
+function partOfDay(){const h=envHour();return h<5?'night':h<12?'morning':h<17?'afternoon':h<21?'evening':'night';}
+function pembLine(kind){
+  const nm=myName(),owl=PETS[mySkin.pet]?PETS[mySkin.pet].name:'your owl',pd=partOfDay(),w=env.weather,sir=sirOf();
+  const greet=pd==='night'?'Good evening':'Good '+pd;
+  const wx=w==='storm'?'Dreadful storm, '+sir+'. I’ve battened the hatches.':w==='rain'?'Do mind the rain, '+sir+'. I’ve put the umbrellas by the door.':w==='snow'?'Snow, '+sir+'. I’ve warmed the slippers.':'Splendid weather for it, '+sir+'.';
+  const pools={
+    greet:[greet+', '+nm+'. Welcome home.',greet+', '+sir+'. '+owl+' has been asking after you.','Ah, '+nm+'. The kettle is already on.','Welcome back, '+sir+'. '+wx,greet+', '+sir+'. Shall I run you a bath? No? Tea, then.'],
+    idle:[wx,'Might I suggest a spot of tea, '+sir+'?','The silver has been polished, '+sir+'. Twice.','I took the liberty of alphabetising the bookshelf, '+sir+'.',owl+' looks especially magnificent this '+pd+', '+sir+'.','If you need anything at all, '+sir+', simply press E.',
+      crashLog.n?'I see Bird Air has crashed '+crashLog.n+' time'+(crashLog.n===1?'':'s')+'. I do prefer to walk.':'I hear Bird Air hasn’t crashed yet. Remarkable.',
+      sewageOn()?'There appears to be a sewage situation at the cottage, '+sir+'. Not our concern.':'All is quiet at the cottage, '+sir+'. For now.',
+      'Bazza the ostrich called again, '+sir+'. I did not let him in.','I once teleported a whole picnic to the Sky Palace, '+sir+'. Nobody spilt a drop.',
+      shopSave.coins>50?'You’re rather flush with coins, '+sir+'. '+shopSave.coins+' of them, if I may.':'Coins are a little short, '+sir+'? Fishing is very good for that.'],
+    tea:['Your tea, '+sir+'. Earl Grey, a splash of milk, and something extra in it that I won’t mention.','Tea, '+sir+'. You’ll find you can run rather fast for a minute.','Darjeeling, '+sir+'. Brewed for exactly four minutes.','One lump or two, '+sir+'? I’ve put in a bit of rocket fuel either way.'],
+    snack:['Mice on toast for '+owl+', '+sir+'.','A little something for '+owl+'. Lightly toasted, crusts off.','Freshly caught, '+sir+'. '+owl+' does look pleased.'],
+    polish:['A quick polish, '+sir+'. The gulls won’t dare touch you for a while.','There. Spotless, and quite gull-proof for a few minutes.','Allow me, '+sir+'. You’re shining like the family silver.'],
+    tp:['Mind the smoke, '+sir+'.','Right away, '+sir+'. Hold on to your hat.','One moment, '+sir+'… there.','Off you pop, '+sir+'.'],
+    eggs:['Bazza’s eggs have been… dealt with, '+sir+'.','I have removed the eggs, '+sir+'. Ostriches.','Not a single egg left, '+sir+'. I made an omelette.'],
+    mend:['The lighthouse is mended, '+sir+'. It shan’t blow again for a good while.','I’ve fitted a new fuse, '+sir+'. A rather large one.'],
+    weather:['Fine weather, '+sir+', as requested.','I’ve had a word with the clouds, '+sir+'.'],
+    rescue:['I’ve got you, '+sir+'.','Careful, '+sir+'! That was rather high.','Do try to land on your feet, '+sir+'.'],
+    lowhp:['You look peaky, '+sir+'. Tea, at once.','Sit down, '+sir+'. I’ve brought tea.'],
+    wipe:['Allow me, '+sir+'. Wretched gulls.','A moment, '+sir+'. There. As if it never happened.'],
+    intruder:['I’m afraid the treehouse is private, '+(nm||'madam')+'. Off you go.','Terribly sorry. Members only. Wheee!','I must ask you to leave. Rather quickly, as it turns out.'],
+    refuse:['Terribly sorry. I serve Hoot’s and Snowy’s owners only.','I’m afraid I’m spoken for, '+sir+'.']
+  };
+  const list=pools[kind]||pools.idle,fresh=list.filter(function(t){return butler.recent.indexOf(t)<0;}),pick2=(fresh.length?fresh:list)[Math.floor(Math.random()*(fresh.length?fresh.length:list.length))];
+  butler.recent.push(pick2);if(butler.recent.length>8)butler.recent.shift();
+  return pick2;
 }
 function butlerSay(text,secs){
   const o=butler.obj;if(!o)return;
   if(butler.bub){if(butler.bub.parent)butler.bub.parent.remove(butler.bub);butler.bub.material.map.dispose();butler.bub.material.dispose();}
-  const sp=makeBubble(text,BUTLER_NAME,'#2c2e36');sp.position.y=1.2;o.g.add(sp);butler.bub=sp;butler.bubT=performance.now()+(secs||5)*1000;butler.said=text;
+  const sp=makeBubble(text,BUTLER_NAME,'#2c2e36');sp.position.y=1.35;o.g.add(sp);butler.bub=sp;butler.bubT=performance.now()+(secs||5)*1000;butler.said=text;
 }
 function butlerNear(){return butler.obj&&Math.hypot(P.x-butler.x,P.z-butler.z)<2.4&&Math.abs(P.y-butler.y)<2;}
-function sirOrMadam(){return'sir';}
-const BUTLER_SERVICES=['tea','snack','polish','news'];
+/* a puff of smoke and sparkles where he vanishes or appears */
+function pembPuff(x,y,z){if(!fwPts)fwInit();for(let i=0;i<50;i++){const a=Math.random()*6.28,s=0.5+Math.random()*2.5;fwSpark(x,y+0.6,z,Math.cos(a)*s,Math.random()*2.5,Math.sin(a)*s,i%3?[0.85,0.85,0.9]:[1,0.9,0.5],0.6+Math.random()*0.6,2.2);}}
+/* pop up beside you (just on your screen), stay a few seconds and pop back to the hall */
+function pembAppear(text,secs){
+  const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),x=P.x+fx*1.6,z=P.z+fz*1.6;
+  butler.away={x:x,y:P.y,z:z,until:performance.now()+(secs||5)*1000};
+  pembPuff(x,P.y,z);butlerSay(text,secs||5);
+  if(butler.obj)butler.obj.aura.material.opacity=0.6;
+}
+/* ----- his services ----- */
+const BUTLER_SERVICES=['tea','snack','polish','teleport','eggs','mend','weather'];
+const PEMB_PLACES=[
+  {id:'palace',name:'the Sky Palace',at:function(){return{x:(PAL_HALL.x0+PAL_HALL.x1+1)/2,y:PAL_HALL.y0,z:PAL_HALL.z0+2.5};}},
+  {id:'lighthouse',name:'the lighthouse',at:function(){return{x:LH.cx+0.5,y:LH.L+1,z:LH.cz+1.5};}},
+  {id:'shop',name:'the Island Shop',at:function(){return{x:SHOP.x,y:FIELD_Y,z:SHOP.z-2.5};}},
+  {id:'beach',name:'East Beach',at:function(){return eastBeachSpot();}},
+  {id:'helipad',name:'the helipad',at:function(){return{x:(HELI_PAD.x0+HELI_PAD.x1+1)/2,y:HELI_PAD.y+1,z:HELI_PAD.z0+2.5};}},
+  {id:'meadow',name:'the meadow',at:function(){return{x:FX+0.5,y:FIELD_Y,z:FZ+0.5};}}
+];
+function pembTeleport(id){
+  const pl=PEMB_PLACES.filter(function(q){return q.id===id;})[0];if(!pl)return false;
+  const to=pl.at();
+  pembPuff(P.x,P.y,P.z);butlerSay(pembLine('tp'),3);
+  P.x=to.x;P.y=to.y;P.z=to.z;P.vx=P.vy=P.vz=0;P.fly=false;P.zip=null;
+  setTimeout(function(){pembPuff(P.x,P.y,P.z);pembAppear('Here we are, '+sirOf()+': '+pl.name+'.',4);},120);
+  toast('🐧 Pemberton whisks you off to '+pl.name+' in a puff of smoke.');
+  return true;
+}
+function butlerService(what){
+  if(!isOwlOwner()){butlerSay(pembLine('refuse'),4);return false;}
+  const owl=PETS[mySkin.pet].name;
+  if(what==='tea'){hp=HP_MAX;renderHearts();butler.cupT=performance.now()+15000;butler.zoomT=performance.now()+60000;butlerSay(pembLine('tea'),5);toast('☕ All your hearts are back, and you’re running fast for a minute.');}
+  else if(what==='snack'){butlerSay(pembLine('snack'),5);try{petTrick();}catch(e){}toast('🐭 '+owl+' gobbles up the snack and does a happy trick.');}
+  else if(what==='polish'){butlerSay(pembLine('polish'),5);butler.shieldT=performance.now()+180000;if(P.splat)setSplat(false);if(!fwPts)fwInit();for(let i=0;i<40;i++)fwSpark(P.x+(Math.random()-0.5)*0.8,P.y+0.4+Math.random()*1.6,P.z+(Math.random()-0.5)*0.8,(Math.random()-0.5)*1.5,1+Math.random()*1.5,(Math.random()-0.5)*1.5,[1,0.95,0.7],0.6+Math.random()*0.6,2);toast('✨ Spotless, and the seagulls won’t poop on you for 3 minutes.');}
+  else if(what==='eggs'){let n=0;const r=40;for(let x=Math.floor(P.x-r);x<=P.x+r;x++)for(let z=Math.floor(P.z-r);z<=P.z+r;z++)for(let y=Math.max(1,Math.floor(P.y-12));y<Math.min(H,P.y+12);y++)if(get(x,y,z)===B.EGG&&n<40){if(setBlock(x,y,z,0))n++;}butlerSay(n?pembLine('eggs'):'There are no eggs nearby, '+sirOf()+'. Bazza must be resting.',5);if(n)toast('🍳 Pemberton cleared '+n+' of Bazza’s eggs.');}
+  else if(what==='mend'){lhFuse.blown=false;butler.mendT=performance.now()+600000;butlerSay(pembLine('mend'),5);toast('💡 The lighthouse lamp won’t blow a fuse for 10 minutes, storm or no storm.');}
+  else if(what==='weather'){
+    if(inRoom()&&!net.host&&!net.admin){butlerSay('I’m afraid the weather is the host’s affair here, '+sirOf()+'.',4);return false;}
+    changeEnv({weather:'clear',what:'weather'});butlerSay(pembLine('weather'),4);
+  }
+  else if(what.indexOf('tp:')===0)return pembTeleport(what.slice(3));
+  return true;
+}
 function butlerServe(){
   if(!butlerNear())return false;
-  if(!isOwlOwner()){butlerSay('Terribly sorry. I serve Hoot’s and Snowy’s owners only.',4);return true;}
-  if(performance.now()<butler.serveT){butlerSay('One moment, '+sirOrMadam()+'…',2);return true;}
-  butler.serveT=performance.now()+1500;
-  const what=BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];butler.service++;
-  const owl=PETS[mySkin.pet].name;
-  if(what==='tea'){
-    hp=HP_MAX;renderHearts();butler.cupT=performance.now()+15000;
-    butlerSay('Your tea, '+sirOrMadam()+'. Milk, no sugar.',5);toast('☕ You sip Pemberton’s tea. All your hearts are back.');
-  }else if(what==='snack'){
-    butlerSay('A little something for '+owl+', '+sirOrMadam()+'. Mice on toast.',5);
-    try{petTrick();}catch(e){}
-    toast('🐭 '+owl+' gobbles up the snack and does a happy trick.');
-  }else if(what==='polish'){
-    butlerSay('Allow me to give you a quick polish, '+sirOrMadam()+'.',5);
-    if(!fwPts)fwInit();for(let i=0;i<40;i++)fwSpark(P.x+(Math.random()-0.5)*0.8,P.y+0.4+Math.random()*1.6,P.z+(Math.random()-0.5)*0.8,(Math.random()-0.5)*1.5,1+Math.random()*1.5,(Math.random()-0.5)*1.5,[1,0.95,0.7],0.6+Math.random()*0.6,2);
-    if(P.splat){setSplat(false);}
-    toast('✨ You’re spotless and shining'+(P.splat?'':'')+'.');
-  }else{
-    const bits=[];
-    bits.push(crashLog.n?'Bird Air has crashed '+crashLog.n+' time'+(crashLog.n===1?'':'s'):'Bird Air hasn’t crashed yet, touch wood');
-    bits.push(sewageOn()?'the cottage garden is full of sewage again':(potty.uses?'the porta-potty has been flushed '+potty.uses+' time'+(potty.uses===1?'':'s'):'the porta-potty is spotless'));
-    bits.push(env.weather==='storm'?'and there’s a storm, so mind the lighthouse':(env.weather==='rain'?'and it’s raining':'and the weather is fine'));
-    butlerSay('The news, '+sirOrMadam()+': '+bits.join(', ')+'.',8);
-  }
+  if(!isOwlOwner()){butlerSay(pembLine('refuse'),4);return true;}
+  openButlerMenu();
   return true;
+}
+function openButlerMenu(){
+  let el=$('pemb');
+  if(!el){el=document.createElement('div');el.id='pemb';el.setAttribute('role','dialog');el.setAttribute('aria-label','Pemberton at your service');$('app').appendChild(el);}
+  const owl=PETS[mySkin.pet].name;
+  const it=function(id,icon,name,desc){return'<button type="button" class="pitem" data-svc="'+id+'"><span class="pic">'+icon+'</span><b>'+name+'</b><span>'+desc+'</span></button>';};
+  el.innerHTML='<div class="phead"><b>🐧 Pemberton, at your service</b><button type="button" class="ghost" id="pembClose" aria-label="Close">✕</button></div>'+
+    '<div class="pgrid">'+it('tea','☕','Tea','All your hearts back and a burst of speed')+it('snack','🐭','A snack for '+owl,'A happy trick')+it('polish','✨','A polish','Clean, and gull-proof for 3 minutes')+
+    it('eggs','🍳','Clear Bazza’s eggs','Every egg near you, gone')+it('mend','💡','Mend the lighthouse','No blown fuses for 10 minutes')+it('weather','☀️','Fine weather','Clear skies, at once')+'</div>'+
+    '<div class="psub">🌀 Teleport me to…</div><div class="pgrid">'+PEMB_PLACES.map(function(q){return it('tp:'+q.id,'🌀',q.name.replace(/^the /,'').replace(/^./,function(c){return c.toUpperCase();}),'');}).join('')+'</div>';
+  el.hidden=false;butler.menu=true;keys.clear();stopHold();
+  if(locked)try{document.exitPointerLock();}catch(e){}
+  $('pembClose').addEventListener('click',function(){closeButlerMenu(true);});
+  el.querySelectorAll('[data-svc]').forEach(function(b){b.addEventListener('click',function(){const s=b.dataset.svc;closeButlerMenu(true);butlerService(s);});});
+  butlerSay(pembLine('idle'),4);
+}
+function closeButlerMenu(relock){
+  const el=$('pemb');if(el)el.hidden=true;
+  if(!butler.menu)return;butler.menu=false;
+  if(relock&&everLocked&&!touch&&!noLock)try{canvas.requestPointerLock();}catch(e){}
+}
+/* ----- looking after his owners, and seeing off everyone else ----- */
+function pembGuard(){
+  const now=performance.now();
+  if(isOwlOwner()){
+    if(now<butler.helpT)return;
+    /* falling from high up: he catches you */
+    if(!P.fly&&!P.chute&&!jet.seat&&!heli.seat&&P.vy<-24&&groundGap(P.x,P.y,P.z)<6){P.vy=-1;butler.helpT=now+20000;pembAppear(pembLine('rescue'),4);return;}
+    if(hp<=2&&!chases.size){hp=HP_MAX;renderHearts();butler.cupT=now+15000;butler.helpT=now+30000;pembAppear(pembLine('lowhp'),5);return;}
+    if(P.splat){setSplat(false);butler.helpT=now+30000;pembAppear(pembLine('wipe'),4);return;}
+  }else if(playing&&!P.sleep&&now>butler.yeetT){
+    /* anyone else at the treehouse's edge gets launched politely away */
+    const Z=TH_ZONE,dx=Math.max(Z.x0-P.x,0,P.x-Z.x1),dz=Math.max(Z.z0-P.z,0,P.z-Z.z1),dy=Math.max(Z.y0-P.y,0,P.y-Z.y1);
+    if(Math.hypot(dx,dz,dy)<1.6){
+      butler.yeetT=now+15000;
+      const cx=(Z.x0+Z.x1)/2,cz=(Z.z0+Z.z1)/2,a=Math.atan2(P.z-cz,P.x-cx);
+      pembAppear(pembLine('intruder'),4);
+      setTimeout(function(){P.fly=false;P.vx=Math.cos(a)*14;P.vz=Math.sin(a)*14;P.vy=20;toast('🐧 Pemberton has politely launched you off the property.');},700);
+    }
+  }
 }
 function butlerTick(dt){
   if(!ready)return;
   if(!butler.obj){butler.obj=makePenguin();scene.add(butler.obj.g);}
-  const o=butler.obj,q=butlerPose(nowS());
-  o.t+=dt;
-  const meNear=Math.hypot(P.x-q.x,P.z-q.z)<3&&Math.abs(P.y-q.y)<2;
+  const o=butler.obj,now=performance.now();o.t+=dt;
+  pembGuard();
+  if(butler.mendT>now&&lhFuse.blown)lhFuse.blown=false;
+  let q=butlerPose(nowS()),away=false;
+  if(butler.away){if(now>butler.away.until){pembPuff(butler.away.x,butler.away.y,butler.away.z);butler.away=null;}else{q={x:butler.away.x,y:butler.away.y,z:butler.away.z,yaw:0,moving:false};away=true;}}
+  const meNear=Math.hypot(P.x-q.x,P.z-q.z)<3&&Math.abs(P.y-q.y)<2.5;
   butler.x=q.x;butler.y=q.y;butler.z=q.z;
-  /* stop and face you when you come up to him */
   let yaw=q.yaw,moving=q.moving;
-  if(meNear){yaw=Math.atan2(-(P.x-q.x),-(P.z-q.z));moving=false;}
+  if(meNear||away){yaw=Math.atan2(-(P.x-q.x),-(P.z-q.z));moving=false;}
   butler.yaw+=angDiff(butler.yaw,yaw)*Math.min(1,dt*6);
-  o.g.position.set(q.x,q.y,q.z);o.g.rotation.y=butler.yaw;
-  /* a stately waddle */
+  o.g.position.set(q.x,q.y+(away?Math.sin(o.t*3)*0.06+0.1:0),q.z);o.g.rotation.y=butler.yaw;
   const w=moving?Math.sin(o.t*7):0;
-  o.body.rotation.z=w*0.12;o.feet[0].position.z=-0.06+w*0.06;o.feet[1].position.z=-0.06-w*0.06;
+  o.body.rotation.z=w*0.1;o.feet[0].position.z=-0.07+w*0.06;o.feet[1].position.z=-0.07-w*0.06;
   o.fl[0].rotation.z=-0.1-Math.abs(w)*0.15;o.head.rotation.y=moving?0:Math.sin(o.t*0.7)*0.25;
+  o.dome.position.y=0.01+(meNear&&!moving?Math.max(0,Math.sin(o.t*2))*0.04:0);
+  o.aura.material.opacity=Math.max(0,o.aura.material.opacity-dt*0.4);
   o.g.visible=Math.hypot(q.x-cam.x,q.z-cam.z)<120;
-  /* welcome home */
   const inside=inTHZone(P.x,P.y,P.z);
-  if(inside&&isOwlOwner()&&!butler.greeted&&Math.hypot(P.x-q.x,P.z-q.z)<14){butler.greeted=true;butlerSay('Welcome home, '+sirOrMadam()+'. Shall I put the kettle on?',5);}
+  if(inside&&isOwlOwner()&&!butler.greeted&&Math.hypot(P.x-q.x,P.z-q.z)<14){butler.greeted=true;butlerSay(pembLine('greet'),5);}
   if(!inside)butler.greeted=false;
-  if(butler.bub){
-    if(performance.now()>butler.bubT){if(butler.bub.parent)butler.bub.parent.remove(butler.bub);butler.bub.material.map.dispose();butler.bub.material.dispose();butler.bub=null;}
-    else{const a=(performance.now()-(butler.bubT-5000))/1000;butler.bub.material.opacity=Math.max(0,Math.min(1,(butler.bubT-performance.now())/600));void a;}
-  }
+  if(meNear&&isOwlOwner()&&!butler.bub&&now>butler.chatT){butler.chatT=now+16000;butlerSay(pembLine('idle'),5);}
+  if(butler.bub&&now>butler.bubT){if(butler.bub.parent)butler.bub.parent.remove(butler.bub);butler.bub.material.map.dispose();butler.bub.material.dispose();butler.bub=null;}
+  if(butler.menu&&!butlerNear()&&!away)closeButlerMenu(false);
   /* the cup of tea in your hand */
-  const hold=performance.now()<butler.cupT;
+  const hold=now<butler.cupT;
   if(hold&&!butler.cup&&selfFig&&selfFig.armR){
     const c=new THREE.Group(),wm=new THREE.MeshLambertMaterial({color:0xffffff}),tea=new THREE.MeshLambertMaterial({color:0x8a5a2a});
-    const cu=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.045,0.08,12),wm);c.add(cu);
+    c.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.045,0.08,12),wm));
     const tt=new THREE.Mesh(new THREE.CircleGeometry(0.055,12).rotateX(-Math.PI/2),tea);tt.position.y=0.035;c.add(tt);
     const sau=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.01,14),wm);sau.position.y=-0.045;c.add(sau);
     c.position.set(0,-0.62,-0.08);selfFig.armR.add(c);butler.cup=c;

@@ -271,14 +271,32 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Pemberton keeps the treehouse hall', bp.x >= hall.x0 && bp.x <= hall.x1 + 1 && bp.z >= hall.z0 && bp.z <= hall.z1 + 1 && bp.y === hall.y0, [bp, hall]);
   const nearButler = () => a.evaluate(() => { const I = window.__isle, b = I.butler.pose(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); });
   await nearButler(); await wait(400);
-  check('he greets an owl owner who comes home', /Welcome home|kettle/.test((await a.evaluate(() => window.__isle.butler.said())) || ''), await a.evaluate(() => window.__isle.butler.said()));
-  const served = [];
-  let teaInHand = false;
-  for (let k = 0; k < 4; k++) { await nearButler(); await a.keyboard.press('KeyE'); await wait(300); served.push(await a.evaluate(() => window.__isle.butler.said())); if (k === 0) teaInHand = await a.evaluate(() => window.__isle.butler.tea()); }
-  check('E: a cup of tea, a snack for your owl, a polish and the news', /tea/i.test(served[0]) && /snack|Mice/i.test(served[1]) && /polish/i.test(served[2]) && /news/i.test(served[3]), served);
+  check('he greets an owl owner who comes home', /Welcome|kettle|asking after|bath/.test((await a.evaluate(() => window.__isle.butler.said())) || ''), await a.evaluate(() => window.__isle.butler.said()));
+  await nearButler(); await a.keyboard.press('KeyE'); await wait(400);
+  check('E opens Pemberton’s service', await a.evaluate(() => window.__isle.butler.menu() && !document.getElementById('pemb').hidden && document.querySelectorAll('#pemb [data-svc]').length >= 10));
+  await a.evaluate(() => document.querySelector('#pemb [data-svc="tea"]').click()); await wait(300);
+  const teaInHand = await a.evaluate(() => window.__isle.butler.tea());
+  check('tea: all your hearts back and a burst of speed', teaInHand && await a.evaluate(() => window.__isle.butler.zoom()) && !(await a.evaluate(() => window.__isle.butler.menu())));
   check('and you’re holding the tea', teaInHand);
+  const pembLines = await a.evaluate(() => { const I = window.__isle, out = new Set(); for (let k = 0; k < 12; k++) out.add(I.butler.line('idle')); return [...out]; });
+  check('he has plenty to say, and doesn’t repeat himself', pembLines.length >= 8, pembLines.length);
+  check('and what he says is about you and your owl', await a.evaluate(() => { const I = window.__isle, t = []; for (let k = 0; k < 6; k++) t.push(I.butler.line('greet')); return t.some((x) => /Hoot/.test(x)) || t.some((x) => /Good (morning|afternoon|evening)/.test(x)); }));
+  await a.evaluate(() => window.__isle.butler.svc('polish'));
+  check('a polish makes you gull-proof for a while', await a.evaluate(() => window.__isle.butler.shield()));
+  await a.evaluate(() => window.__isle.butler.svc('tp:lighthouse')); await wait(600);
+  const lhAt = await a.evaluate(() => { const I = window.__isle, P = I.player, o = I.lighthouse.LH; return { d: Math.hypot(P.x - o.cx, P.z - o.cz), y: P.y, L: o.L }; });
+  check('he teleports you anywhere: up to the lighthouse lamp room', lhAt.d < 4 && Math.abs(lhAt.y - (lhAt.L + 1)) < 1.5, lhAt);
+  check('and pops up beside you when you get there', await a.evaluate(() => window.__isle.butler.away()));
+  await wait(4500);
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.x = 80.5; P.z = 92.5; P.y = 60; P.vy = -30; });
+  const caught = await a.waitForFunction(() => window.__isle.butler.away() && window.__isle.player.vy > -5, null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('fall from high up and he catches you', caught);
+  await put(a, 80.5, 13, 92.5); await wait(300);
   const refused = await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
-  check('he politely refuses anyone else', /Terribly sorry/.test(refused || ''), refused);
+  check('he politely refuses anyone else', /Terribly sorry|spoken for/.test(refused || ''), refused);
+  await a.evaluate(() => { const I = window.__isle, Z = I.th.zone, P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = (Z.x0 + Z.x1) / 2; P.z = Z.z1 + 1.2; P.y = Z.y0; });
+  const yeeted = await a.waitForFunction(() => window.__isle.player.vy > 8, null, { timeout: 10000 }).then(() => true).catch(() => false);
+  check('and anyone else who comes up to the treehouse is launched off the property', yeeted);
   // ----- Bazza, Biscuit and Mochi's ostrich -----
   /* the potty test above left the garden flooded: Bazza mops it up first */
   await a.waitForFunction(() => window.__isle.potty.left() === 0, null, { timeout: 150000 }).catch(() => {});
