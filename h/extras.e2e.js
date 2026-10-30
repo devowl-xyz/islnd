@@ -445,6 +445,48 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/despawn heli'));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the base infiltrator -----
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await a.evaluate(() => window.__isle.lab.use('infil'));
+  check('the lab’s base infiltrator switches on', await a.evaluate(() => window.__isle.bm.infil()));
+  await a.evaluate(() => { const I = window.__isle, C = I.cot.zone, P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = (C.x0 + C.x1) / 2; P.z = (C.z0 + C.z1) / 2; P.y = I.cot.COT.G; }); await wait(600);
+  check('with it on you can walk right into Biscuit and Mochi’s garden', await a.evaluate(() => { const I = window.__isle, C = I.cot.zone, P = I.player; return P.x > C.x0 && P.x < C.x1 && P.z > C.z0 && P.z < C.z1; }));
+  check('and the game doesn’t think you’re blocked', await a.evaluate(() => window.__isle.roomy()));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- Biscuit and Mochi's bunker under the lighthouse -----
+  const BM = await a.evaluate(() => window.__isle.bm.B());
+  const LHo = await a.evaluate(() => window.__isle.lighthouse.LH);
+  check('there’s a bunker dug under the lighthouse', await a.evaluate((o) => { const I = window.__isle; return I.get(o.cx, o.iy0 + 1, o.cz) === 0 && I.get(o.cx, o.y1, o.cz) > 0 && I.get(o.sx0, 11, o.sz0) === 0; }, BM));
+  await a.evaluate(() => window.__isle.cmd('/time noon'));
+  await a.evaluate(() => { const I = window.__isle; I.bm.infilOff(); I.setSkin({ pet: 'none' }); });
+  await put(a, BM.sx0 + 1, LHo.G, BM.sz0 + 1); await wait(1200);
+  check('the floor hatch stays shut for strangers, and they can’t fall in', (await a.evaluate(() => window.__isle.bm.hatch())) < 0.1 && (await a.evaluate(() => window.__isle.player.y)) > LHo.G - 0.5);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await put(a, BM.sx0 - 1.5, LHo.G, BM.sz0 + 1);
+  const hOpen = await a.waitForFunction(() => window.__isle.bm.hatch() > 0.9, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('it swings open for Biscuit’s owner', hOpen);
+  await put(a, BM.sx0 + 1, LHo.G + 0.2, BM.sz0 + 1);
+  const down = await a.waitForFunction(() => window.__isle.bm.onPad(), null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('who drops down the shaft on to the spring pad', down);
+  check('inside the bunker, hidden from the map', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.bm.inside() && window.__isle.lab.hidden(P.x, P.y + 0.5, P.z); }));
+  const g0 = await a.evaluate(() => window.__isle.lab.gadgets().length);
+  check('with their own gadgets', g0 >= 14, g0);
+  const tc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => { const I = window.__isle; I.lab.use('treats'); I.lab.use('gulls'); });
+  check('the treat jar gives 20 coins and the repeller scares off the gulls', (await a.evaluate(() => window.__isle.shop.coins())) === tc0 + 20 && (await a.evaluate(() => window.__isle.wild.counts().gulls)) === 0);
+  await a.evaluate(() => window.__isle.lab.use('snack'));
+  check('the snack fridge fills your hearts', (await a.evaluate(() => window.__isle.food.hp())) === 5);
+  await put(a, BM.pad.x, BM.iy0, BM.pad.z); await wait(500);
+  await a.keyboard.down('Space'); await wait(250); await a.keyboard.up('Space');
+  const up = await a.waitForFunction((G) => { const P = window.__isle.player; return P.y >= G - 0.05 && P.vy === 0 && !window.__isle.bm.inside(); }, LHo.G, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('Space on the spring pad pops you back up into the lighthouse', up, await a.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z, P.vy]; }));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await put(a, BM.cx + 0.5, BM.iy0, BM.cz + 0.5); await wait(400);
+  check('anyone else who gets in is put back outside', !(await a.evaluate(() => window.__isle.bm.inside())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());

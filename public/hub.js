@@ -122,6 +122,8 @@ for (const name in SHIFTS) {
 }
 // the owls' secret lab in the southern peaks (same numbers as public/index.html)
 const LAB = { x0: 241, x1: 265, z0: 256, z1: 278, y0: 22, y1: 37, ix0: 243, ix1: 263, iz0: 258, iz1: 276, iy0: 24, iy1: 35 };
+// Biscuit & Mochi's bunker under the lighthouse, and its shaft up to the lighthouse floor (same numbers as public/index.html)
+const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, iz0: 165, iz1: 175, iy0: 3, iy1: 6, sx0: 62, sx1: 63, sz0: 172, sz1: 173, top: 11 };
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
   const TH = L.TH, TH_ROOMS = L.TH_ROOMS, COT = L.COT, COT_ROOMS = L.COT_ROOMS;
@@ -141,6 +143,9 @@ function thCell(x, y, z, L) {
   if (L.CABLE.some(inB)) return 'base';
   // the owls' secret lab: the shell is fixed, owl owners may build inside
   if (inB(LAB)) return (x >= LAB.ix0 && x <= LAB.ix1 && y >= LAB.iy0 && y <= LAB.iy1 && z >= LAB.iz0 && z <= LAB.iz1) ? 'shared' : 'base';
+  // Biscuit & Mochi's bunker: the shell and shaft are fixed, their owners may build inside
+  if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) ? 'cottage' : 'base';
+  if (x >= BMB.sx0 && x <= BMB.sx1 && z >= BMB.sz0 && z <= BMB.sz1 && y > BMB.y1 && y <= BMB.top) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
   if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
