@@ -358,7 +358,7 @@ body.touch .desk{display:none}
         <dt>Island Shop</dt><dd>South of where you start: <b>E</b> by Polly the parrot to spend coins (from fishing, cracking Bazza’s eggs, races and a daily visit) on treats and hats</dd>
         <dt>Trampoline</dt><dd>Just west of where you start: land on it to bounce, hold <b>Space</b> as you land to go higher, <b>Shift</b> to stop</dd>
         <dt>Bazza</dt><dd>Biscuit and Mochi’s ostrich by the cottage gate: <b>E</b> to get him mopping up sewage or off egging someone (Biscuit’s and Mochi’s owners). Crack his eggs to get rid of them</dd>
-        <dt>Pemberton</dt><dd>The owls’ penguin butler in the treehouse hall (owl owners): <b>E</b> for his service: tea and a burst of speed, a snack for your owl, a gull-proof polish, teleporting anywhere, clearing Bazza’s eggs, mending the lighthouse and fine weather. He also pops up to save you</dd>
+        <dt>Pemberton</dt><dd>The owls’ penguin butler in the treehouse hall (owl owners): <b>B</b> by him for his service: tea and a burst of speed, a snack for your owl, a gull-proof polish, teleporting anywhere, clearing Bazza’s eggs, mending the lighthouse, fine weather, fireworks, the helicopter, shooing the seagulls and day or night. He also pops up to save you</dd>
         <dt>N</dt><dd>Scatter pigeon seed: the pigeons crowd round you</dd>
         <dt>O</dt><dd>Photo mode: hide the screen, drag the camera round, pick the time of day, save a picture</dd>
         <dt>Zip lines</dt><dd>Put two zip line posts (in the block picker) at different heights and a line strings itself between them. Stand under it and press <b>E</b> to ride down; <b>Space</b> lets go</dd>
@@ -3476,9 +3476,9 @@ window.addEventListener('keydown',function(e){
   if(e.code==='Escape'&&mapOpen){toggleMap(false);return;}
   if(e.code==='Escape'&&emoteBar){toggleEmotes(false);return;}
   if(e.code==='Escape'&&shop.open){closeShop(true);return;}
-  if(e.code==='Escape'&&butler.menu){closeButlerMenu(true);return;}
+  if((e.code==='Escape'||e.code==='KeyB')&&butler.menu){e.preventDefault();closeButlerMenu(true);return;}
   if(e.code==='Escape'){if(!locked)setPlaying(false);return;}
-  if(e.code==='KeyB'){e.preventDefault();openPicker();return;}
+  if(e.code==='KeyB'){e.preventDefault();if(butlerNear()&&isOwlOwner()){if(butler.menu)closeButlerMenu(true);else openButlerMenu();return;}openPicker();return;}
   if(e.code==='Space'||e.code.indexOf('Arrow')===0)e.preventDefault();
   if(e.repeat)return;
   /* kidnapped: no getting away, respawning, flying off or calling for help with pets */
@@ -5255,7 +5255,7 @@ function updateJetHint(){
   else if(playing&&!P.sleep&&shopNear())h='<b>E</b> to shop with Polly · you have 🪙 '+shopSave.coins;
   else if(playing&&onTramp(P.x,P.z)&&P.y>=TRAMP.top-0.05&&!P.fly)h='🤸 Trampoline · hold <b>Space</b> as you land to bounce higher · <b>Shift</b> to stop';
   else if(playing&&!P.sleep&&bazNear())h=bazOwner()?(sewageOn()&&!potty.clean?'<b>E</b> to get Bazza to mop up the sewage':'<b>E</b> to give Bazza a job'):'Bazza the ostrich works for Biscuit’s and Mochi’s owners';
-  else if(playing&&!P.sleep&&butlerNear())h=isOwlOwner()?'<b>E</b> for Pemberton’s service':'Pemberton the butler serves Hoot’s and Snowy’s owners';
+  else if(playing&&!P.sleep&&butlerNear())h=isOwlOwner()?'<b>B</b> for Pemberton’s service':'Pemberton the butler serves Hoot’s and Snowy’s owners';
   else if(playing&&!P.sleep&&pottyNear())h=performance.now()<potty.sitting?'🚽 Busy…':'<b>E</b> to use the porta-potty';
   else if(playing&&inSewage(P.x,P.y,P.z))h='💩 Wading through sewage · it drains away in '+Math.ceil(sewageLeft())+' s';
   else if(playing&&iceMe)h='You’re frozen! The host or an admin can unfreeze you.';
@@ -8945,7 +8945,7 @@ function birdsTick(dt,day){
   if(!birds.init)birdsInit();
   let shown=0;
   birds.flocks.forEach(function(fl){
-    if(!day){fl.list.forEach(function(q){q.b.g.visible=false;});return;}
+    if(!day||(fl.kind==='gull'&&performance.now()<butler.shooT)){fl.list.forEach(function(q){q.b.g.visible=false;});return;}
     fl.t+=dt;
     if(fl.where==='sea'){
       /* gulls: wide lazy circles over the water near the shore, drifting along it now and then */
@@ -8984,7 +8984,7 @@ function birdsTick(dt,day){
   const lhNear=Math.hypot(LH.cx-cam.x,LH.cz-cam.z)<200;
   birds.perched.forEach(function(q){
     const b=q.b;
-    if(!day||!lhNear){b.g.visible=false;return;}
+    if(!day||!lhNear||performance.now()<butler.shooT){b.g.visible=false;return;}
     if(q.kind==='rock'&&!q.y){q.y=groundAt(q.x,q.z);if(q.y<=SEA+1){q.kind='swim';q.y=WATER_Y-0.12;}}
     q.t+=dt;
     if(Math.random()<dt*0.15)q.look=(Math.random()-0.5)*1.6;
@@ -9804,6 +9804,9 @@ function pembLine(kind){
     eggs:['Bazza’s eggs have been… dealt with, '+sir+'.','I have removed the eggs, '+sir+'. Ostriches.','Not a single egg left, '+sir+'. I made an omelette.'],
     mend:['The lighthouse is mended, '+sir+'. It shan’t blow again for a good while.','I’ve fitted a new fuse, '+sir+'. A rather large one.'],
     weather:['Fine weather, '+sir+', as requested.','I’ve had a word with the clouds, '+sir+'.'],
+    fireworks:['A little display in your honour, '+sir+'.','Do enjoy the show, '+sir+'. I lit them myself.','Fireworks, '+sir+'. Mind your eyebrows.'],
+    heli:['The helicopter, '+sir+'. Fuelled, polished and waiting.','I’ve had the helicopter brought round, '+sir+'.'],
+    shoo:['Shoo! Go on! There, '+sir+'. Not a gull in sight.','The seagulls have been asked to leave, '+sir+'. Firmly.'],
     rescue:['I’ve got you, '+sir+'.','Careful, '+sir+'! That was rather high.','Do try to land on your feet, '+sir+'.'],
     lowhp:['You look peaky, '+sir+'. Tea, at once.','Sit down, '+sir+'. I’ve brought tea.'],
     wipe:['Allow me, '+sir+'. Wretched gulls.','A moment, '+sir+'. There. As if it never happened.'],
@@ -9830,7 +9833,7 @@ function pembAppear(text,secs){
   if(butler.obj)butler.obj.aura.material.opacity=0.6;
 }
 /* ----- his services ----- */
-const BUTLER_SERVICES=['tea','snack','polish','teleport','eggs','mend','weather'];
+const BUTLER_SERVICES=['tea','snack','polish','teleport','eggs','mend','weather','fireworks','heli','shoo','daynight'];
 const PEMB_PLACES=[
   {id:'palace',name:'the Sky Palace',at:function(){return{x:(PAL_HALL.x0+PAL_HALL.x1+1)/2,y:PAL_HALL.y0,z:PAL_HALL.z0+2.5};}},
   {id:'lighthouse',name:'the lighthouse',at:function(){return{x:LH.cx+0.5,y:LH.L+1,z:LH.cz+1.5};}},
@@ -9860,6 +9863,20 @@ function butlerService(what){
     if(inRoom()&&!net.host&&!net.admin){butlerSay('I’m afraid the weather is the host’s affair here, '+sirOf()+'.',4);return false;}
     changeEnv({weather:'clear',what:'weather'});butlerSay(pembLine('weather'),4);
   }
+  else if(what==='fireworks'){
+    const P0=P.yaw;P.yaw=P0;const ok=launchFireworks('');if(!ok){butlerSay('The fireworks are still being set up, '+sirOf()+'. A few seconds more.',4);return false;}
+    butlerSay(pembLine('fireworks'),5);
+  }
+  else if(what==='heli'){
+    if(inRoom()&&!net.host&&!net.admin){butlerSay('I’m afraid the helicopter is the host’s to send for here, '+sirOf()+'.',4);return false;}
+    if(heli.pilot!==null||heli.seat){butlerSay('Someone is already flying it, '+sirOf()+'.',4);return false;}
+    const ok=runCommand('/spawn heli');butlerSay(ok?pembLine('heli'):'The helicopter can’t come just now, '+sirOf()+'.',5);if(!ok)return false;
+  }
+  else if(what==='shoo'){butler.shooT=performance.now()+120000;gullFx.steal=null;butlerSay(pembLine('shoo'),5);toast('🐦 Pemberton waves his tray and every seagull flees for 2 minutes.');}
+  else if(what==='daynight'){
+    if(inRoom()&&!net.host&&!net.admin){butlerSay('The time of day is the host’s affair here, '+sirOf()+'.',4);return false;}
+    const day=envHour()>=7&&envHour()<19;changeEnv({time:day?22:9,what:'time'});butlerSay(day?'Lights out, '+sirOf()+'. The stars are lovely tonight.':'Good morning, '+sirOf()+'. I’ve opened the curtains on the whole island.',5);
+  }
   else if(what.indexOf('tp:')===0)return pembTeleport(what.slice(3));
   return true;
 }
@@ -9876,7 +9893,8 @@ function openButlerMenu(){
   const it=function(id,icon,name,desc){return'<button type="button" class="pitem" data-svc="'+id+'"><span class="pic">'+icon+'</span><b>'+name+'</b><span>'+desc+'</span></button>';};
   el.innerHTML='<div class="phead"><b>🐧 Pemberton, at your service</b><button type="button" class="ghost" id="pembClose" aria-label="Close">✕</button></div>'+
     '<div class="pgrid">'+it('tea','☕','Tea','All your hearts back and a burst of speed')+it('snack','🐭','A snack for '+owl,'A happy trick')+it('polish','✨','A polish','Clean, and gull-proof for 3 minutes')+
-    it('eggs','🍳','Clear Bazza’s eggs','Every egg near you, gone')+it('mend','💡','Mend the lighthouse','No blown fuses for 10 minutes')+it('weather','☀️','Fine weather','Clear skies, at once')+'</div>'+
+    it('eggs','🍳','Clear Bazza’s eggs','Every egg near you, gone')+it('mend','💡','Mend the lighthouse','No blown fuses for 10 minutes')+it('weather','☀️','Fine weather','Clear skies, at once')+
+    it('fireworks','🎆','A fireworks show','Just for you, right overhead')+it('heli','🚁','Bring the helicopter','Parked in front of you, ready to fly')+it('shoo','🐦','Shoo the seagulls','Every gull gone for 2 minutes')+it('daynight','🌗',envHour()>=7&&envHour()<19?'Make it night':'Make it day','Stars or sunshine, at once')+'</div>'+
     '<div class="psub">🌀 Teleport me to…</div><div class="pgrid">'+PEMB_PLACES.map(function(q){return it('tp:'+q.id,'🌀',q.name.replace(/^the /,'').replace(/^./,function(c){return c.toUpperCase();}),'');}).join('')+'</div>';
   el.hidden=false;butler.menu=true;keys.clear();stopHold();
   if(locked)try{document.exitPointerLock();}catch(e){}
