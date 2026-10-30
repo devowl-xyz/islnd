@@ -280,6 +280,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const refused = await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
   check('he politely refuses anyone else', /Terribly sorry/.test(refused || ''), refused);
   // ----- Bazza, Biscuit and Mochi's ostrich -----
+  /* the potty test above left the garden flooded: Bazza mops it up first */
+  await a.waitForFunction(() => window.__isle.potty.left() === 0, null, { timeout: 150000 }).catch(() => {});
+  await wait(500);
   const bh = await a.evaluate(() => window.__isle.bazza.home());
   const bzp = await a.evaluate(() => window.__isle.bazza.pose());
   check('Bazza hangs about outside the cottage gate', Math.hypot(bzp.x - bh.x, bzp.z - bh.z) < 12, [bzp, bh]);
