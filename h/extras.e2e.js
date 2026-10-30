@@ -189,8 +189,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('/react without a name says which there are', (await a.evaluate(() => window.__isle.cmd('/react'))) === false);
   await a.keyboard.press('KeyX'); await wait(200);
   check('the emotes bar shows the reaction buttons too', await a.evaluate(() => !document.getElementById('reacts').hidden));
-  await a.keyboard.press('Digit6'); await wait(200);
-  check('and 6 gives a thumbs up', (await a.evaluate(() => window.__isle.react.fx())) > 0);
+  await a.keyboard.press('Digit6');
+  check('and 6 gives a thumbs up', await a.waitForFunction(() => window.__isle.react.fx() > 0, null, { timeout: 5000 }).then(() => true).catch(() => false));
 
   // ----- photo mode -----
   await a.keyboard.press('KeyO'); await wait(300);
