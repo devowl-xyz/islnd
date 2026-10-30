@@ -269,7 +269,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5);
 
   // ----- Pemberton, the owls' penguin butler -----
-  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' })); await wait(500);
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); I.player.splat = false; }); await wait(500);
+  await a.waitForFunction(() => !window.__isle.butler.away(), null, { timeout: 15000 }).catch(() => {});
+  await a.evaluate(() => window.__isle.butler.ready());
   const bp = await a.evaluate(() => window.__isle.butler.pose());
   const hall = await a.evaluate(() => window.__isle.butler.hall());
   check('Pemberton keeps the treehouse hall', bp.x >= hall.x0 && bp.x <= hall.x1 + 1 && bp.z >= hall.z0 && bp.z <= hall.z1 + 1 && bp.y === hall.y0, [bp, hall]);
@@ -292,6 +294,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('he teleports you anywhere: up to the lighthouse lamp room', lhAt.d < 4 && Math.abs(lhAt.y - (lhAt.L + 1)) < 1.5, lhAt);
   check('and pops up beside you when you get there', await a.evaluate(() => window.__isle.butler.away()));
   await wait(4500);
+  await a.evaluate(() => window.__isle.butler.ready());
   await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.x = 80.5; P.z = 92.5; P.y = 60; P.vy = -30; });
   const caught = await a.waitForFunction(() => window.__isle.butler.away() && window.__isle.player.vy > -5, null, { timeout: 15000 }).then(() => true).catch(() => false);
   check('fall from high up and he catches you', caught);
