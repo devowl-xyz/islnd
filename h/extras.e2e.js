@@ -314,6 +314,26 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
   await a.evaluate(() => window.__isle.cmd('/home')); await wait(300);
 
+  // ----- the trampoline by spawn -----
+  const T = await a.evaluate(() => window.__isle.tramp.T());
+  check('a trampoline stands by where you start', Math.hypot(T.x - 80.5, T.z - 92.5) < 14);
+  await a.evaluate((t) => { const P = window.__isle.player; P.fly = false; P.x = t.x; P.z = t.z; P.y = t.top + 6; P.vx = P.vy = P.vz = 0; }, T);
+  await a.waitForFunction(() => window.__isle.tramp.bounces() >= 1, null, { timeout: 15000 }).catch(() => {});
+  await wait(300);
+  check('drop on to it and you bounce back up', (await a.evaluate(() => window.__isle.tramp.bounces())) >= 1 && (await a.evaluate(() => window.__isle.player.y)) > T.top + 0.5);
+  await a.keyboard.down('Space');
+  await a.waitForFunction(() => window.__isle.tramp.bounces() >= 4, null, { timeout: 40000 }).catch(() => {});
+  await a.keyboard.up('Space');
+  const tp = await a.evaluate(() => ({ b: window.__isle.tramp.bounces(), v: window.__isle.tramp.lastV(), fly: window.__isle.player.fly }));
+  check('hold Space and you bounce higher each time (without starting to fly)', tp.b >= 4 && tp.v > 12 && !tp.fly, tp);
+  await a.keyboard.down('ShiftLeft');
+  await a.waitForFunction((t) => { const P = window.__isle.player; return Math.abs(P.y - t.top) < 0.05 && Math.abs(P.vy) < 0.5; }, T, { timeout: 30000 }).catch(() => {});
+  await wait(500);
+  const st = await a.evaluate(() => window.__isle.player.y);
+  await a.keyboard.up('ShiftLeft');
+  check('Shift stops you bouncing and you stand on the mat', Math.abs(st - T.top) < 0.05, st);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
