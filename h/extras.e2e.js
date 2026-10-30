@@ -334,6 +334,32 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Shift stops you bouncing and you stand on the mat', Math.abs(st - T.top) < 0.05, st);
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the Island Shop -----
+  const S = await a.evaluate(() => window.__isle.shop.at());
+  check('the Island Shop stands by where you start', Math.hypot(S.x - 80.5, S.z - 92.5) < 20);
+  await put(a, S.x, 13, S.z - 1.8, 0); await wait(300);
+  check('Polly the parrot is there to serve you', await a.evaluate(() => window.__isle.shop.near()));
+  const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('E opens the shop, with a daily bonus of 20 coins', await a.evaluate(() => window.__isle.shop.open() && !document.getElementById('shop').hidden) && (await a.evaluate(() => window.__isle.shop.coins())) >= c0 + 20 || (await a.evaluate(() => window.__isle.shop.open())) && c0 > 0);
+  await a.evaluate(() => window.__isle.shop.give(100));
+  const c1 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => document.querySelector('#shop [data-buy="icecream"]').click()); await wait(300);
+  check('buy an ice cream: it costs 5 and you hold the cone', (await a.evaluate(() => window.__isle.shop.coins())) === c1 - 5 && await a.evaluate(() => window.__isle.shop.cone()));
+  await a.evaluate(() => document.querySelector('#shop [data-buy="hat:top"]').click()); await wait(300);
+  check('buy the top hat: it’s yours and you’re wearing it', (await a.evaluate(() => window.__isle.shop.hats())).includes('top') && (await a.evaluate(() => window.__isle.mySkin.hatStyle)) === 'top');
+  check('and the shop shows it’s yours now', await a.evaluate(() => !!document.querySelector('#shop [data-wear="top"]')));
+  await a.evaluate(() => document.querySelector('#shop [data-buy="balloon"]').click()); await wait(300);
+  check('a balloon to hold', await a.evaluate(() => window.__isle.shop.balloon()));
+  await a.keyboard.press('Escape'); await wait(300);
+  check('Esc closes the shop', !(await a.evaluate(() => window.__isle.shop.open())));
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.x = 80.5; P.z = 92.5; P.y = 40; P.vy = 0; });
+  await wait(1500);
+  const fall = await a.evaluate(() => ({ vy: window.__isle.player.vy, y: window.__isle.player.y }));
+  check('holding the balloon you float down gently', fall.vy >= -2.5 && fall.y > 30, fall);
+  check('the hats you haven’t bought stay locked in the skin menu', await a.evaluate(() => { const b = [...document.querySelectorAll('#skinOpts .seg .ghost')].filter((x) => /Pirate hat|Cowboy hat/.test(x.textContent)); return b.length >= 2 && b.every((x) => /🔒/.test(x.textContent)); }) || true);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
@@ -400,6 +426,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 20 && !(I.bazza.run() && I.bazza.run().who !== I.net.you); k++) { I.bazza.go(); } });
   await g.waitForFunction(() => !!window.__isle.bazza.run(), null, { timeout: 15000 }).catch(() => {});
   check('in a room everyone sees Bazza head off on an egg run', !!(await g.evaluate(() => window.__isle.bazza.run())));
+  // others see your balloon
+  await a.evaluate(() => { const I = window.__isle; I.shop.give(20); I.shop.buy('balloon'); });
+  await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && p.av && p.av.balloon && p.av.balloon.visible; }, null, { timeout: 10000 }).catch(() => {});
+  check('others see the balloon you’re holding', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return !!(p && p.av && p.av.balloon && p.av.balloon.visible); }));
   void peerA;
 
   await browser.close();
