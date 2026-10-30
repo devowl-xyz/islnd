@@ -3778,7 +3778,9 @@ function makeLabel(name){
   const cv=document.createElement('canvas');cv.width=256;cv.height=64;
   const c=cv.getContext('2d');
   c.font='600 34px Barlow, system-ui, sans-serif';c.textAlign='center';c.textBaseline='middle';
-  const w=Math.min(250,((c.measureText&&c.measureText(name)||{}).width||120)+28);
+  const tw=(c.measureText&&c.measureText(name)||{}).width||120;
+  if(tw>226)c.font='600 '+Math.max(14,Math.floor(34*226/tw))+'px Barlow, system-ui, sans-serif';
+  const w=Math.min(250,Math.min(tw,226)+28);
   c.fillStyle='rgba(10,22,32,0.72)';c.fillRect(128-w/2,8,w,48);
   c.fillStyle='#ffffff';c.fillText(name,128,33);
   const t=new THREE.CanvasTexture(cv);t.minFilter=THREE.LinearFilter;
@@ -10589,8 +10591,8 @@ function labTick(dt){
     LAB_GADGETS.forEach(function(gd){const g=makeGadget(gd);scene.add(g);labFx.gadgets.push(g);});
     /* the big screen on the back wall shows the live island map */
     const cv=document.createElement('canvas');cv.width=cv.height=512;labFx.scrCv=cv;labFx.scrTex=new THREE.CanvasTexture(cv);
-    const scr=new THREE.Mesh(new THREE.PlaneGeometry(9,9),new THREE.MeshBasicMaterial({map:labFx.scrTex}));scr.position.set(LAB.cx+0.5,LAB.iy0+5.4,LAB.iz1+0.95);scr.rotation.y=Math.PI;scene.add(scr);labFx.screen=scr;
-    const frame=new THREE.Mesh(new THREE.BoxGeometry(9.6,9.6,0.2),new THREE.MeshPhongMaterial({color:0x22252b}));frame.position.set(LAB.cx+0.5,LAB.iy0+5.4,LAB.iz1+1.05);scene.add(frame);
+    const scr=new THREE.Mesh(new THREE.PlaneGeometry(9,9),new THREE.MeshBasicMaterial({map:labFx.scrTex}));scr.position.set(LAB.cx+0.5,LAB.iy0+5.4,LAB.iz1+0.7);scr.rotation.y=Math.PI;scene.add(scr);labFx.screen=scr;
+    const frame=new THREE.Mesh(new THREE.BoxGeometry(9.6,9.6,0.2),new THREE.MeshPhongMaterial({color:0x22252b}));frame.position.set(LAB.cx+0.5,LAB.iy0+5.4,LAB.iz1+0.88);scene.add(frame);
     /* a cloning vat with a spare Hoot floating in green goo */
     const vat=new THREE.Group();vat.position.set(LAB.ix0+3.5,LAB.iy0,LAB.iz1-2.5);
     vat.add(new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.3,20),new THREE.MeshPhongMaterial({color:0x3a3f48})));
@@ -10608,7 +10610,7 @@ function labTick(dt){
   labFx.scrT+=dt;
   if(labFx.scrT>1&&Math.hypot(cam.x-LAB.cx,cam.z-LAB.iz1)<40){
     labFx.scrT=0;const c=labFx.scrCv.getContext('2d'),mc=$('mapCanvas');
-    if(c&&c.drawImage&&mc){try{drawMap();c.drawImage(mc,0,0,512,512);c.fillStyle='rgba(90,209,255,0.12)';c.fillRect(0,0,512,512);c.fillStyle='#5ad1ff';c.font='700 22px Barlow, system-ui, sans-serif';c.fillText('OWL COMMAND · LIVE',14,30);}catch(e){}labFx.scrTex.needsUpdate=true;}
+    if(c&&c.drawImage&&mc){try{if(!mapImg||performance.now()-mapT>8000){mapImg=mapBase();mapT=performance.now();}drawMap();c.drawImage(mc,0,0,512,512);c.fillStyle='rgba(90,209,255,0.12)';c.fillRect(0,0,512,512);c.fillStyle='#5ad1ff';c.font='700 22px Barlow, system-ui, sans-serif';c.fillText('OWL COMMAND · LIVE',14,30);}catch(e){}labFx.scrTex.needsUpdate=true;}
   }
   const cl=labFx.vat.userData.clone;cl.g.position.y=1.0+Math.sin(labFx.t*0.8)*0.15;cl.g.rotation.y=labFx.t*0.3;
   labFx.gadgets.forEach(function(g){if(g.userData.beam)g.userData.beam.material.opacity=0.12+Math.abs(Math.sin(labFx.t*2))*0.12;});
