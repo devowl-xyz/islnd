@@ -20,8 +20,8 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 87; // 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
-const SIGN = 46, SIGN_MAX = 60;
+const MAX_BLOCK = 88; // 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
 function isDoor(b) { return b >= DOOR && b <= DOOR_TOP_OPEN; }
@@ -425,8 +425,10 @@ function handle(peer, msg) {
       // opening or shutting a door is not building: anyone may, anywhere, as long as it stays the same half of a door
       const was = room.edits.has(i) ? room.edits.get(i) : baseDoor(x, y, z, room.lay);
       const door = isDoor(b) && isDoor(was) && doorTop(b) === doorTop(was);
-      const locked = !door && !!lockedFor(room, peer, x, y, z);
-      const ok = peer.tokens >= 1 && !locked && (door || (!floor && th !== 'base' && (th ? thOk : canEditAt(room, peer, x, z)) && !(b === 0 && y < 1)));
+      // anyone may crack one of Bazza's eggs, wherever he laid it
+      const egg = b === 0 && was === EGG;
+      const locked = !door && !egg && !!lockedFor(room, peer, x, y, z);
+      const ok = peer.tokens >= 1 && !locked && (door || egg || (!floor && th !== 'base' && (th ? thOk : canEditAt(room, peer, x, z)) && !(b === 0 && y < 1)));
       if (!ok) {
         // Tell the sender what the cell really holds so it can undo its guess.
         const cur = room.edits.has(i) ? room.edits.get(i) : null;
@@ -941,8 +943,31 @@ function handle(peer, msg) {
       const pt = room.potty || (room.potty = { uses: 0, until: 0 });
       pt.uses++;
       const burst = pt.uses % 3 === 0;
-      if (burst) pt.until = now + 120000;
-      broadcast(room, { t: 'potty', uses: pt.uses, until: pt.until, burst, by: peer.id });
+      if (burst) { pt.until = now + 120000; pt.clean = 0; }
+      broadcast(room, { t: 'potty', uses: pt.uses, until: pt.until, clean: pt.clean || 0, burst, by: peer.id });
+      return;
+    }
+    case 'pottyClean': {
+      // Bazza mops up the sewage: it drains away in 20 seconds
+      if (!room || !room.potty) return;
+      const pt = room.potty, now = Date.now();
+      if (pt.until <= now || pt.clean) return;
+      pt.clean = now; pt.until = Math.min(pt.until, now + 20000);
+      broadcast(room, { t: 'potty', uses: pt.uses, until: pt.until, clean: pt.clean, burst: false, by: peer.id });
+      return;
+    }
+    case 'ostrich': {
+      // the host's game sends Bazza off to lay eggs somewhere; everyone else just watches
+      if (!room || peer.id !== room.hostId || msg.act !== 'run') return;
+      const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.max(-1000, Math.min(2000, v)) : 0);
+      broadcast(room, { t: 'ostrich', act: 'run', x: n(msg.x), y: n(msg.y), z: n(msg.z), at: typeof msg.at === 'number' ? msg.at : Date.now(), who: Number.isInteger(msg.who) ? msg.who : null, name: String(msg.name || '').slice(0, 24) }, peer.id);
+      return;
+    }
+    case 'ostrichAsk': {
+      // one of his bosses asks: the host's game picks someone to egg
+      if (!room || !peer.skin || (peer.skin.pet !== 'biscuit' && peer.skin.pet !== 'mochi')) return;
+      const host = room.peers.get(room.hostId);
+      if (host) send(host.ws, { t: 'ostrichAsk', by: peer.id });
       return;
     }
     case 'jet': {

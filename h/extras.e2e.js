@@ -279,6 +279,36 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and you’re holding the tea', teaInHand);
   const refused = await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
   check('he politely refuses anyone else', /Terribly sorry/.test(refused || ''), refused);
+  // ----- Bazza, Biscuit and Mochi's ostrich -----
+  const bh = await a.evaluate(() => window.__isle.bazza.home());
+  const bzp = await a.evaluate(() => window.__isle.bazza.pose());
+  check('Bazza hangs about outside the cottage gate', Math.hypot(bzp.x - bh.x, bzp.z - bh.z) < 12, [bzp, bh]);
+  const nearBaz = (p) => p.evaluate(() => { const I = window.__isle, b = I.bazza.pose(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = b.x + 1.2; P.y = b.y; P.z = b.z; });
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' })); await nearBaz(a);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('he tells anyone who isn’t his boss to rack off', /Rack off/.test((await a.evaluate(() => window.__isle.bazza.said())) || ''), await a.evaluate(() => window.__isle.bazza.said()));
+  // he mops up the sewage for his boss
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await a.evaluate(() => { const I = window.__isle, o = I.potty.at(), P = I.player; for (let k = 0; k < 3; k++) { P.x = o.ix + 0.5; P.y = o.G; P.z = o.iz + 0.5; I.potty.ready(); I.potty.use(); } });
+  const sLeft = await a.evaluate(() => window.__isle.potty.left());
+  await nearBaz(a); await a.keyboard.press('KeyE'); await wait(400);
+  check('his boss asks and he mops up the sewage: it drains in 20 seconds', sLeft > 60 && (await a.evaluate(() => window.__isle.bazza.clean())) > 0 && (await a.evaluate(() => window.__isle.potty.left())) <= 20, [sLeft, await a.evaluate(() => window.__isle.potty.left())]);
+  await wait(800);
+  check('and he’s there in the front garden with his mop', await a.evaluate(() => { const I = window.__isle, b = I.bazza.pose(), s = I.potty.box(); return b.x >= s.x0 - 1 && b.x <= s.x1 + 2 && b.z >= s.z0 - 1 && b.z <= s.z1 + 2; }));
+  // the eggs: never at an owl owner's, but anyone else gets a clutch at their place
+  check('he won’t lay eggs for the owls’ owners', (await a.evaluate(() => { window.__isle.setSkin({ pet: 'hoot' }); return window.__isle.bazza.targets().length; })) === 0);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => window.__isle.bazza.go());
+  await a.waitForFunction(() => window.__isle.bazza.run() && window.__isle.bazza.run().laid, null, { timeout: 60000 }).catch(() => {});
+  const eggs = await a.evaluate(() => { const I = window.__isle, out = []; for (let x = 74; x < 88; x++) for (let z = 86; z < 100; z++) for (let y = 12; y < 16; y++) if (I.get(x, y, z) === 88) out.push([x, y, z]); return out; });
+  check('every so often he runs off and lays big eggs at your place', eggs.length >= 2, eggs);
+  if (eggs.length) {
+    await a.evaluate((e) => window.__isle.act.brk(e[0], e[1], e[2]), eggs[0]);
+    check('and you can crack them', (await a.evaluate((e) => window.__isle.get(e[0], e[1], e[2]), eggs[0])) === 0);
+    await a.evaluate((list) => list.forEach((e) => window.__isle.setBlock(e[0], e[1], e[2], 0)), eggs);
+  }
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
   await a.evaluate(() => window.__isle.cmd('/home')); await wait(300);
 
   // ----- in a room -----
@@ -339,6 +369,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let k = 0; k < 3; k++) { await g.evaluate(() => window.__isle.potty.ready()); await g.keyboard.press('KeyE'); await wait(2300); }
   await a.waitForFunction(() => window.__isle.potty.left() > 100, null, { timeout: 10000 }).catch(() => {});
   check('in a room everyone shares the potty’s count, and the flood', (await g.evaluate(() => window.__isle.potty.uses())) === gu0 + 3 && (await a.evaluate(() => window.__isle.potty.left())) > 100, [gu0, await g.evaluate(() => window.__isle.potty.uses()), await a.evaluate(() => window.__isle.potty.left())]);
+  // Bazza in a room: the host's game sends him off, everyone sees him go, and the eggs land at the guest's place
+  await g.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await put(g, 84.5, 13, 96.5); await wait(1500);
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); });
+  await a.waitForFunction(() => window.__isle.bazza.targets().indexOf('Gus') >= 0, null, { timeout: 10000 }).catch(() => {});
+  await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 20 && !(I.bazza.run() && I.bazza.run().who !== I.net.you); k++) { I.bazza.go(); } });
+  await g.waitForFunction(() => !!window.__isle.bazza.run(), null, { timeout: 15000 }).catch(() => {});
+  check('in a room everyone sees Bazza head off on an egg run', !!(await g.evaluate(() => window.__isle.bazza.run())));
   void peerA;
 
   await browser.close();
