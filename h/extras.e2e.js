@@ -116,6 +116,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('by day the beam is off', !(await a.evaluate(() => { const b = window.__isle.lighthouse.beam(); return b && b.on; })));
   const wd = await a.evaluate(() => window.__isle.wild.counts());
   check('by day birds fly over the sea', wd.birds > 0, wd);
+  check('and a whole colony of seagulls lives round the lighthouse', wd.lhGulls >= 50, wd.lhGulls);
   await a.waitForFunction(() => window.__isle.wild.counts().fish > 0, null, { timeout: 10000 }).catch(() => {});
   check('and fish swim in the sea round the lighthouse', (await a.evaluate(() => window.__isle.wild.counts().fish)) > 0);
   // seagulls: a splat on your head (washed off in the sea), and pinching Biscuit while it's food
@@ -158,7 +159,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/home'));
   await a.waitForFunction(() => window.__isle.wild.counts().flies > 0, null, { timeout: 15000 }).catch(() => {});
   check('and butterflies flutter over the meadow by day', (await a.evaluate(() => window.__isle.wild.counts().flies)) > 0);
-  check('the flocks are seagulls, crows and sparrows', (await a.evaluate(() => window.__isle.wild.kinds().join())) === 'gull,gull,crow,sparrow');
+  check('the flocks are seagulls, crows and sparrows', (await a.evaluate(() => window.__isle.wild.kinds().join())).startsWith('gull,gull,crow,sparrow'));
   await a.waitForFunction(() => window.__isle.wild.pigeons().some((q) => q.mode === 'ground'), null, { timeout: 20000 }).catch(() => {});
   const pg = await a.evaluate(() => window.__isle.wild.pigeons().findIndex((q) => q.mode === 'ground'));
   check('pigeons strut about on the ground near you', pg >= 0);
