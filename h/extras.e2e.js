@@ -411,6 +411,40 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('the hats you haven’t bought stay locked in the skin menu', await a.evaluate(() => { const b = [...document.querySelectorAll('#skinOpts .seg .ghost')].filter((x) => /Pirate hat|Cowboy hat/.test(x.textContent)); return b.length >= 2 && b.every((x) => /🔒/.test(x.textContent)); }) || true);
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the secret lab -----
+  const L = await a.evaluate(() => window.__isle.lab.LAB());
+  check('the secret lab is dug into the mountain, shell and all', await a.evaluate((L) => { const I = window.__isle; return I.get(L.x0, L.cy | 0, L.z1) > 0 && I.get(L.cx, L.iy0 + 3, L.iz0 + 6) === 0; }, L));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await put(a, L.cx + 0.5, L.iy0, L.z0 - 6); await wait(1500);
+  check('the iris door stays shut for anyone else', (await a.evaluate(() => window.__isle.lab.door())) < 0.1);
+  await a.evaluate((L) => { const P = window.__isle.player; P.z = L.iz0 + 4.5; P.y = L.iy0; }, L); await wait(400);
+  check('and they can’t get inside', !(await a.evaluate(() => window.__isle.lab.inside())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, L.cx + 0.5, L.iy0, L.z0 - 6);
+  const opened = await a.waitForFunction(() => window.__isle.lab.door() > 0.9, null, { timeout: 10000 }).then(() => true).catch(() => false);
+  check('it spirals open for an owl owner', opened);
+  await put(a, L.cx + 0.5, L.iy0, L.iz0 + 4.5); await wait(400);
+  check('so they can walk in', await a.evaluate(() => window.__isle.lab.inside()));
+  check('inside, you’re hidden from the map', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.lab.hidden(P.x, P.y + 0.5, P.z); }));
+  check('and it’s full of gadgets', (await a.evaluate(() => window.__isle.lab.gadgets().length)) >= 8);
+  await a.evaluate(() => { const I = window.__isle; ['boots', 'cloak', 'gravity'].forEach((k) => I.lab.use(k)); });
+  check('rocket boots, invisibility cloak and low gravity all switch on', await a.evaluate(() => { const s = window.__isle.lab.state(); return s.boots && s.cloak && s.gravity; }));
+  const lc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.lab.use('coins'));
+  check('the coin printer prints 50 coins', (await a.evaluate(() => window.__isle.shop.coins())) === lc0 + 50);
+  await a.evaluate((L) => { const I = window.__isle; I.setBlock(L.cx - 20, 30, L.z0 - 30, 88); I.setBlock(L.cx - 22, 30, L.z0 - 30, 88); }, L);
+  await a.evaluate(() => window.__isle.lab.use('eggs'));
+  check('the Egg Annihilator zaps Bazza’s eggs', await a.evaluate((L) => { const I = window.__isle; return I.get(L.cx - 20, 30, L.z0 - 30) !== 88 && I.get(L.cx - 22, 30, L.z0 - 30) !== 88; }, L));
+  await a.evaluate(() => window.__isle.lab.use('heli'));
+  const hp = await a.evaluate(() => { const I = window.__isle, h = I.heli.state(); return { inside: I.lab.hidden(h.x, h.y + 1, h.z), x: h.x, y: h.y, z: h.z }; });
+  check('the helicopter parks on the lab’s own helipad, off the map', hp.inside, hp);
+  await a.evaluate(() => window.__isle.lab.use('tele')); await wait(300);
+  check('the teleporter zaps you to the treehouse hall', await a.evaluate(() => window.__isle.th.zone && !window.__isle.lab.inside() && window.__isle.player.y > 20));
+  await a.evaluate(() => window.__isle.butler.svc('tp:lab')); await wait(400);
+  check('and Pemberton can take you back to the lab', await a.evaluate(() => window.__isle.lab.inside()));
+  await a.evaluate(() => window.__isle.cmd('/despawn heli'));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
