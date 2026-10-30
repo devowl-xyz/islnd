@@ -10526,7 +10526,17 @@ function labDoorWanted(){
 function makeIris(){
   const g=new THREE.Group(),N=10,R=LAB.R+0.25,blades=[];
   /* painted to look like the rock face round it, so from outside it's just more mountain */
-  const metal=new THREE.MeshLambertMaterial({color:0x8b8b90,side:THREE.DoubleSide}),edge=new THREE.MeshLambertMaterial({color:0x85868b,side:THREE.DoubleSide});
+  const rock=document.createElement('canvas');rock.width=rock.height=64;const rc=rock.getContext('2d');
+  if(rc&&rc.fillRect){
+    rc.fillStyle='#38383c';rc.fillRect(0,0,64,64);
+    /* irregular cobbles, one block per tile, like the stone round the door */
+    const pts=[[8,9],[30,6],[52,12],[14,30],[36,28],[56,36],[6,52],[26,50],[46,56]];
+    pts.forEach(function(q,n){const sh=118+Math.round(ihash(n,7,433)*50);rc.fillStyle='rgb('+sh+','+sh+','+(sh+4)+')';rc.beginPath();
+      for(let k=0;k<7;k++){const a=k/7*Math.PI*2,r=7.5+ihash(n,k,431)*3;const x=q[0]+Math.cos(a)*r,y=q[1]+Math.sin(a)*r;if(k)rc.lineTo(x,y);else rc.moveTo(x,y);}
+      rc.closePath();rc.fill();});
+  }
+  const rockTex=new THREE.CanvasTexture(rock);rockTex.wrapS=rockTex.wrapT=THREE.RepeatWrapping;rockTex.repeat.set(0.55,0.55);rockTex.magFilter=THREE.NearestFilter;
+  const metal=new THREE.MeshLambertMaterial({map:rockTex,color:0xd8d8dc,side:THREE.DoubleSide}),edge=new THREE.MeshLambertMaterial({map:rockTex,color:0xcfcfd4,side:THREE.DoubleSide});
   for(let k=0;k<N;k++){
     const a0=k/N*Math.PI*2,a1=(k+1.35)/N*Math.PI*2;
     const sh=new THREE.Shape();sh.moveTo(0,0);sh.lineTo(Math.cos(a0)*R,Math.sin(a0)*R);sh.absarc(0,0,R,a0,a1,false);sh.lineTo(0,0);
