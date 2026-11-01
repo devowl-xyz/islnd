@@ -623,7 +623,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/time midnight'));
   const ghostUp = await a.waitForFunction(() => window.__isle.ship.ghost(), null, { timeout: 10000 }).then(() => true).catch(() => false);
   check('at night the ghost captain rises over the wreck', ghostUp);
-  await a.evaluate(() => { const I = window.__isle, P = I.player; P.fly = true; P.x = I.ship.S().x - 2; P.y = 12; P.z = I.ship.S().z - 3; }); await wait(300);
+  await a.evaluate(() => { const I = window.__isle, P = I.player, g = I.ship.ghostAt(); P.fly = true; P.vx = P.vy = P.vz = 0; P.x = g.x + 1.5; P.y = g.y; P.z = g.z; }); await wait(100);
   check('talk to him', !!(await a.evaluate(() => window.__isle.ship.ghostNear() && window.__isle.ship.talk())));
   const hc = await a.evaluate(() => window.__isle.shop.coins());
   await a.evaluate(() => window.__isle.ship.open(3));
@@ -645,6 +645,27 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('the drones catch them, drag them out and switch the infiltrator off', busted);
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- the lab's secret room -----
+  const SR = await a.evaluate(() => window.__isle.sec.S());
+  check('a secret room hides behind level 2', await a.evaluate((S) => { const I = window.__isle; return I.get(S.ix0 + 2, S.iy0 + 1, S.iz0 + 2) === 0 && I.get(S.ix0 - 1, S.iy0 + 1, S.iz0 + 2) > 0; }, SR));
+  await a.evaluate(() => { const I = window.__isle; I.bm.infilOff(); I.bm.calm(); I.setSkin({ pet: 'hoot' }); });
+  await a.evaluate((S) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = S.dx0 + 1.5; P.y = S.iy0; P.z = S.dz0 + 1; }, SR);
+  check('its door is a solid wall until you find the switch', !(await a.evaluate(() => window.__isle.roomy())));
+  const sw = await a.evaluate(() => window.__isle.sec.switchAt());
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'slinky' }));
+  await put(a, sw.x + 0.8, 2, sw.z); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('the loose panel does nothing for Slinky’s owner', !(await a.evaluate(() => window.__isle.sec.open())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('an owl owner presses it and the door slides open', await a.evaluate(() => window.__isle.sec.open()));
+  await a.evaluate((S) => { const P = window.__isle.player; P.x = S.ix0 + 3.5; P.y = S.iy0; P.z = S.iz0 + 4.5; }, SR); await wait(1500);
+  check('step into the secret room', await a.evaluate(() => window.__isle.sec.inside()));
+  const dec = await a.evaluate(() => window.__isle.sec.decoy());
+  check('the map scrambler puts your dot far away', !!dec && await a.evaluate((d) => { const P = window.__isle.player; return Math.hypot(d.x - P.x, d.z - P.z) > 100; }, dec), dec);
+  await put(a, 80.5, 13, 92.5); await wait(500);
+  check('and stops when you leave', !(await a.evaluate(() => window.__isle.sec.decoy())));
 
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
@@ -716,6 +737,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle; I.shop.give(20); I.shop.buy('balloon'); });
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && p.av && p.av.balloon && p.av.balloon.visible; }, null, { timeout: 10000 }).catch(() => {});
   check('others see the balloon you’re holding', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return !!(p && p.av && p.av.balloon && p.av.balloon.visible); }));
+  // others see you on the map at the spot farthest from them while you're in the lab's secret room
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); });
+  await put(g, 80.5, 13, 92.5);
+  await a.evaluate(() => { const I = window.__isle, S = I.sec.S(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = S.ix0 + 3.5; P.y = S.iy0; P.z = S.iz0 + 4.5; });
+  await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && p.tgt && p.tgt.sx > 0; }, null, { timeout: 15000 }).catch(() => {});
+  const seen = await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'), P = window.__isle.player; return p && p.tgt ? { sx: p.tgt.sx, sz: p.tgt.sz, d: Math.hypot(p.tgt.sx - P.x, p.tgt.sz - P.z) } : null; });
+  check('in a room, others see your dot far from them, not in the secret room', !!seen && seen.sx > 0 && seen.d > 100, seen);
+  await put(a, 80.5, 13, 92.5);
   void peerA;
 
   await browser.close();
