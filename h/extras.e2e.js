@@ -415,7 +415,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const L = await a.evaluate(() => window.__isle.lab.LAB());
   const HT = await a.evaluate(() => window.__isle.lab.hatch());
   check('the secret lab is buried under the hills, shell and all', await a.evaluate((L) => { const I = window.__isle; return I.get(L.x0, L.cy | 0, L.z1) > 0 && I.get(L.cx, L.iy0 + 3, L.iz0 + 6) === 0 && I.get(L.cx - 6, L.y1 + 1, L.iz0 + 2) > 0; }, L));
-  check('from above it’s just a grassy clearing', await a.evaluate((h) => { const I = window.__isle; return I.get(Math.floor(h.x + h.R + 1.5), h.y - 1, Math.floor(h.z)) === 1; }, HT));
+  check('from above it’s just a grassy clearing', await a.evaluate((h) => { const I = window.__isle; const b = I.get(Math.floor(h.x + h.R + 1.5), h.y - 1, Math.floor(h.z)); return (b === 1 || b === 4) && I.get(Math.floor(h.x + h.R + 1.5), h.y, Math.floor(h.z)) === 0; }, HT));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
   await put(a, HT.x, HT.y, HT.z - HT.R - 1); await wait(1500);
   check('the hatch stays shut for anyone else', (await a.evaluate(() => window.__isle.lab.door())) < 0.1);
@@ -487,7 +487,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // ----- the Island Nations -----
   const U = await a.evaluate(() => window.__isle.un.H());
-  check('the Island Nations’ stairway goes down from the meadow', await a.evaluate((U) => { const I = window.__isle; return I.get(U.sx0, 12, U.sz0) !== 0 && I.get(U.sx0, 13, U.sz0) === 0 && I.get(U.cx, U.iy0 + 2, U.iz0 + 4) === 0; }, U));
+  check('the Island Nations’ stairway goes down from the meadow', await a.evaluate((U) => { const I = window.__isle; return I.get(U.sx0, 11, U.sz0) === 54 && I.get(U.sx0, 12, U.sz0) === 0 && I.get(U.cx, U.iy0 + 2, U.iz0 + 4) === 0; }, U));
   await a.evaluate(() => window.__isle.cmd('/tp un')); await wait(300);
   check('/tp un goes to it', await a.evaluate((U) => { const P = window.__isle.player; return Math.hypot(P.x - U.sx1, P.z - U.sz0) < 5; }, U));
   await put(a, U.sx0 + 1, 13, U.sz0 - 1.2);
