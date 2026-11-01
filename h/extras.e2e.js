@@ -706,6 +706,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setBlock(110, 13, 76, 0));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the Hidden Hollow under the campfire -----
+  const hol_CP = await a.evaluate(() => { const I = window.__isle; I.hollow.reset(); I.bm.calm(); I.setSkin({ pet: 'biscuit' }); return I.camp; });
+  await put(a, hol_CP.fx + 2.5, hol_CP.G, hol_CP.fz + 0.5); await wait(300);
+  await a.evaluate(() => { const P = window.__isle.player; P.x += 0.6; });
+  check('walking past the campfire does nothing', !(await a.evaluate(() => window.__isle.hollow.inside())));
+  await a.evaluate((C) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = C.fx + 0.5; P.z = C.fz + 0.5; P.y = C.G + 1.6; }, hol_CP);
+  const hol_fell = await a.waitForFunction(() => window.__isle.hollow.inside(), null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('jump into the campfire and you fall into a secret base', hol_fell);
+  check('nobody sees you on the map down there', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.lab.hidden(P.x, P.y + 0.5, P.z); }));
+  const hol_hc1 = await a.evaluate(() => window.__isle.shop.coins());
+  const hol_ch = await a.evaluate(() => window.__isle.hollow.chest());
+  await put(a, hol_ch.x - 1, hol_ch.y, hol_ch.z); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('a treasure chest with 50 coins', (await a.evaluate(() => window.__isle.shop.coins())) === hol_hc1 + 50);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('once a day', (await a.evaluate(() => window.__isle.shop.coins())) === hol_hc1 + 50);
+  const hol_pd = await a.evaluate(() => window.__isle.hollow.pad());
+  await put(a, hol_pd.x, hol_pd.y, hol_pd.z); await wait(800);
+  await a.keyboard.down('Space'); await wait(250); await a.keyboard.up('Space');
+  const hol_out = await a.waitForFunction((C) => { const P = window.__isle.player; return !window.__isle.hollow.inside() && Math.hypot(P.x - C.fx, P.z - C.fz) < 4 && P.y >= C.G - 0.1; }, hol_CP, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('the spring pad pops you back out by the fire', hol_out);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
