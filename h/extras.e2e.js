@@ -683,6 +683,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(500);
   check('and stops when you leave', !(await a.evaluate(() => window.__isle.sec.decoy())));
 
+  // ----- lava -----
+  check('lava is in the block picker', await a.evaluate(() => window.__isle.picker.picks.indexOf(91) >= 0));
+  await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.setSkin({ pet: 'hoot' }); I.setBlock(100, 13, 76, 91); });
+  await a.waitForFunction(() => window.__isle.lava.level(97, 13, 76) > 0, null, { timeout: 40000 }).catch(() => {});
+  await wait(5000);
+  const lvs = await a.evaluate(() => [100, 99, 98, 97, 96].map((x) => window.__isle.lava.level(x, 13, 76)));
+  check('placed lava flows out slowly, only three blocks', lvs[0] === 8 && lvs[1] === 6 && lvs[2] === 4 && lvs[3] === 2 && lvs[4] === 0, lvs);
+  await a.evaluate(() => { const I = window.__isle; I.setBlock(101, 13, 76, 7); I.setBlock(99, 14, 76, 5); });
+  check('wood next to it catches fire', await a.waitForFunction(() => window.__isle.lava.burning() > 0, null, { timeout: 10000 }).then(() => true).catch(() => false));
+  const woodGone = await a.waitForFunction(() => window.__isle.get(101, 13, 76) === 0 && window.__isle.get(99, 14, 76) === 0, null, { timeout: 20000 }).then(() => true).catch(() => false);
+  check('and burns away', woodGone);
+  await a.evaluate(() => window.__isle.setBlock(100, 13, 75, 12));
+  const obs = await a.waitForFunction(() => window.__isle.get(100, 13, 76) === 89, null, { timeout: 20000 }).then(() => true).catch(() => false);
+  check('water turns the lava source into obsidian', obs, await a.evaluate(() => window.__isle.get(100, 13, 76)));
+  await a.evaluate(() => { const I = window.__isle; I.setBlock(100, 13, 75, 0); I.setBlock(100, 13, 76, 0); I.setBlock(110, 13, 76, 91); });
+  await wait(1500);
+  const lh0 = await a.evaluate(() => window.__isle.food.hp());
+  await put(a, 110.5, 13, 76.5);
+  const lavaHurt = await a.waitForFunction((h) => window.__isle.food.hp() < h, lh0, { timeout: 10000 }).then(() => true).catch(() => false);
+  check('standing in lava burns you', lavaHurt);
+  await a.evaluate(() => window.__isle.setBlock(110, 13, 76, 0));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
