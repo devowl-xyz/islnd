@@ -356,6 +356,7 @@ body.touch .desk{display:none}
         <dt>/</dt><dd>Type a command (<b>/help</b> lists them: <b>/spawn</b> a test dummy, <b>/tp</b>, <b>/fly</b>, <b>/home</b>, <b>/pet</b>, <b>/jet</b>, <b>/block</b>, <b>/where</b>)</dd>
         <dt>X</dt><dd>Emotes: then 1 wave, 2 dance, 3 sit, 4 cheer, 5 clap, and 6 to 0 for emoji reactions (👍 ❤️ 😂 😮 🎉)</dd>
         <dt>Secret lab</dt><dd>Owl owners only: an iris door in the north face of the southern peaks, east of the cable car summit (Pemberton can take you). Fly the helicopter in; <b>E</b> at the gadgets. The base infiltrator lets you into every base for 3 minutes</dd>
+        <dt>Slinky</dt><dd>The snake under the treehouse has all the owls’ powers (<b>T</b> lift, <b>G</b> Snake Senses). Its owner can go wherever owl owners go, but can’t use the lab’s gadgets</dd>
         <dt>B&amp;M HQ</dt><dd>Biscuit’s and Mochi’s owners only: a hatch in the lighthouse floor, just right of the door, drops you into their bunker. <b>Space</b> on the spring pad to pop back up</dd>
         <dt>Island Shop</dt><dd>South of where you start: <b>E</b> by Polly the parrot to spend coins (from fishing, cracking Bazza’s eggs, races and a daily visit) on treats and hats</dd>
         <dt>Trampoline</dt><dd>Just west of where you start: land on it to bounce, hold <b>Space</b> as you land to go higher, <b>Shift</b> to stop</dd>
@@ -550,7 +551,7 @@ const AIR={y:11,
   tower:{x0:135,x1:139,z0:115,z1:119}};
 const LOUNGE={x0:135,x1:149,z0:107,z1:111,y0:12,y1:16};
 const LOUNGE_ZONE={x0:135,x1:150,y0:12,y1:17,z0:107,z1:112};
-const LOUNGE_PETS=['hoot','snowy','biscuit','mochi','horse'];
+const LOUNGE_PETS=['hoot','snowy','slinky','biscuit','mochi','horse'];
 function inAirBox(x,y,z){
   const k=['apron','runway','walk','beach','taxi'];
   for(let n=0;n<5;n++){const o=AIR[k[n]];if(x>=o.x0&&x<=o.x1&&z>=o.z0&&z<=o.z1&&y>=o.y0&&y<=o.y1)return true;}
@@ -643,7 +644,7 @@ function thCell(x,y,z,gen){
   return null;
 }
 function thMay(id,pet){
-  if(id==='shared')return pet==='hoot'||pet==='snowy';
+  if(id==='shared')return owlPet(pet);
   if(id==='cottage')return pet==='biscuit'||pet==='mochi';
   if(id==='lounge')return LOUNGE_PETS.indexOf(pet)>=0;
   return pet===id;
@@ -651,7 +652,9 @@ function thMay(id,pet){
 function thBaseIdx(i){return thCell(i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D)==='base';}
 /* fixed buildings can't change, but their doors can still be opened and shut */
 function keepEdit(i,b){return!thBaseIdx(i)||(isDoor(b)&&isDoor(base[i]));}
-function isOwlOwner(){return mySkin.pet==='hoot'||mySkin.pet==='snowy';}
+function isOwlOwner(){return mySkin.pet==='hoot'||mySkin.pet==='snowy'||mySkin.pet==='slinky';}
+/* the owls' pets: Hoot, Snowy and Slinky the snake, who has all the owls' powers */
+function owlPet(pet){return pet==='hoot'||pet==='snowy'||pet==='slinky';}
 /* the lab's base infiltrator: while it runs, no base keeps you out */
 let infilUntil=0;
 function infil(){return performance.now()<infilUntil;}
@@ -1069,6 +1072,8 @@ function placePetHomes(){
   /* the owls live on the treehouse roof */
   PET_HOME.hoot={x:TH.cx-0.5,y:TH.PY+17,z:TH.cz+0.5,yaw:Math.PI};
   PET_HOME.snowy={x:TH.cx+1.5,y:TH.PY+17,z:TH.cz+0.5,yaw:Math.PI};
+  /* the snake lives among the roots under the treehouse */
+  PET_HOME.slinky={x:TH.cx-4.5,y:TH.G,z:TH.cz+3.5,yaw:-Math.PI*0.75};
   /* fish: the first water at least 4 deep heading south from the meadow */
   let fz=150;for(let z=110;z<D;z++)if(origHt[z*W+80]<=SEA-4){fz=Math.min(D-3,z+3);break;}
   PET_HOME.goldie={x:AT.cx+8.5,y:6.5,z:AT.cz+0.5,swim:true};
@@ -1657,6 +1662,8 @@ function buildTreehouse(){
   /* trunk, roots and long branches out to the deck corners */
   for(let y=G;y<PY;y++)for(let z=cz-1;z<=cz+1;z++)for(let x=cx-1;x<=cx+1;x++)S(x,y,z,B.LOG);
   [[-2,0],[2,0],[0,-2],[0,2],[-3,0],[3,0],[0,-3],[-2,-2],[2,2]].forEach(function(r){S(cx+r[0],G,cz+r[1],B.LOG);});
+  /* Slinky the snake's hollow log among the roots */
+  for(let z=cz+3;z<=cz+5;z++)S(cx-7,G,z,B.LOG);S(cx-7,G+1,cz+4,B.LEAVES);
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(c){
     for(let k=1;k<=7;k++)S(cx+c[0]*(1+k),PY-1-Math.max(0,5-k),cz+c[1]*(1+k),B.LOG);
   });
@@ -1881,7 +1888,7 @@ function thTick(){
   loungeInside=inLo;
   const inside=inTHZone(P.x,P.y,P.z);
   if(inside&&!isOwlOwner()&&!infil()){P.x=TH.cx+0.5;P.y=TH.G;P.z=TH.sz1+1.5;P.vx=P.vy=P.vz=0;return;}
-  if(inside&&!thInside)toast('Welcome to the treehouse. Your bedroom is on the '+(mySkin.pet==='hoot'?'west':'east')+' side. The common room, hall, loft, the Owl Emporium upstairs, porch gardens and planters are shared with the other owl\u2019s owner.');
+  if(inside&&!thInside)toast(mySkin.pet==='slinky'?'Welcome to the treehouse, Slinky’s owner. The common room, hall, loft, the Owl Emporium, porch gardens and planters are yours to share with the owls’ owners.':'Welcome to the treehouse. Your bedroom is on the '+(mySkin.pet==='hoot'?'west':'east')+' side. The common room, hall, loft, the Owl Emporium upstairs, porch gardens and planters are shared with the other owl\u2019s owner.');
   thInside=inside;
   const inPal=inPALZone(P.x,P.y,P.z);
   if(inPal&&!palMay()){palInside=false;startCloud(false,performance.now()-palKickT<4000?'':'Only Hoot\u2019s and Snowy\u2019s owners and the guests they invite can stay in the Sky Palace. A cloud carries you down.');return;}
@@ -1997,7 +2004,7 @@ function renderPalace(){
   if(palMay()){const inP=inPALZone(P.x,P.y,P.z);el.appendChild(mk(inP?'Float down (P)':'Float up to the Sky Palace (P)','wide',function(){setPlaying(true);palKey();}));}
   if(!owner)return;
   if(inRoom())net.peers.forEach(function(p){
-    if(p.skin&&(p.skin.pet==='hoot'||p.skin.pet==='snowy')){row(skinSwatch(p.skin),p.name,'Owl owner, always welcome.',null,'p'+p.id);return;}
+    if(p.skin&&owlPet(p.skin.pet)){row(skinSwatch(p.skin),p.name,'Owl owner, always welcome.',null,'p'+p.id);return;}
     const g=palace.guests.has(p.id);
     row(skinSwatch(p.skin),p.name,g?'Invited':'Not invited',mk(g?'Kick out':'Invite',g?'warn':'',function(){palAct(g?'kick':'invite',p.id);}),'p'+p.id);
   });
@@ -3660,7 +3667,7 @@ const SKIN_STYLES={
   headWrap:['front','all'],
   rodStyle:['pillars','swirl','tendrils','legs'],
   effect:['none','embers','wind','bubbles','sparkles','smoke'],
-  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse'],
+  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky'],
   petHatStyle:['none','top','party','crown','bow','beanie'],petCollarStyle:['none','plain','bell','bandana'],petSaddleStyle:['none','plain','fancy']
 };
 const STYLE_NAMES={short:'Short',long:'Long',none:'None',eyes:'Eyes',smile:'Smile',visor:'Visor',cap:'Cap',beanie:'Beanie',crown:'Crown',
@@ -5266,7 +5273,7 @@ function updateJetHint(){
   else if(P.bike!==null)h='Cycling · <b>W</b> pedal · <b>Shift</b> faster · <b>A</b>/<b>D</b> or the mouse steer · <b>E</b> to get off';
   else if(playing&&!P.sleep&&nearBike()>=0&&!nearJet())h=bikeMay()?'<b>E</b> to ride the '+BIKE_NAMES[nearBike()]+' bike':'The bikes are for pet owners: adopt a pet to ride one';
   else if(playing&&!P.sleep&&!P.fly&&zipNear()&&!nearJet())h='<b>E</b> to grab the zip line';
-  else if(playing&&!P.sleep&&gadgetNear())h=(function(){const gd=gadgetNear();return gadgetMay(gd)?'<b>E</b> '+gd.icon+' '+gd.name:'🔒 '+gd.name+(gd.base==='bm'?' (Biscuit and Mochi’s owners only)':' (owl owners only)');})();
+  else if(playing&&!P.sleep&&gadgetNear())h=(function(){const gd=gadgetNear();return gadgetMay(gd)?'<b>E</b> '+gd.icon+' '+gd.name:'🔒 '+gd.name+(gd.base==='bm'?' (Biscuit and Mochi’s owners only)':' (Hoot’s and Snowy’s owners only)');})();
   else if(playing&&!P.sleep&&mailNear())h=mail.pending.length?'📬 <b>E</b> to open your letter from Bird Air'+(mail.pending.length>1?' ('+mail.pending.length+' waiting)':''):'📭 Your Bird Air mailbox: no post today';
   else if(playing&&!P.sleep&&shopNear())h='<b>E</b> to shop with Polly · you have 🪙 '+shopSave.coins;
   else if(playing&&onTramp(P.x,P.z)&&P.y>=TRAMP.top-0.05&&!P.fly)h='🤸 Trampoline · hold <b>Space</b> as you land to bounce higher · <b>Shift</b> to stop';
@@ -5330,7 +5337,7 @@ function heliLoad(){
     if(s&&[s.x,s.y,s.z,s.h].every(isFinite)){heli.x=s.x;heli.y=s.y;heli.z=s.z;heli.h=s.h;}
     if(s&&s.bridge&&[s.bridge.x,s.bridge.y,s.bridge.z,s.bridge.h].every(isFinite))heli.bridge=s.bridge;
     /* (this runs before the pet list further down exists, so the names are spelled out here) */
-    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse'].indexOf(id)>=0;}):[];
+    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky'].indexOf(id)>=0;}):[];
     heli.skis=s&&Array.isArray(s.skis)?s.skis.filter(function(k,i,a){return Number.isInteger(k)&&k>=0&&k<5&&a.indexOf(k)===i;}):[];
   }catch(e){heli.pets=[];heli.skis=[];}
   heli.pilot=null;heli.seat=false;heli.rope=0;heli.down=false;heli.captives=[];heli.dummies=[];heli.remote=null;heli.vx=heli.vy=heli.vz=0;
@@ -5882,11 +5889,13 @@ const PETS={
   biscuit:{name:'Biscuit',kind:'puppy',col:'#d9a25a',move:'ground',off:[0.9,0,1.1],scale:1.2},
   mochi:{name:'Mochi',kind:'kitten',col:'#8e8e98',move:'ground',off:[-0.9,0,1.1],scale:1.2},
   cinder:{name:'Cinder',kind:'dragon',col:'#2f9e7a',move:'air',off:[1.5,2.6,1.6],scale:1.3,homeScale:2},
-  horse:{name:'Clover',kind:'horse',col:'#9a5b2e',move:'ground',off:[1.7,0,2.4],scale:1.15}
+  horse:{name:'Clover',kind:'horse',col:'#9a5b2e',move:'ground',off:[1.7,0,2.4],scale:1.15},
+  slinky:{name:'Slinky',kind:'snake',col:'#3f9a3a',move:'ground',off:[-1.1,0,0.9],scale:1.3}
 };
 const PET_IDS=Object.keys(PETS);
 function petHint(id){
   if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace, up in the sky '+palWhere()+'.';
+  if(id==='slinky')return'Coiled up among the roots under the big treehouse '+(LAYOUT==='classic'?'west of the meadow':'in the eastern hills')+'. Slinky has all the owls’ powers.';
   if(id==='hoot'||id==='snowy')return'Perched on the roof of the big treehouse '+(LAYOUT==='classic'?'west of the meadow':'in the eastern hills, at the end of the road over the bridge')+'.';
   if(id==='goldie')return'Swimming round a little glass house on the sea bed out west of West Bay (x 50, z 226).';
   if(id==='biscuit'||id==='mochi')return'Waiting under the arbour at the gate of their cottage, out in the '+(PET_HOME.shelterDir||'far')+' of the island.';
@@ -6062,6 +6071,31 @@ function makePetModel(id,food){
     sph(saddle,0.04,1,1,1,gold,0,1.52,-0.26);
     [-1,1].forEach(function(sd){const st=cyl(saddle,0.012,0.45,dk,sd*0.31,1.33,0);st.rotation.z=sd*0.05;const sr=new THREE.TorusGeometry(0.05,0.012,6,12);geos.push(sr);const sm=new THREE.Mesh(sr,gold);sm.position.set(sd*0.33,0.86,0);sm.rotation.y=Math.PI/2;saddle.add(sm);});
     saddle.visible=false;
+  }else if(d.kind==='snake'){
+    /* a green snake: a chain of shrinking scales along an S, a yellow diamond back pattern and pale belly,
+       a raised wedge head with gold slit eyes and a flicking forked tongue */
+    const sc=lam(0x3f9a3a),sc2=lam(0x2c7a2c),dia=lam(0xe6c64a),bel=lam(0xd8e8a8),iris=lam(0xf2c230),tng=lam(0xd83a4a);
+    P.segs=[];
+    const N=16;
+    for(let i=0;i<N;i++){
+      const u=i/(N-1),r=0.075*(1-u*0.72);
+      const sg=piv(body,0,r,-0.22+u*1.05);
+      sph(sg,r,1.05,0.85,1.25,i%3===1?sc2:sc,0,0,0);
+      sph(sg,r*0.92,0.9,0.4,1.1,bel,0,-r*0.42,0);
+      if(i%2===0&&i<N-2){const dd=sph(sg,r*0.42,1,0.3,1,dia,0,r*0.8,0);dd.rotation.y=Math.PI/4;}
+      P.segs.push([sg,u]);
+    }
+    P.tail=P.segs[N-1][0];
+    const head=piv(body,0,0.17,-0.33);P.head=head;
+    sph(head,1,0.085,0.06,0.12,sc,0,0,-0.02);
+    sph(head,1,0.065,0.035,0.08,bel,0,-0.03,-0.04);
+    sph(head,1,0.06,0.05,0.06,sc,0,-0.04,0.07);
+    [-1,1].forEach(function(s2){eye(head,s2*0.062,0.012,-0.06,0.017,iris,true);sph(head,0.008,1,1,1,dark,s2*0.022,0.0,-0.135);});
+    const tongue=piv(head,0,-0.015,-0.13);P.tongue=tongue;
+    const tg=new THREE.BoxGeometry(0.012,0.004,0.09);tg.translate(0,0,-0.045);geos.push(tg);tongue.add(new THREE.Mesh(tg,tng));
+    [-1,1].forEach(function(s2){const fk=new THREE.BoxGeometry(0.008,0.004,0.035);fk.translate(0,0,-0.017);geos.push(fk);const fm=new THREE.Mesh(fk,tng);fm.position.z=-0.088;fm.rotation.y=s2*0.45;tongue.add(fm);});
+    /* the neck rising to the head */
+    for(let i=0;i<3;i++)sph(body,0.07-i*0.004,1,1,1,sc,0,0.07+i*0.035,-0.24-i*0.03);
   }else{
     /* a little dragon: green scales over golden belly plates, a curving neck, swept horns, amber slit eyes,
        a ridge of spikes down its back and tail, bony wings with a see-through membrane, and claws */
@@ -6146,6 +6180,15 @@ function animatePet(P,dt,moving,flying,home,wet){
     P.head.rotation.x=graze?Math.sin(t*3)*0.06:0;
     P.tail.rotation.x=0.25+gait*0.5;P.tail.rotation.z=Math.sin(t*(moving?5:1.3))*0.25;
     P.body.position.y+=wet?-0.5:0;
+  }else if(d.kind==='snake'){
+    /* slither: a wave runs down the body, faster when moving; the tongue flicks */
+    const f=moving?7:1.4,amp=moving?0.09:0.04;
+    P.segs.forEach(function(q){q[0].position.x=Math.sin(t*f-q[1]*7)*amp*(0.4+q[1]);});
+    P.head.position.x=Math.sin(t*f+0.6)*amp*0.3;
+    P.head.position.y=0.17+(moving?0:Math.sin(t*0.9)*0.03);
+    P.head.rotation.y=Math.sin(t*0.6)*0.35*(moving?0.3:1);
+    const fl=(t*1.7)%1;P.tongue.scale.z=fl<0.25?Math.sin(fl/0.25*Math.PI)*1.2+0.01:0.01;
+    P.body.position.y=wet?-0.12:0;
   }else{
     const asleep=home;
     const flap=flying?Math.sin(t*7)*0.8:(asleep?-0.5:-0.2);
@@ -6607,7 +6650,7 @@ function despawnHeli(){return putHeli({x:HELI_HOME.x,y:HELI_HOME.y,z:HELI_HOME.z
 const TP_PLACES={
   jet:'jet',plane:'jet',airplane:'jet',aeroplane:'jet',
   heli:'heli',helicopter:'heli',chopper:'heli',copter:'heli',
-  hoot:'tree',snowy:'tree',owls:'tree',treehouse:'tree','tree house':'tree',
+  hoot:'tree',snowy:'tree',slinky:'tree',snake:'tree',owls:'tree',treehouse:'tree','tree house':'tree',
   goldie:'atlantis',atlantis:'atlantis','goldie house':'atlantis','goldies house':'atlantis','fish house':'atlantis',
   biscuit:'cottage',mochi:'cottage',cottage:'cottage',
   cinder:'den',den:'den',lair:'den',dragon:'den',
@@ -7293,12 +7336,13 @@ function glowDot(){
   glowTex=new THREE.CanvasTexture(c);return glowTex;
 }
 function owlSpecial(){
-  if(!isOwlOwner()){toast('Only Hoot\u2019s and Snowy\u2019s owners have owl powers. G does nothing for '+(PETS[mySkin.pet]?PETS[mySkin.pet].name:'you')+'.');return false;}
+  if(!isOwlOwner()){toast('Only Hoot\u2019s, Snowy\u2019s and Slinky\u2019s owners have owl powers. G does nothing for '+(PETS[mySkin.pet]?PETS[mySkin.pet].name:'you')+'.');return false;}
   if(owlEyes||frost){toast('Your owl\u2019s power is already on.');return false;}
   if(performance.now()<owlCool){toast(PETS[mySkin.pet].name+' needs a rest. Try again in '+Math.ceil((owlCool-performance.now())/1000)+' s.');return false;}
-  if(mySkin.pet==='hoot'){owlEyes={t0:performance.now(),scan:0};toast('Owl Eyes! For '+OWL_T+' s you can see in the dark, and ores, players and pets shine through the rock.');}
+  if(mySkin.pet==='slinky'){owlEyes={t0:performance.now(),scan:0};frost={t0:performance.now()};toast('Snake Senses! For '+OWL_T+' s Slinky’s heat vision lets you see in the dark and through rock, and its cold blood freezes the water under your feet.');}
+  else if(mySkin.pet==='hoot'){owlEyes={t0:performance.now(),scan:0};toast('Owl Eyes! For '+OWL_T+' s you can see in the dark, and ores, players and pets shine through the rock.');}
   else{frost={t0:performance.now()};toast('Frost Wings! For '+OWL_T+' s the water freezes under your feet. Run across the sea!');}
-  const el=$('owlfx');if(el){el.className=mySkin.pet==='hoot'?'eyes':'frost';el.hidden=false;}
+  const el=$('owlfx');if(el){el.className=mySkin.pet==='snowy'?'frost':'eyes';el.hidden=false;}
   return true;
 }
 function owlEnd(){
@@ -7424,7 +7468,7 @@ function fireTick(dt){
 }
 function petSpecial(){
   const id=mySkin.pet;
-  if(id==='hoot'||id==='snowy')return owlSpecial();
+  if(owlPet(id))return owlSpecial();
   if(id!=='goldie'&&id!=='cinder'){toast('Hoot, Snowy, Goldie and Cinder have a power on G.');return false;}
   if(performance.now()<owlCool){toast(PETS[id].name+' needs a rest. Try again in '+Math.ceil((owlCool-performance.now())/1000)+' s.');return false;}
   owlCool=performance.now()+(id==='cinder'?6000:20000);
@@ -7522,6 +7566,13 @@ function updatePets(dt){
       f.x+=(gx-f.x)*k2;f.y+=(st.y+0.9-f.y)*k2;f.z+=(gz-f.z)*k2;f.yaw+=angDiff(f.yaw,st.yaw)*Math.min(1,dt*8);
       f.P.g.position.set(f.x,f.y,f.z);f.P.g.rotation.y=f.yaw;f.P.g.visible=true;
       animatePet(f.P,dt*2,true,false,false,waterAt(f.x,f.y,f.z));
+      return;
+    }
+    if(d.kind==='snake'&&st.lift){
+      /* Slinky coils round its owner's shoulders and rises with them */
+      f.x=st.x;f.y=st.y+1.25;f.z=st.z;f.yaw+=angDiff(f.yaw,st.yaw)*Math.min(1,dt*8);
+      f.P.g.position.set(f.x,f.y,f.z);f.P.g.rotation.y=f.yaw;f.P.g.visible=true;
+      animatePet(f.P,dt,false,false,false,false);
       return;
     }
     if(d.kind==='owl'&&st.lift){
@@ -7628,8 +7679,8 @@ function renderPets(){
     const ht=document.createElement('span');ht.className='ph'+(o==='me'?' on':'');
     ht.textContent=o==='me'?'Following you.':(o?'Following '+o.name+'.':petHint(id));
     row.appendChild(sw);row.appendChild(nm);row.appendChild(ht);
-    if(o==='me'&&(id==='hoot'||id==='snowy')){const b=document.createElement('button');b.type='button';b.className='ghost';b.textContent='Lift me up';b.addEventListener('click',function(){setPlaying(true);startLift();});row.appendChild(b);
-      const b2=document.createElement('button');b2.type='button';b2.className='ghost';b2.textContent=id==='hoot'?'Owl Eyes':'Frost Wings';b2.addEventListener('click',function(){setPlaying(true);owlSpecial();});row.appendChild(b2);}
+    if(o==='me'&&owlPet(id)){const b=document.createElement('button');b.type='button';b.className='ghost';b.textContent='Lift me up';b.addEventListener('click',function(){setPlaying(true);startLift();});row.appendChild(b);
+      const b2=document.createElement('button');b2.type='button';b2.className='ghost';b2.textContent=id==='slinky'?'Snake Senses':id==='hoot'?'Owl Eyes':'Frost Wings';b2.addEventListener('click',function(){setPlaying(true);owlSpecial();});row.appendChild(b2);}
     if(o==='me'&&(id==='goldie'||id==='cinder')){
       [[id==='goldie'?'Bubble Dash':'Fly on Cinder',petPower],[id==='goldie'?'Lucky Fin':'Fire breath',petSpecial]].forEach(function(bb){const b=document.createElement('button');b.type='button';b.className='ghost';b.textContent=bb[0];b.addEventListener('click',function(){setPlaying(true);bb[1]();});row.appendChild(b);});
     }
@@ -10064,7 +10115,7 @@ function bazSay(text,secs){
 function bazNear(){return baz.obj&&Math.hypot(P.x-baz.x,P.z-baz.z)<2.8&&Math.abs(P.y-baz.y)<3;}
 /* who could get eggs: anyone who isn't an owl owner (and isn't one of his bosses), and somewhere sensible */
 function bazTargets(){
-  const out=[],ok=function(skin,x,y,z){const pet=skin&&skin.pet;if(pet==='hoot'||pet==='snowy'||pet==='biscuit'||pet==='mochi')return false;if(inTHZone(x,y,z)||inPALZone(x,y,z))return false;return true;};
+  const out=[],ok=function(skin,x,y,z){const pet=skin&&skin.pet;if(owlPet(pet)||pet==='biscuit'||pet==='mochi')return false;if(inTHZone(x,y,z)||inPALZone(x,y,z))return false;return true;};
   const mine=myBed&&get(myBed.x,myBed.y,myBed.z)===B.BED_HEAD?{x:myBed.x+0.5,y:myBed.y,z:myBed.z+0.5}:{x:P.x,y:P.y,z:P.z};
   if(playing&&ok(mySkin,mine.x,mine.y,mine.z))out.push({id:inRoom()?net.you:-1,name:myName(),x:mine.x,y:mine.y,z:mine.z});
   net.peers.forEach(function(p){if(p.cur&&ok(p.skin,p.cur.x,p.cur.y,p.cur.z))out.push({id:p.id,name:p.name,x:p.cur.x,y:p.cur.y,z:p.cur.z});});
@@ -10420,7 +10471,7 @@ function mailSpot(){
     for(const d of [[1,1],[-1,1],[1,-1],[-1,-1],[2,0],[-2,0],[0,2],[0,-2]]){const x=myBed.x+d[0],z=myBed.z+d[1],y=myBed.y;if(!get(x,y,z)&&!get(x,y+1,z)&&solidB(get(x,y-1,z)))return{x:x+0.5,y:y,z:z+0.5,where:'by your bed'};}
   }
   const pet=mySkin.pet;
-  if(pet==='hoot'||pet==='snowy'){const x=TH.cx+2.5,z=TH.sz1+2.5;return{x:x,y:groundAt(x,z),z:z,where:'at the bottom of the treehouse stairs'};}
+  if(owlPet(pet)){const x=TH.cx+2.5,z=TH.sz1+2.5;return{x:x,y:groundAt(x,z),z:z,where:'at the bottom of the treehouse stairs'};}
   if(pet==='goldie')return{x:AT.x1+3.5,y:WATER_Y-0.35,z:AT.cz+0.5,where:'floating above Goldie’s house',float:true};
   const h=PET_HOME[pet];
   if(h&&pet!=='none'){const x=h.x+1.6,z=h.z+1.2,gy=groundAt(x,z),y=Math.abs(gy-h.y)<3?gy:h.y;return{x:x,y:y,z:z,where:pet==='biscuit'||pet==='mochi'?'by the cottage gate':pet==='cinder'?'at Cinder’s den':pet==='horse'?'at Clover’s paddock':'at your pet’s home'};}
@@ -10520,7 +10571,7 @@ function labDoorWanted(){
   const d=function(x,y,z){return Math.hypot(x-LAB.cx,y-LAB.cy,z-LAB.z0);};
   if((isOwlOwner()||infil())&&d(P.x,P.y+1,P.z)<18)return true;
   if(heli.pilot!==null&&d(heli.x,heli.y,heli.z)<26)return true;
-  let near=false;net.peers.forEach(function(p){if(p.cur&&p.skin&&(p.skin.pet==='hoot'||p.skin.pet==='snowy')&&d(p.cur.x,p.cur.y+1,p.cur.z)<18)near=true;});
+  let near=false;net.peers.forEach(function(p){if(p.cur&&p.skin&&owlPet(p.skin.pet)&&d(p.cur.x,p.cur.y+1,p.cur.z)<18)near=true;});
   return near;
 }
 function makeIris(){
@@ -10567,7 +10618,7 @@ const LAB_GADGETS=[
 ];
 const labState={boots:0,cloak:0,gravity:0,coinsAt:0,wx:0};
 function gadgetPos(gd){return gd.base==='bm'?{x:BMB.cx+0.5+gd.x,y:BMB.iy0,z:BMB.cz+0.5+gd.z}:{x:LAB.cx+0.5+gd.x,y:LAB.iy0,z:LAB.iz0+0.5+gd.z};}
-function gadgetMay(gd){return gd.base==='bm'?isCotOwner():isOwlOwner();}
+function gadgetMay(gd){return gd.base==='bm'?isCotOwner():isOwlOwner()&&mySkin.pet!=='slinky';}
 function gadgetNear(){
   const inBM=bmHere(P.x,P.y+0.5,P.z);if(!inBM&&!labHere(P.x,P.y+0.5,P.z))return null;
   for(const gd of LAB_GADGETS){if((gd.base==='bm')!==inBM)continue;const p=gadgetPos(gd);if(Math.hypot(P.x-p.x,P.z-p.z)<1.8&&Math.abs(P.y-p.y)<2)return gd;}
@@ -10575,7 +10626,7 @@ function gadgetNear(){
 }
 function useGadget(gd){
   if(!gd)return false;
-  if(!gadgetMay(gd)){toast(gd.base==='bm'?'🐾 Paws off! Biscuit’s and Mochi’s owners only.':'🔒 Access denied. Owl owners only.');return true;}
+  if(!gadgetMay(gd)){toast(gd.base==='bm'?'🐾 Paws off! Biscuit’s and Mochi’s owners only.':mySkin.pet==='slinky'?'🐍 Slinky can look, but no fangs on the gadgets. Those are for Hoot’s and Snowy’s owners.':'🔒 Access denied. Owl owners only.');return true;}
   const now=performance.now();
   if(gd.id==='tele'){const r=TH_ROOMS.filter(function(q){return q.name==='the hall';})[0];pembPuff(P.x,P.y,P.z);P.x=(r.x0+r.x1+1)/2;P.y=r.y0;P.z=(r.z0+r.z1+1)/2;P.vx=P.vy=P.vz=0;P.fly=false;pembPuff(P.x,P.y,P.z);toast('🌀 Zap! You’re in the treehouse hall. (Ask Pemberton to teleport you back.)');}
   else if(gd.id==='infil'){infilUntil=now+180000;toast('🕵️ Base infiltrator on for 3 minutes: every base’s keep-out rules ignore you. Sneak away!');}

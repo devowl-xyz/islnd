@@ -111,7 +111,7 @@ const SKI_HOME = [[187.5, 221.6], [189.5, 221.6], [191.5, 221.6], [193.5, 221.6]
 // The cable car's two stations (same numbers as public/index.html) are fixed; it only runs in the spread layout.
 const CABLE_BOXES = { spread: [{ x0: 230, x1: 240, z0: 255, z1: 263, y0: 37, y1: 47 }, { x0: 229, x1: 237, z0: 278, z1: 286, y0: 16, y1: 26 }], classic: [] };
 const ROPE_MAX = H + 40; // as long as it needs to be to reach the ground
-const LOUNGE_PETS = ['hoot', 'snowy', 'biscuit', 'mochi', 'horse'];
+const LOUNGE_PETS = ['hoot', 'snowy', 'slinky', 'biscuit', 'mochi', 'horse'];
 /* Layouts: where the treehouse and the cottage stand (same numbers as public/index.html). */
 const SHIFTS = { classic: { th: [0, 0], cot: [0, 0] }, spread: { th: [212, -24], cot: [112, 231] } };
 function shiftObj(b, dx, dz) { const t = {}; for (const k in b) { const v = b[k]; t[k] = typeof v !== 'number' ? v : /^(x|sx|cx)/.test(k) ? v + dx : /^(z|sz|cz)/.test(k) ? v + dz : v; } return t; }
@@ -152,7 +152,7 @@ function thCell(x, y, z, L) {
   return null;
 }
 function thMay(id, pet) {
-  if (id === 'shared') return pet === 'hoot' || pet === 'snowy';
+  if (id === 'shared') return pet === 'hoot' || pet === 'snowy' || pet === 'slinky';
   if (id === 'cottage') return pet === 'biscuit' || pet === 'mochi';
   if (id === 'lounge') return LOUNGE_PETS.includes(pet);
   return pet === id;
@@ -200,7 +200,7 @@ const SKIN_STYLES = {
   headWrap: ['front', 'all'],
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
-  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse'],
+  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky'],
   petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie'], petCollarStyle: ['none', 'plain', 'bell', 'bandana'], petSaddleStyle: ['none', 'plain', 'fancy']
 };
 const HEX6 = /^#[0-9a-f]{6}$/i, PX256 = /^[0-9a-f]{256}$/;
@@ -224,7 +224,7 @@ function claimPet(room, peer) {
   if (room.palace && room.palace.pets.delete(k.pet)) palaceNews(room, { act: 'adopted', pet: k.pet });
 }
 /* the Sky Palace guest list: players invited up by an owl owner, and pets visiting */
-function isOwlPeer(p) { return !!p && !!p.skin && (p.skin.pet === 'hoot' || p.skin.pet === 'snowy'); }
+function isOwlPeer(p) { return !!p && !!p.skin && (p.skin.pet === 'hoot' || p.skin.pet === 'snowy' || p.skin.pet === 'slinky'); }
 function palaceState(room) { return { guests: [...room.palace.guests], pets: [...room.palace.pets] }; }
 function palaceNews(room, extra) { broadcast(room, Object.assign({ t: 'palace' }, palaceState(room), extra)); }
 /* the helicopter: where it is, who flies it, the rope, who has been snatched up, and its bridge */
@@ -234,7 +234,7 @@ function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z,
 /* test dummies: spawned by the host and admins with /spawn, everyone sees the same ones */
 const DUMMY_MAX = 12;
 function dummyList(room) { return room.dummies.map((d) => ({ id: d.id, name: d.name, x: d.x, y: d.y, z: d.z, yaw: d.yaw })); }
-const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse'];
+const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky'];
 function heliNews(room, extra) { broadcast(room, Object.assign({ t: 'heli' }, heliState(room), extra)); }
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));

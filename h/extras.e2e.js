@@ -486,6 +486,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- Slinky the snake -----
+  await a.evaluate(() => { const I = window.__isle; I.bm.infilOff(); I.bm.calm(); I.setSkin({ pet: 'none' }); });
+  const sh = await a.evaluate(() => window.__isle.pets.home.slinky);
+  check('Slinky the snake lives under the treehouse', !!sh && await a.evaluate((h) => { const T = window.__isle.th.TH; return Math.abs(h.x - T.cx) < 9 && Math.abs(h.z - T.cz) < 9 && h.y < T.PY; }, sh));
+  await put(a, sh.x + 1, sh.y, sh.z); await wait(500);
+  check('walk up to it and you can adopt it', (await a.evaluate(() => window.__isle.pets.near())) === 'slinky');
+  await a.evaluate(() => window.__isle.pets.adopt('slinky')); await wait(300);
+  check('and it follows you', await a.evaluate(() => { const f = window.__isle.pets.follower(); return !!f && f.id === 'slinky'; }));
+  await a.evaluate(() => { const I = window.__isle, Z = I.th.zone, P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = (Z.x0 + Z.x1) / 2; P.z = Z.z1 - 2; P.y = Z.y0; }); await wait(600);
+  check('Slinky’s owner can go into the treehouse, like the owls’ owners', await a.evaluate(() => { const I = window.__isle, Z = I.th.zone, P = I.player; return P.z > Z.z0 && P.z < Z.z1 && P.y >= Z.y0 - 0.5; }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => { const I = window.__isle; I.owl.cool(); I.power.G(); });
+  check('G is Snake Senses: owl eyes and frost wings at once', await a.evaluate(() => window.__isle.owl.eyes() && window.__isle.owl.frost()));
+  await a.evaluate(() => { const I = window.__isle; I.owl.ageSpecial(999); }); await wait(500);
+  await a.evaluate(() => window.__isle.power.T()); await wait(300);
+  check('T lifts you up into the air, like an owl', !!(await a.evaluate(() => window.__isle.owl.state())));
+  await a.evaluate(() => window.__isle.owl.letGo()); await wait(300);
+  await put(a, 80.5, 13, 92.5); await wait(1500);
+  const pembOk = await a.evaluate(() => { const I = window.__isle, b = I.butler.pose(), P = I.player; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); I.butler.serve(); return I.butler.said(); });
+  check('Pemberton serves Slinky’s owner too', !/Terribly sorry|spoken for/.test(pembOk || ''), pembOk);
+  await a.keyboard.press('Escape').catch(() => {}); await wait(200);
+  const L2 = await a.evaluate(() => window.__isle.lab.LAB());
+  await put(a, L2.cx + 0.5, L2.iy0, L2.z0 - 6);
+  const sOpen = await a.waitForFunction(() => window.__isle.lab.door() > 0.9, null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('the secret lab’s door opens for Slinky’s owner', sOpen);
+  await put(a, L2.cx + 0.5, L2.iy0, L2.iz0 + 4.5); await wait(500);
+  check('and they can go in', await a.evaluate(() => window.__isle.lab.inside()));
+  const sc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => { const I = window.__isle; I.lab.use('coins'); I.lab.use('boots'); });
+  check('but they can’t use the gadgets', (await a.evaluate(() => window.__isle.shop.coins())) === sc0 && !(await a.evaluate(() => window.__isle.lab.state().boots)));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
