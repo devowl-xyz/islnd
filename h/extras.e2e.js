@@ -646,6 +646,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the reactor's overdrive -----
+  const RX = await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.reactor.cool(); return I.reactor.at(); });
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'slinky' }));
+  await put(a, RX.x + 2, RX.y, RX.z); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('the reactor won’t go into overdrive for Slinky’s owner', !(await a.evaluate(() => window.__isle.reactor.on())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  const rc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E at the reactor: OVERDRIVE', await a.evaluate(() => window.__isle.reactor.on()));
+  check('every power at once: boots, speed, low gravity, cloak and force field', await a.evaluate(() => { const s = window.__isle.lab.state(); return s.boots && s.speed && s.gravity && s.cloak && s.shield; }));
+  check('and a 100 coin power surge', (await a.evaluate(() => window.__isle.shop.coins())) === rc0 + 100);
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('then it has to cool down', (await a.evaluate(() => window.__isle.shop.coins())) === rc0 + 100);
+  await a.evaluate(() => window.__isle.bm.calm());
+
   // ----- the lab's secret room -----
   const SR = await a.evaluate(() => window.__isle.sec.S());
   check('a secret room hides behind level 2', await a.evaluate((S) => { const I = window.__isle; return I.get(S.ix0 + 2, S.iy0 + 1, S.iz0 + 2) === 0 && I.get(S.ix0 - 1, S.iy0 + 1, S.iz0 + 2) > 0; }, SR));
