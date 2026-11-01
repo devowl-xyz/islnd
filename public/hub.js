@@ -120,10 +120,13 @@ for (const name in SHIFTS) {
   const [tx, tz] = SHIFTS[name].th, [cx, cz] = SHIFTS[name].cot;
   LAYOUTS[name] = { OD: [shiftObj(OD_TREE, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)), CABLE: CABLE_BOXES[name] || [] };
 }
-// the owls' secret lab in the southern peaks (same numbers as public/index.html)
-const LAB = { x0: 241, x1: 265, z0: 256, z1: 278, y0: 22, y1: 37, ix0: 243, ix1: 263, iz0: 258, iz1: 276, iy0: 24, iy1: 35 };
+// the owls' secret lab, buried under the hills by the cable car's summit, its level 2 and corridor, and the hatch shaft (same numbers as public/index.html)
+const LAB = { x0: 219, x1: 265, z0: 256, z1: 278, y0: 1, y1: 13, hx: 253.5, hz: 269.5, R: 5.6,
+  inside: [{ x0: 243, x1: 263, y0: 2, y1: 12, z0: 258, z1: 276 }, { x0: 221, x1: 238, y0: 2, y1: 9, z0: 259, z1: 271 }, { x0: 239, x1: 242, y0: 2, y1: 5, z0: 263, z1: 265 }] };
 // Biscuit & Mochi's bunker under the lighthouse, and its shaft up to the lighthouse floor (same numbers as public/index.html)
 const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, iz0: 165, iz1: 175, iy0: 3, iy1: 6, sx0: 62, sx1: 63, sz0: 172, sz1: 173, top: 11 };
+// the Island Nations' hall under the meadow and its stairway (same numbers as public/index.html): nobody can change it
+const UNH = { x0: 50, x1: 72, z0: 100, z1: 116, y0: 2, y1: 11, sx0: 61, sx1: 62, sz0: 91, top: 14 };
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
   const TH = L.TH, TH_ROOMS = L.TH_ROOMS, COT = L.COT, COT_ROOMS = L.COT_ROOMS;
@@ -142,7 +145,9 @@ function thCell(x, y, z, L) {
   if (AIR.some(inB)) return 'base';
   if (L.CABLE.some(inB)) return 'base';
   // the owls' secret lab: the shell is fixed, owl owners may build inside
-  if (inB(LAB)) return (x >= LAB.ix0 && x <= LAB.ix1 && y >= LAB.iy0 && y <= LAB.iy1 && z >= LAB.iz0 && z <= LAB.iz1) ? 'shared' : 'base';
+  if (inB(LAB)) return LAB.inside.some(inB) ? 'shared' : 'base';
+  if (y >= LAB.y1 && y <= 45 && Math.hypot(x + 0.5 - LAB.hx, z + 0.5 - LAB.hz) < LAB.R + 1) return 'base';
+  if (inB(UNH) || (x >= UNH.sx0 - 1 && x <= UNH.sx1 + 1 && z >= UNH.sz0 && z < UNH.z0 && y >= 2 && y <= UNH.top)) return 'base';
   // Biscuit & Mochi's bunker: the shell and shaft are fixed, their owners may build inside
   if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) ? 'cottage' : 'base';
   if (x >= BMB.sx0 && x <= BMB.sx1 && z >= BMB.sz0 && z <= BMB.sz1 && y > BMB.y1 && y <= BMB.top) return 'base';
