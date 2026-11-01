@@ -730,6 +730,34 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- the Owl Command Vault behind the lab's map -----
+  const VT = await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.bm.infilOff(); I.setSkin({ pet: 'hoot' }); return I.vault.V(); });
+  const LV = await a.evaluate(() => window.__isle.lab.LAB());
+  await a.evaluate((V) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = V.dx0 + 1.5; P.y = V.iy0; P.z = V.dz0 + 1.5; }, VT);
+  check('behind the lab’s map, the wall is solid', !(await a.evaluate(() => window.__isle.roomy())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'slinky' }));
+  await put(a, LV.cx + 0.5, LV.iy0, LV.iz1 - 0.5, Math.PI); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('the map stays put for Slinky’s owner', !(await a.evaluate(() => window.__isle.vault.open())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('an owl owner presses E and the map slides up', await a.evaluate(() => window.__isle.vault.open()));
+  await a.evaluate((V) => { const P = window.__isle.player; P.x = V.dx0 + 1.5; P.y = V.iy0; P.z = V.iz0 + 3.5; }, VT); await wait(1200);
+  check('into the Owl Command Vault', await a.evaluate(() => window.__isle.vault.inside()));
+  check('hidden from the map', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.lab.hidden(P.x, P.y + 0.5, P.z); }));
+  await a.evaluate(() => window.__isle.lab.use('god'));
+  check('god mode', await a.evaluate(() => window.__isle.vault.god()));
+  const mc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.lab.use('mint'));
+  check('the diamond mint: 500 coins', (await a.evaluate(() => window.__isle.shop.coins())) === mc0 + 500);
+  await a.evaluate(() => { const I = window.__isle; I.setBlock(30, 30, 30, 88); I.setBlock(300, 30, 300, 88); I.lab.use('nuke'); });
+  check('the doomsday button wipes out every egg on the island', await a.evaluate(() => window.__isle.get(30, 30, 30) !== 88 && window.__isle.get(300, 30, 300) !== 88));
+  await a.evaluate(() => window.__isle.owl.ageSpecial(999)); await wait(400);
+  await a.evaluate(() => window.__isle.lab.use('xray'));
+  check('X-ray goggles', await a.evaluate(() => window.__isle.owl.eyes()));
+  await a.evaluate(() => window.__isle.bm.calm());
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());

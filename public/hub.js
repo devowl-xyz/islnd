@@ -121,9 +121,10 @@ for (const name in SHIFTS) {
   LAYOUTS[name] = { OD: [shiftObj(OD_TREE, tx, tz)], PAL: shiftObj(PAL, tx, tz), PAL_HALL: shiftObj(PAL_HALL, tx, tz), TH: shiftObj(TH, tx, tz), TH_ROOMS: TH_ROOMS.map((r) => shiftObj(r, tx, tz)), COT: shiftObj(COT, cx, cz), COT_ROOMS: COT_ROOMS.map((r) => shiftObj(r, cx, cz)), CABLE: CABLE_BOXES[name] || [] };
 }
 // the owls' secret lab, buried under the hills by the cable car's summit, its level 2 and corridor, and the hatch shaft (same numbers as public/index.html)
-const LAB = { x0: 207, x1: 265, z0: 256, z1: 278, y0: 1, y1: 13, hx: 253.5, hz: 269.5, R: 5.6,
+const LAB = { x0: 207, x1: 265, z0: 256, z1: 290, y0: 1, y1: 13, hx: 253.5, hz: 269.5, R: 5.6,
   inside: [{ x0: 243, x1: 263, y0: 2, y1: 12, z0: 258, z1: 276 }, { x0: 221, x1: 238, y0: 2, y1: 9, z0: 259, z1: 271 }, { x0: 239, x1: 242, y0: 2, y1: 5, z0: 263, z1: 265 },
-  { x0: 209, x1: 217, y0: 2, y1: 6, z0: 260, z1: 270 }, { x0: 218, x1: 220, y0: 2, y1: 3, z0: 263, z1: 264 }] };
+  { x0: 209, x1: 217, y0: 2, y1: 6, z0: 260, z1: 270 }, { x0: 218, x1: 220, y0: 2, y1: 3, z0: 263, z1: 264 },
+  { x0: 248, x1: 258, y0: 2, y1: 8, z0: 280, z1: 289 }, { x0: 252, x1: 254, y0: 2, y1: 4, z0: 277, z1: 279 }] };
 // Biscuit & Mochi's bunker under the lighthouse, and its shaft up to the lighthouse floor (same numbers as public/index.html)
 const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, iz0: 165, iz1: 175, iy0: 3, iy1: 6, sx0: 62, sx1: 63, sz0: 172, sz1: 173, top: 11 };
 // the Island Nations' hall under the meadow and its stairway (same numbers as public/index.html): nobody can change it
