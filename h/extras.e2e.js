@@ -579,6 +579,73 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  // ----- Volcano Island -----
+  const V = await a.evaluate(() => window.__isle.vol.V());
+  check('Volcano Island rises out of the sea, with a magma crater and obsidian', await a.evaluate((V) => { const I = window.__isle; let ob = 0; for (let x = V.cx - V.R; x <= V.cx + V.R; x++) for (let z = V.cz - V.R; z <= V.cz + V.R; z++) for (let y = 8; y < 40; y++) if (I.get(x, y, z) === 89) ob++; return I.get(V.cx, V.cf, V.cz) === 90 && ob > 20; }, V));
+  await a.evaluate(() => window.__isle.cmd('/tp volcano')); await wait(300);
+  check('/tp volcano takes you there', await a.evaluate((V) => { const P = window.__isle.player; return Math.hypot(P.x - V.cx, P.z - V.cz) < V.R + 4; }, V));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.bm.calm(); });
+  await put(a, V.cx + 0.5, V.cf + 1, V.cz + 0.5);
+  const burnt = await a.waitForFunction(() => window.__isle.food.hp() < 5, null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('magma burns you', burnt);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'cinder' }));
+  const e = await a.evaluate(() => window.__isle.vol.V().ember);
+  await put(a, e.x, e.y, e.z - 2); await wait(300);
+  check('Ember, Cinder’s cousin, lives on the rim', await a.evaluate(() => window.__isle.vol.near()));
+  const ec0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('Ember is overjoyed to meet Cinder’s owner', /Cinder|cousin/i.test(await a.evaluate(() => window.__isle.vol.said()) || '') && (await a.evaluate(() => window.__isle.shop.coins())) === ec0 + 30, await a.evaluate(() => window.__isle.vol.said()));
+  check('and gives you Ember’s blessing', await a.evaluate(() => window.__isle.vol.blessed()));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.player.y = 30; });
+  const hpB = await a.evaluate(() => window.__isle.food.hp());
+  await put(a, V.cx + 0.5, V.cf + 1, V.cz + 0.5); await wait(2500);
+  check('blessed, magma can’t hurt you', (await a.evaluate(() => window.__isle.food.hp())) === hpB);
+  await a.evaluate(() => window.__isle.vol.erupt());
+  check('and every so often it erupts', await a.evaluate(() => window.__isle.vol.erupting()));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- the pirate shipwreck -----
+  const SH = await a.evaluate(() => { const I = window.__isle; I.ship.reset(); I.cmd('/time noon'); return I.ship.S(); });
+  check('a pirate ship lies wrecked on the sea bed, its mast out of the water', await a.evaluate((S) => { const I = window.__isle; return I.get(S.x - 2, 14, S.z) === 5 && I.get(S.x, 2, S.z) === 7; }, SH));
+  await a.evaluate(() => window.__isle.cmd('/tp wreck')); await wait(300);
+  check('/tp wreck takes you there', await a.evaluate((S) => { const P = window.__isle.player; return Math.hypot(P.x - S.x, P.z - S.z) < 10; }, SH));
+  check('no ghost by day', !(await a.evaluate(() => window.__isle.ship.ghost())));
+  const c0p = await a.evaluate(() => window.__isle.ship.chest(0));
+  await a.evaluate((c) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = c.x + 1; P.y = c.y; P.z = c.z; }, c0p); await wait(300);
+  const wc0 = await a.evaluate(() => window.__isle.shop.coins());
+  check('swim down to a treasure chest', (await a.evaluate(() => window.__isle.ship.near())) === 0);
+  await a.keyboard.press('KeyE'); await wait(400);
+  const wc1 = await a.evaluate(() => window.__isle.shop.coins());
+  check('E opens it: treasure!', wc1 >= wc0 + 15, [wc0, wc1]);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('but only once a day', (await a.evaluate(() => window.__isle.shop.coins())) === wc1);
+  check('the Captain’s hoard is locked by day', (await a.evaluate(() => window.__isle.ship.open(3))) === false);
+  await a.evaluate(() => window.__isle.cmd('/time midnight'));
+  const ghostUp = await a.waitForFunction(() => window.__isle.ship.ghost(), null, { timeout: 10000 }).then(() => true).catch(() => false);
+  check('at night the ghost captain rises over the wreck', ghostUp);
+  await a.evaluate(() => { const I = window.__isle, P = I.player; P.fly = true; P.x = I.ship.S().x - 2; P.y = 12; P.z = I.ship.S().z - 3; }); await wait(300);
+  check('talk to him', !!(await a.evaluate(() => window.__isle.ship.ghostNear() && window.__isle.ship.talk())));
+  const hc = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.ship.open(3));
+  check('and he unlocks the Captain’s hoard: 100 coins', (await a.evaluate(() => window.__isle.shop.coins())) === hc + 100);
+  await a.evaluate(() => window.__isle.cmd('/time noon'));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- the lab's security drones -----
+  const L3 = await a.evaluate(() => window.__isle.lab.LAB());
+  check('security drones patrol the lab', (await a.evaluate(() => window.__isle.drones.list().length)) === 4 && !(await a.evaluate(() => window.__isle.drones.alarm())));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); });
+  await put(a, L3.cx + 0.5, L3.iy0, L3.iz0 + 3.5); await wait(1500);
+  check('they leave owl owners alone', !(await a.evaluate(() => window.__isle.drones.alarm())) && await a.evaluate(() => window.__isle.lab.inside()));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.drones.infil(); });
+  await put(a, L3.ix0 + 1.5, L3.iy0, L3.iz1 - 1.5);
+  const alarm = await a.waitForFunction(() => window.__isle.drones.alarm(), null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('a sneaky infiltrator sets off the alarm', alarm);
+  const busted = await a.waitForFunction(() => !window.__isle.lab.inside() && !window.__isle.bm.infil(), null, { timeout: 30000 }).then(() => true).catch(() => false);
+  check('the drones catch them, drag them out and switch the infiltrator off', busted);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
