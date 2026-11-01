@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 91; // 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 92; // 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -203,7 +203,7 @@ function cleanName(s) {
 const SKIN_COLORS = ['skin', 'hair', 'shirt', 'pants', 'shoes', 'hat', 'rod', 'petHat', 'petCollar', 'petSaddle'];
 const SKIN_STYLES = {
   kind: ['person', 'rod'],
-  hairStyle: ['short', 'long', 'none'], face: ['eyes', 'smile', 'visor'], hatStyle: ['none', 'cap', 'beanie', 'crown', 'top', 'party', 'pirate', 'cowboy'],
+  hairStyle: ['short', 'long', 'none'], face: ['eyes', 'smile', 'visor'], hatStyle: ['none', 'cap', 'beanie', 'crown', 'top', 'party', 'pirate', 'cowboy', 'flame', 'dragon'],
   headWrap: ['front', 'all'],
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
@@ -316,6 +316,10 @@ function unboard(room, peer) {
   } else return;
   jetSeats(room);
 }
+// capture the flag: red's flag at the lighthouse, blue's at the volcano; three captures wins
+function ctfState(room) { const c = room.ctf; return c ? { on: c.on, teams: c.teams, carrier: c.carrier, score: c.score } : null; }
+function ctfNews(room, extra) { broadcast(room, Object.assign({ t: 'ctf', state: ctfState(room) }, extra || {})); }
+function ctfTeams(room) { const t = {}; let k = 0; room.peers.forEach((p) => { t[p.id] = k++ % 2 ? 'blue' : 'red'; }); return t; }
 function leave(peer) {
   const room = peer.room;
   if (!room) return;
@@ -327,6 +331,7 @@ function leave(peer) {
   if (room.palace && room.palace.guests.delete(peer.id)) palaceNews(room, { act: 'left', peer: peer.id });
   if (room.skis && room.skis.some((q) => q.rider === peer.id)) { room.skis.forEach((q) => { if (q.rider === peer.id) q.rider = null; }); skisNews(room); }
   if (room.bikes && room.bikes.some((b) => b.rider === peer.id)) { room.bikes.forEach((b) => { if (b.rider === peer.id) b.rider = null; }); bikesNews(room); }
+  if (room.ctf && (room.ctf.carrier.red === peer.id || room.ctf.carrier.blue === peer.id)) { ['red', 'blue'].forEach((f) => { if (room.ctf.carrier[f] === peer.id) room.ctf.carrier[f] = null; }); ctfNews(room, { act: 'left', by: peer.id }); }
   if (room.locks && room.locks.some((o) => o.owner === peer.id)) { room.locks = room.locks.filter((o) => o.owner !== peer.id); locksNews(room, { act: 'left' }); }
   if (room.heli) {
     const h = room.heli, k = h.captives.indexOf(peer.id);
@@ -393,7 +398,7 @@ function handle(peer, msg) {
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null });
       return;
     }
     case 'seed': {
@@ -416,7 +421,7 @@ function handle(peer, msg) {
       claimPet(r, peer);
       r.peers.set(peer.id, peer);
       peer.room = r;
-      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty });
+      send(peer.ws, { t: 'joined', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, tag: r.tag ? { it: r.tag.it, ends: r.tag.ends, scores: r.tag.scores } : null, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null });
       if (r.tag) r.tag.scores[peer.id] = r.tag.scores[peer.id] || 0;
       sendSnapshot(r, peer);
       broadcast(r, { t: 'peer', id: peer.id, name: peer.name, host: false, admin: false, skin: peer.skin }, peer.id);
@@ -948,6 +953,39 @@ function handle(peer, msg) {
       j.crashes = (j.crashes || 0) + 1; j.lastCrash = Date.now();
       broadcast(room, { t: 'jetCrash', by: peer.id, x: n(msg.x, 0), y: n(msg.y, 30), z: n(msg.z, 0), n: j.crashes, at: j.lastCrash });
       jetSeats(room);
+      return;
+    }
+    case 'ctf': {
+      if (!room) return;
+      const c = room.ctf || (room.ctf = { on: false, teams: {}, carrier: { red: null, blue: null }, score: { red: 0, blue: 0 } });
+      const act = msg.act, mine = c.teams[peer.id];
+      if (act === 'start') { if (!isBoss(room, peer)) return; c.on = true; c.teams = ctfTeams(room); c.carrier = { red: null, blue: null }; c.score = { red: 0, blue: 0 }; return ctfNews(room, { act, by: peer.id }); }
+      if (act === 'stop') { if (!isBoss(room, peer)) return; c.on = false; c.carrier = { red: null, blue: null }; return ctfNews(room, { act, by: peer.id }); }
+      if (act === 'join') { if (msg.team !== 'red' && msg.team !== 'blue') return; ['red', 'blue'].forEach((f) => { if (c.carrier[f] === peer.id) c.carrier[f] = null; }); c.teams[peer.id] = msg.team; return ctfNews(room, { act, by: peer.id }); }
+      if (!c.on || !mine) return;
+      const other = mine === 'red' ? 'blue' : 'red';
+      if (act === 'grab') { if (c.carrier[other]) return; c.carrier[other] = peer.id; return ctfNews(room, { act, by: peer.id, flag: other }); }
+      if (act === 'cap') {
+        if (c.carrier[other] !== peer.id || c.carrier[mine]) return;
+        c.carrier[other] = null; c.score[mine]++;
+        const won = c.score[mine] >= 3 ? mine : null; if (won) c.on = false;
+        return ctfNews(room, { act, by: peer.id, team: mine, won });
+      }
+      if (act === 'drop') { ['red', 'blue'].forEach((f) => { if (c.carrier[f] === peer.id) c.carrier[f] = null; }); return ctfNews(room, { act, by: peer.id }); }
+      if (act === 'tag') {
+        const victim = msg.id; if (typeof victim !== 'string' && typeof victim !== 'number') return;
+        if (c.teams[victim] === mine) return;
+        let hit = false; ['red', 'blue'].forEach((f) => { if (c.carrier[f] === victim) { c.carrier[f] = null; hit = true; } });
+        if (hit) ctfNews(room, { act, by: peer.id, id: victim });
+        return;
+      }
+      return;
+    }
+    case 'hollowPw': {
+      // the first person to set the Hidden Hollow's password in a room sets it for everyone (only its hash is kept)
+      if (!room || room.hollowPw || typeof msg.h !== 'string' || !/^[0-9a-z]{1,16}$/.test(msg.h)) return;
+      room.hollowPw = msg.h;
+      broadcast(room, { t: 'hollowPw', h: msg.h, by: peer.id, name: peer.name });
       return;
     }
     case 'potty': {

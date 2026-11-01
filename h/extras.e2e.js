@@ -765,6 +765,134 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.bm.calm());
   await put(a, 80.5, 13, 92.5); await wait(300);
 
+  {
+  // ----- raid alarms -----
+  await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.bm.infilOff(); I.setSkin({ pet: 'hoot' }); });
+  const LR = await a.evaluate(() => window.__isle.lab.LAB());
+  const raid = await a.evaluate((L) => window.__isle.raid.check([{ name: 'Sneaky Sam', skin: { pet: 'biscuit' }, cur: { x: L.cx + 0.5, y: L.iy0, z: L.iz0 + 3.5 } }]), LR);
+  check('an outsider in the lab sets off the raid alarm for owl owners', raid.length === 1 && /Intruder at the lab: Sneaky Sam/.test(await a.evaluate(() => window.__isle.raid.text() || '')), raid);
+  check('but not for an owl owner walking in', (await a.evaluate((L) => window.__isle.raid.check([{ name: 'Owly', skin: { pet: 'snowy' }, cur: { x: L.cx + 0.5, y: L.iy0, z: L.iz0 + 3.5 } }]).length, LR)) === 0);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  const bmr = await a.evaluate(() => { const B = window.__isle.bm.B(); return window.__isle.raid.check([{ name: 'Gulliver', skin: { pet: 'none' }, cur: { x: B.cx + 0.5, y: B.iy0, z: B.cz + 0.5 } }]); });
+  check('and at B&M HQ for Biscuit’s owner', bmr.length === 1 && /B&M HQ/.test(bmr[0]), bmr);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+
+  // ----- the Island Gazette -----
+  await a.evaluate(() => { const I = window.__isle; I.news.add('erupt'); I.news.add('eggs'); I.news.add('res', 'ban seagulls'); });
+  await a.evaluate(() => window.__isle.news.deliver(true));
+  const mb = await a.evaluate(() => window.__isle.mail.at());
+  await a.evaluate((m) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = m.x + 1; P.y = m.y; P.z = m.z; }, mb); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(400);
+  const paper = await a.evaluate(() => { const el = document.getElementById('letter'); return el && !el.hidden ? el.textContent : ''; });
+  check('the Island Gazette arrives in your mailbox, with the day’s news', /ISLAND GAZETTE/.test(paper) && /VOLCANO/.test(paper) && /EGG/.test(paper) && /ISLAND NATIONS/.test(paper), paper.slice(0, 160));
+  await a.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); });
+
+  // ----- Pemberton vs the drones -----
+  await put(a, LR.cx + 0.5, LR.iy0, LR.iz0 + 3.5); await wait(300);
+  await a.evaluate(() => window.__isle.pembLab.go());
+  check('Pemberton pops into the lab to tidy up', await a.evaluate(() => window.__isle.pembLab.on()));
+  const chase = await a.waitForFunction(() => window.__isle.drones.alarm(), null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('and the security drones chase him', chase);
+
+  // ----- the spy camera -----
+  const spyGd = await a.evaluate(() => window.__isle.lab.gadgets().filter((g) => g.id === 'spycam')[0]);
+  await a.evaluate(() => window.__isle.lab.use('spycam'));
+  check('take the spy camera from the lab', await a.evaluate(() => window.__isle.spy.armed()));
+  await put(a, 80.5, 13, 92.5, 1.2); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('press E outside to set it down', !(await a.evaluate(() => window.__isle.spy.armed())) && await a.evaluate(() => { const s = window.__isle.spy.at(); return !!s && Math.hypot(s.x - 80.5, s.z - 92.5) < 1; }));
+  void spyGd;
+
+  // ----- the kraken -----
+  await a.evaluate(() => window.__isle.cmd('/weather storm'));
+  const kr = await a.waitForFunction(() => window.__isle.kraken.u() > 0.5, null, { timeout: 30000 }).then(() => true).catch(() => false);
+  check('in a storm the kraken rises by the shipwreck', kr);
+  await a.evaluate(() => window.__isle.cmd('/weather clear'));
+
+  // ----- the submarine -----
+  const sh = await a.evaluate(() => window.__isle.sub.home());
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.x = h.dock.x; P.y = h.dock.y + 1; P.z = h.dock.z; P.x = h.x + 1.5; P.z = h.z; P.y = h.y; }, sh); await wait(200);
+  check('a yellow submarine waits by the West Bay dock', await a.evaluate(() => window.__isle.sub.near()));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E climbs in', await a.evaluate(() => window.__isle.sub.state().on));
+  await a.evaluate(() => { const P = window.__isle.player; P.y = 30; }); await wait(400);
+  check('it can’t leave the water', (await a.evaluate(() => window.__isle.player.y)) < 11);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E climbs back out', !(await a.evaluate(() => window.__isle.sub.state().on)));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- Ember's forge -----
+  await a.evaluate(() => window.__isle.shop.give(200));
+  const fp = await a.evaluate(() => window.__isle.forge.at());
+  await put(a, fp.x - 1.5, fp.y, fp.z); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('Ember’s Forge sells the flame hat and the dragon helm', await a.evaluate(() => { const el = document.getElementById('shop'); return !!el && !el.hidden && /Ember/.test(el.textContent) && /Flame hat/.test(el.textContent) && /Dragon helm/.test(el.textContent) && !/Ice cream/.test(el.textContent); }));
+  await a.evaluate(() => window.__isle.shop.buy('hat:dragon'));
+  await a.keyboard.press('Escape'); await wait(300);
+  check('you buy the dragon helm and wear it', (await a.evaluate(() => window.__isle.mySkin.hatStyle)) === 'dragon');
+  const V2 = await a.evaluate(() => window.__isle.vol.V());
+  const hpd = await a.evaluate(() => window.__isle.food.hp());
+  await put(a, V2.cx + 0.5, V2.cf + 1, V2.cz + 0.5); await wait(2500);
+  check('and magma can’t burn you while you wear it', (await a.evaluate(() => window.__isle.food.hp())) === hpd);
+  await a.evaluate(() => window.__isle.setSkin({ hatStyle: 'none' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- Bazza's taxi -----
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  const tc0 = await a.evaluate(() => window.__isle.shop.coins());
+  const dest = await a.evaluate(() => window.__isle.taxi.go(true));
+  check('Bazza’s taxi: 5 coins and you’re off on his back', !!dest && (await a.evaluate(() => window.__isle.shop.coins())) === tc0 - 5 && await a.evaluate(() => window.__isle.taxi.on()));
+  const ride = await a.waitForFunction(() => !window.__isle.taxi.on(), null, { timeout: 60000 }).then(() => true).catch(() => false);
+  await wait(1500);
+  check('he drops you in the sea', ride && await a.evaluate(() => { const P = window.__isle.player; return window.__isle.water(Math.floor(P.x), 10, Math.floor(P.z)) > 0; }));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- the Hidden Hollow's password door -----
+  const HB = await a.evaluate(() => { const I = window.__isle; I.holBack.reset(); return I.holBack.H(); });
+  await a.evaluate((H) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = H.dx + 0.5; P.y = H.iy0; P.z = H.dz0 + 1; }, HB);
+  check('the Hollow’s back door is locked', !(await a.evaluate(() => window.__isle.roomy())));
+  await a.evaluate((H) => { const P = window.__isle.player; P.x = H.dx - 1.5; }, HB);
+  await a.evaluate(() => window.__isle.cmd('/hollow banana'));
+  check('the first finder sets the password, and it opens', await a.evaluate(() => window.__isle.holBack.open()) && !!(await a.evaluate(() => window.__isle.holBack.pw())));
+  await a.evaluate((H) => { const P = window.__isle.player; P.x = H.ix0 + 2.5; P.z = H.iz0 + 2.5; }, HB); await wait(300);
+  const bc0 = await a.evaluate(() => window.__isle.shop.coins());
+  const bcp = await a.evaluate(() => window.__isle.holBack.chest());
+  await a.evaluate((c) => { const P = window.__isle.player; P.x = c.x - 1; P.z = c.z; }, bcp); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('the back room’s finders-keepers chest: 150 coins', (await a.evaluate(() => window.__isle.shop.coins())) === bc0 + 150);
+  await a.evaluate((H) => { const P = window.__isle.player; P.x = H.dx - 1.5; P.z = H.dz0 + 1; }, HB); await wait(14000);
+  await a.evaluate(() => window.__isle.cmd('/hollow apple'));
+  check('the wrong password doesn’t open it', !(await a.evaluate(() => window.__isle.holBack.open())));
+  await a.evaluate(() => window.__isle.cmd('/hollow banana'));
+  check('the right one does', await a.evaluate(() => window.__isle.holBack.open()));
+
+  // ----- the tunnels -----
+  const TN = await a.evaluate(() => window.__isle.tunnels.list());
+  check('each base has a patch of cracked stone', await a.evaluate((T) => T.every((t) => window.__isle.get(t.crack[0][0], t.crack[0][1], t.crack[0][2]) === 92), TN));
+  await a.evaluate((T) => { const I = window.__isle, c = T[0].crack[0]; I.act.brk(c[0], c[1], c[2]); }, TN); await wait(300);
+  check('break it and the tunnel opens up', await a.evaluate((T) => window.__isle.get(T[0].crack[0][0], T[0].crack[0][1], T[0].crack[0][2]) === 0 && window.__isle.get(T[0].crack[1][0], T[0].crack[1][1], T[0].crack[1][2]) === 0, TN));
+  await a.evaluate((T) => { const P = window.__isle.player, c = T[0].cart; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = c.x + 1; P.y = c.y; P.z = c.z; }, TN); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(600);
+  check('the mine cart takes you to Cinder’s den’s tunnel', await a.evaluate((T) => { const P = window.__isle.player, c = T[1].cart; return Math.hypot(P.x - c.x, P.z - c.z) < 2.5; }, TN));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  // ----- capture the flag -----
+  await a.evaluate(() => window.__isle.cmd('/ctf start'));
+  check('/ctf start begins capture the flag (on your own you’re Red)', await a.evaluate(() => window.__isle.ctf.state().on && window.__isle.ctf.me() === 'red'));
+  const bh = await a.evaluate(() => window.__isle.ctf.home('blue'));
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = h.x + 0.5; P.y = h.y; P.z = h.z; }, bh);
+  const grabbed = await a.waitForFunction(() => window.__isle.ctf.state().carrier.blue === 'me', null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('run into Blue’s flag on the volcano and you grab it', grabbed);
+  await wait(1000);
+  const rh = await a.evaluate(() => window.__isle.ctf.home('red'));
+  await a.evaluate((h) => { const P = window.__isle.player; P.x = h.x + 0.5; P.y = h.y; P.z = h.z; }, rh);
+  const capped = await a.waitForFunction(() => window.__isle.ctf.state().score.red === 1, null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('bring it home to the lighthouse and Red scores', capped);
+  await a.evaluate(() => window.__isle.cmd('/ctf stop'));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+
+  }
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
