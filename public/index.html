@@ -10610,7 +10610,7 @@ function drawShop(){
   const el=$('shop');if(!el)return;
   const forgeMode=shop.mode==='forge';
   let h='<div class="shead"><b>'+(forgeMode?'🔥 Ember’s Forge':'🦜 The Island Shop')+'</b><span class="purse">🪙 '+shopSave.coins+'</span><button type="button" class="ghost" id="shopClose" aria-label="Close">✕</button></div>';
-  h+='<p class="sub">Earn coins by catching fish, cracking Bazza’s eggs and finishing races, plus 20 a day for calling in.</p><div class="sgrid">';
+  h+='<p class="sub">'+(forgeMode?'Hats forged in the volcano, sold by a dragon. You can’t get these anywhere else.':'Earn coins by catching fish, cracking Bazza’s eggs and finishing races, plus 20 a day for calling in.')+'</p><div class="sgrid">';
   SHOP_ITEMS.forEach(function(it){
     if(!!it.forge!==forgeMode)return;
     const hat=it.id.indexOf('hat:')===0,own=hat&&hatOwned(it.id.slice(4)),can=shopSave.coins>=it.price;
@@ -10665,7 +10665,7 @@ function shopTick(dt){
   p.head.position.y=0.42+Math.abs(Math.sin(t*3))*0.02;p.head.rotation.z=Math.sin(t*0.9)*0.25;
   shop.obj.g.visible=p.g.visible=Math.hypot(SHOP.x-cam.x,SHOP.z-cam.z)<150;
   if(shopNear()&&!shop.greet){shop.greet=true;pollySay('Squawk! Coins for treats! Press E!',3);}
-  if(!shopNear()){shop.greet=false;if(shop.open)closeShop(false);}
+  if(!shopNear()){shop.greet=false;if(shop.open&&!(shop.mode==='forge'&&forgeNear()))closeShop(false);}
   if(shop.bub&&performance.now()>shop.bubT){if(shop.bub.parent)shop.bub.parent.remove(shop.bub);shop.bub.material.map.dispose();shop.bub.material.dispose();shop.bub=null;}
   /* the ice cream in your hand */
   const hold=performance.now()<shop.coneT;
@@ -11534,6 +11534,8 @@ function dronesTick(dt){
   /* peers sneaking in set them off too, on your screen */
   let target=intr?{x:P.x,y:P.y+1.3,z:P.z,me:true}:null;
   if(!target)net.peers.forEach(function(p){if(!target&&p.cur&&p.skin&&!owlPet(p.skin.pet)&&labHere(p.cur.x,p.cur.y+0.5,p.cur.z))target={x:p.cur.x,y:p.cur.y+1.3,z:p.cur.z};});
+  /* Pemberton tidying up counts as an intruder too, as far as the drones are concerned */
+  if(!target&&pembLab.on)target={x:pembLab.x,y:LAB.iy0+1.2,z:pembLab.z};
   if(!!target!==drones.alarm){drones.alarm=!!target;if(intr&&drones.alarm)toast('🚨 INTRUDER ALERT! The security drones are after you. RUN!');}
   sirenOn(drones.alarm&&near);
   if(drones.osc)drones.osc.frequency.value=650+Math.sin(now*0.006)*250;
