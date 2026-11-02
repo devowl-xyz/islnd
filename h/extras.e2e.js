@@ -1137,6 +1137,37 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
+  check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
+  const rows = await a.evaluate(() => window.__isle.express.rows());
+  check('the departures board lists the Express’s three flights (no West Bay)', rows.dep.length === 3 && rows.arr.length === 3 && rows.dep.every((r) => r.place !== 'West Bay' && /^BX/.test(r.code)), rows);
+  await a.waitForFunction(() => { const q = window.__isle.express.pose(); return !!q.parked && q.left > 30; }, null, { timeout: 240000 }).catch(() => {});
+  const shown = await a.evaluate(() => { const r = window.__isle.express.rows(); return r.dep.some((x) => x.status === 'Boarding'); });
+  check('and shows it Boarding while it waits at a stop', shown);
+  check('it waits a good while at each stop', await a.evaluate(() => window.__isle.express.pose().left > 30));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); I.bm.calm(); });
+  await wait(400);
+  // stand 14 blocks off and aim 2.5 blocks to one side of it: close enough counts
+  await a.evaluate(() => { const I = window.__isle, q = I.express.pose(), P = I.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = q.x + 14; P.z = q.z + 2; P.y = q.y + 1; const tx = q.x, ty = q.y + 2.8, tz = q.z + 0.5, ex = P.x, ey = P.y + 1.6, ez = P.z; const dx = tx - ex, dy = ty - ey, dz = tz - ez, L = Math.hypot(dx, dy, dz); P.yaw = Math.atan2(-dx, -dz); P.pitch = Math.asin(dy / L); });
+  await wait(300);
+  await a.keyboard.press('KeyC'); await wait(300);
+  const g = await a.evaluate(() => window.__isle.grap());
+  check('a grapple that just misses the red jet still catches it', !!g && g.veh === 'express', g);
+  await a.waitForFunction(() => window.__isle.express.ride(), null, { timeout: 60000 }).catch(() => {});
+  check('and reels you in and aboard', await a.evaluate(() => window.__isle.express.ride()));
+  await a.evaluate(() => { const I = window.__isle; if (I.express.ride()) I.toggleBoard(); I.setSkin({ pet: 'none' }); });
+  await wait(300);
+  await a.waitForFunction(() => { const q = window.__isle.express.pose(); return !q.parked && !q.gone && q.y > 30; }, null, { timeout: 240000 }).catch(() => {});
+  const cr0 = await a.evaluate(() => window.__isle.silly.crashes());
+  check('running into the other jet in mid-air brings it down', await a.evaluate(() => window.__isle.express.collide()) && await a.evaluate(() => window.__isle.express.down()));
+  await wait(2500);
+  check('both of them', (await a.evaluate(() => window.__isle.silly.crashes())) >= cr0 + 1 && await a.evaluate(() => window.__isle.express.pose().gone));
+  const rows2 = await a.evaluate(() => window.__isle.express.rows());
+  check('and the board says Crashed', rows2.dep.some((r) => r.status === 'Crashed'), rows2);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
