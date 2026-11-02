@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 92; // 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 113; // 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -448,7 +448,8 @@ function handle(peer, msg) {
       const th = thCell(x, y, z, room.lay), thOk = !!th && th !== 'base' && thMay(th, peer.skin && peer.skin.pet);
       // opening or shutting a door is not building: anyone may, anywhere, as long as it stays the same half of a door
       const was = room.edits.has(i) ? room.edits.get(i) : baseDoor(x, y, z, room.lay);
-      const door = isDoor(b) && isDoor(was) && doorTop(b) === doorTop(was);
+      // and flipping a lever (95/96) or pressing a button (97/98) is like opening a door
+      const door = (isDoor(b) && isDoor(was) && doorTop(b) === doorTop(was)) || ((b === 95 || b === 96) && (was === 95 || was === 96)) || ((b === 97 || b === 98) && (was === 97 || was === 98));
       // anyone may crack one of Bazza's eggs, wherever he laid it
       const egg = b === 0 && was === EGG;
       const locked = !door && !egg && !!lockedFor(room, peer, x, y, z);

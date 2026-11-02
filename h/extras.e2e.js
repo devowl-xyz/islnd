@@ -1168,6 +1168,79 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- redstone -----
+  const RB = await a.evaluate(() => { const I = window.__isle, n = {}; for (const k of ['WIRE', 'WIRE_ON', 'LEVER', 'LEVER_ON', 'BUTTON', 'BUTTON_ON', 'PLATE', 'PLATE_ON', 'RSBLOCK', 'RLAMP', 'RLAMP_ON', 'NOTG', 'DELAY', 'TNT', 'NOTE', 'DOOR', 'DOOR_TOP', 'DOOR_OPEN', 'STONE', 'DIRT']) n[k] = I.blockId(k); return n; });
+  check('the redstone parts are in the block picker', await a.evaluate((R) => ['WIRE', 'LEVER', 'BUTTON', 'PLATE', 'RSBLOCK', 'RLAMP', 'NOTG', 'DELAY', 'TNT', 'NOTE'].every((k) => window.__isle.picker.picks.indexOf(R[k]) >= 0), RB));
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  const S = (x, y, z, b) => a.evaluate((q) => window.__isle.setBlock(q[0], q[1], q[2], q[3]), [x, y, z, b]);
+  const G = (x, y, z) => a.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [x, y, z]);
+  const ticks = (n) => a.evaluate((n) => { for (let k = 0; k < n; k++) window.__isle.rs.step(); }, n);
+  // lever -> five wires -> lamp
+  await S(66, 13, 90, RB.LEVER); for (let x = 67; x <= 71; x++) await S(x, 13, 90, RB.WIRE); await S(72, 13, 90, RB.RLAMP);
+  await ticks(2);
+  check('a lamp on wire from a lever that’s off stays dark', (await G(72, 13, 90)) === RB.RLAMP && (await G(67, 13, 90)) === RB.WIRE);
+  await a.evaluate(() => window.__isle.rs.use(66, 13, 90)); await ticks(2);
+  check('flipping the lever powers the wire and lights the lamp', (await G(66, 13, 90)) === RB.LEVER_ON && (await G(67, 13, 90)) === RB.WIRE_ON && (await G(72, 13, 90)) === RB.RLAMP_ON);
+  check('the power gets one weaker each block', (await a.evaluate(() => window.__isle.rs.pow(67, 13, 90))) === 15 && (await a.evaluate(() => window.__isle.rs.pow(71, 13, 90))) === 11);
+  await a.evaluate(() => window.__isle.rs.use(66, 13, 90)); await ticks(2);
+  check('and flipping it back turns it all off', (await G(72, 13, 90)) === RB.RLAMP && (await G(67, 13, 90)) === RB.WIRE);
+  // wire runs out after 15 blocks
+  await S(62, 13, 84, RB.RSBLOCK); for (let x = 63; x <= 80; x++) await S(x, 13, 84, RB.WIRE); await S(81, 13, 84, RB.RLAMP);
+  await ticks(2);
+  check('a redstone block is always on, but wire only carries it 15 blocks', (await G(63, 13, 84)) === RB.WIRE_ON && (await a.evaluate(() => window.__isle.rs.pow(77, 13, 84))) === 1 && (await G(78, 13, 84)) === RB.WIRE && (await G(81, 13, 84)) === RB.RLAMP);
+  // wire climbing a step
+  await S(66, 13, 94, RB.RSBLOCK); await S(67, 13, 94, RB.WIRE); await S(68, 13, 94, RB.STONE); await S(68, 14, 94, RB.WIRE); await S(69, 14, 94, RB.RLAMP);
+  await ticks(2);
+  check('wire climbs up a block', (await G(68, 14, 94)) === RB.WIRE_ON && (await G(69, 14, 94)) === RB.RLAMP_ON);
+  // NOT gate (facing east) between a lever and a lamp
+  await S(66, 13, 98, RB.LEVER); await S(67, 13, 98, RB.NOTG + 1); await S(68, 13, 98, RB.RLAMP);
+  await ticks(3);
+  check('a NOT gate with nothing coming in is on', (await G(68, 13, 98)) === RB.RLAMP_ON);
+  await a.evaluate(() => window.__isle.rs.use(66, 13, 98)); await ticks(3);
+  check('and off when its input is on', (await G(68, 13, 98)) === RB.RLAMP);
+  // a delay passes it on a moment later
+  await S(66, 13, 102, RB.LEVER); await S(67, 13, 102, RB.DELAY + 1); await S(68, 13, 102, RB.RLAMP);
+  await ticks(2);
+  const dl = await a.evaluate(() => { const I = window.__isle, r = []; I.rs.use(66, 13, 102); I.rs.step(); r.push(I.get(68, 13, 102)); for (let k = 0; k < 5; k++) I.rs.step(); r.push(I.get(68, 13, 102)); return r; });
+  check('a delay passes the signal on, a moment later', dl[0] === RB.RLAMP && dl[1] === RB.RLAMP_ON, dl);
+  // pressure plate
+  await S(74, 13, 98, RB.PLATE); await S(75, 13, 98, RB.WIRE); await S(76, 13, 98, RB.RLAMP);
+  await ticks(2);
+  const off0 = await G(76, 13, 98);
+  await put(a, 74.5, 13.07, 98.5); await ticks(2);
+  const on1 = await G(76, 13, 98);
+  await put(a, 80.5, 13, 80.5); await ticks(2);
+  check('standing on a pressure plate powers it, stepping off doesn’t', off0 === RB.RLAMP && on1 === RB.RLAMP_ON && (await G(76, 13, 98)) === RB.RLAMP, [off0, on1]);
+  // button
+  await S(74, 13, 102, RB.BUTTON); await S(75, 13, 102, RB.RLAMP);
+  await a.evaluate(() => window.__isle.rs.use(74, 13, 102)); await ticks(2);
+  const bon = await G(75, 13, 102);
+  await wait(1500); await ticks(2); await wait(300); await ticks(2);
+  check('a button lights it for a second, then pops back up', bon === RB.RLAMP_ON && (await G(74, 13, 102)) === RB.BUTTON && (await G(75, 13, 102)) === RB.RLAMP, bon);
+  // a powered door opens
+  await S(86, 13, 100, RB.DOOR); await S(86, 14, 100, RB.DOOR_TOP); await S(85, 13, 100, RB.LEVER);
+  await ticks(2);
+  const shut = await G(86, 13, 100);
+  await a.evaluate(() => window.__isle.rs.use(85, 13, 100)); await ticks(2);
+  const open = await G(86, 13, 100);
+  await a.evaluate(() => window.__isle.rs.use(85, 13, 100)); await ticks(2);
+  check('a lever opens a door next to it, and shuts it again', shut === RB.DOOR && open === RB.DOOR_OPEN && (await G(86, 13, 100)) === RB.DOOR, [shut, open]);
+  // note block
+  const n0 = await a.evaluate(() => window.__isle.rs.notes());
+  await S(90, 13, 96, RB.NOTE); await S(89, 13, 96, RB.BUTTON); await a.evaluate(() => window.__isle.rs.use(89, 13, 96)); await ticks(2);
+  check('a powered note block plays a note', (await a.evaluate(() => window.__isle.rs.notes())) === n0 + 1);
+  // TNT
+  for (let x = 92; x <= 96; x++) for (let z = 88; z <= 90; z++) await S(x, 13, z, RB.DIRT);
+  await S(94, 14, 89, RB.TNT); await S(94, 15, 89, RB.LEVER);
+  const b0 = await a.evaluate(() => window.__isle.rs.booms());
+  await a.evaluate(() => window.__isle.rs.use(94, 15, 89)); await ticks(2);
+  check('powered TNT gets lit', (await a.evaluate(() => window.__isle.rs.tnt())) === 1);
+  await a.evaluate(() => window.__isle.rs.rush()); await wait(800);
+  check('and blows a hole in what’s round it', (await a.evaluate(() => window.__isle.rs.booms())) === b0 + 1 && (await G(94, 14, 89)) === 0 && (await G(93, 13, 89)) === 0 && (await G(94, 12, 89)) !== 0);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
