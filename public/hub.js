@@ -130,7 +130,7 @@ const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, 
 // the Island Nations' hall under the meadow and its stairway (same numbers as public/index.html): nobody can change it
 const UNH = { x0: 50, x1: 72, z0: 100, z1: 116, y0: 2, y1: 11, sx0: 61, sx1: 62, sz0: 91, top: 14 };
 // the sky course's floating platforms over the meadow (same numbers as public/index.html): nobody can change them
-const COURSE = (() => { const a = [], cx = 80, cz = 96, R = 12, N = 18; for (let k = 0; k < N; k++) { const ang = k / N * Math.PI * 2, big = k === 0 || k === 6 || k === 12 || k === N - 1; a.push({ x: Math.round(cx + Math.cos(ang) * R), y: 42 + Math.round(Math.sin(k * 0.9) * 1.2), z: Math.round(cz + Math.sin(ang) * R), s: big ? 1 : 0 }); } return a; })();
+const COURSE = (() => { const a = []; for (let r = 0; r < 4; r++) { const z = 84 + 8 * r, y = 42 + r; for (let k = 0; k < 10; k++) a.push({ x: r % 2 ? 98 - 4 * k : 62 + 4 * k, y, z, s: 1 }); if (r < 3) a.push({ x: r % 2 ? 62 : 98, y, z: z + 4, s: 1 }); } return a; })();
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
   const TH = L.TH, TH_ROOMS = L.TH_ROOMS, COT = L.COT, COT_ROOMS = L.COT_ROOMS;

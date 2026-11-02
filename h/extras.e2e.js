@@ -973,10 +973,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('E on the pad takes you up to the start', await a.evaluate((C) => { const P = window.__isle.player; return Math.hypot(P.x - C[0].x, P.z - C[0].z) < 2 && P.y > C[0].y; }, CL) && !!(await a.evaluate(() => window.__isle.course.run())));
   await a.evaluate((C) => { const P = window.__isle.player; P.x = C[1].x + 0.5; P.z = C[1].z + 0.5; P.y = C[1].y + 1; }, CL); await wait(800);
   check('step off the start and the clock runs', (await a.evaluate(() => window.__isle.course.run().t0)) > 0);
-  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[6].x + 0.5; P.z = C[6].z + 0.5; P.y = C[6].y + 1; }, CL); await wait(800);
+  await a.evaluate((C) => { const P = window.__isle.player; const c6 = C[C.findIndex((p) => p.kind === 'check')]; P.x = c6.x + 0.5; P.z = c6.z + 0.5; P.y = c6.y + 1; }, CL); await wait(800);
   check('land on a checkpoint', (await a.evaluate(() => window.__isle.course.run().cp)) === 1);
-  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[8].x + 3.5; P.z = C[8].z + 3.5; P.y = C[0].y - 6.5; }, CL); await wait(1500);
-  check('fall off and you’re back on the checkpoint', await a.evaluate((C) => { const P = window.__isle.player; return Math.hypot(P.x - C[6].x - 0.5, P.z - C[6].z - 0.5) < 2.5; }, CL));
+  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[13].x + 0.5; P.z = C[13].z + 4.5; P.y = C[0].y - 6.5; }, CL); await wait(1500);
+  check('fall off and you’re back on the checkpoint', await a.evaluate((C) => { const P = window.__isle.player, c6 = C[C.findIndex((p) => p.kind === 'check')]; return Math.hypot(P.x - c6.x - 0.5, P.z - c6.z - 0.5) < 2.5; }, CL));
   await a.evaluate((C) => { const f = C[C.length - 1], P = window.__isle.player; P.x = f.x + 0.5; P.z = f.z + 0.5; P.y = f.y + 1; }, CL); await wait(1000);
   check('reach the finish and your time is kept', !(await a.evaluate(() => window.__isle.course.run())) && (await a.evaluate(() => window.__isle.course.best())) > 0);
   await wait(3000);
@@ -1075,13 +1075,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const landed = await a.waitForFunction(() => !window.__isle.express.ride(), null, { timeout: 120000 }).then(() => true).catch(() => false);
   check('and it flies you, fast, to the next stop', landed && (await a.evaluate((from) => { const q = window.__isle.express.pose(); return !!q.parked && q.parked !== from; }, ep.parked)));
 
-  // ----- Duncan the mallard -----
+  // ----- Flapper the mallard -----
   await a.evaluate(() => { const I = window.__isle; I.duncan.reset(); I.setSkin({ pet: 'hoot' }); });
   const dt2 = await a.evaluate(() => window.__isle.duncan.at());
   await a.evaluate((d) => { const P = window.__isle.player; P.fly = true; P.x = d.x + 1; P.y = d.y; P.z = d.z; }, dt2); await wait(800);
-  check('an owl owner finds Duncan the mallard in the control tower', await a.evaluate(() => window.__isle.duncan.found()));
+  check('an owl owner finds Flapper the mallard in the control tower', await a.evaluate(() => window.__isle.duncan.found()));
   await a.evaluate(() => window.__isle.butler.svc('duncan')); await wait(300);
   check('and then he helps Pemberton: “radio the tower” calls the jet', /Tower|tower/.test(await a.evaluate(() => window.__isle.duncan.said()) || ''));
+  const sp0 = (await a.evaluate(() => window.__isle.duncan.log())).express || 0;
+  await a.evaluate(() => window.__isle.duncan.spot('express'));
+  check('Flapper is a plane spotter: he logs every sighting', ((await a.evaluate(() => window.__isle.duncan.log())).express || 0) === sp0 + 1 && /EXPRESS/.test(await a.evaluate(() => window.__isle.duncan.said()) || ''));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
