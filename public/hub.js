@@ -129,6 +129,8 @@ const LAB = { x0: 207, x1: 265, z0: 256, z1: 290, y0: 1, y1: 13, hx: 253.5, hz: 
 const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, iz0: 165, iz1: 175, iy0: 3, iy1: 6, sx0: 62, sx1: 63, sz0: 172, sz1: 173, top: 11 };
 // the Island Nations' hall under the meadow and its stairway (same numbers as public/index.html): nobody can change it
 const UNH = { x0: 50, x1: 72, z0: 100, z1: 116, y0: 2, y1: 11, sx0: 61, sx1: 62, sz0: 91, top: 14 };
+// the sky course's floating platforms over the meadow (same numbers as public/index.html): nobody can change them
+const COURSE = (() => { const a = [], cx = 80, cz = 96, R = 12, N = 18; for (let k = 0; k < N; k++) { const ang = k / N * Math.PI * 2, big = k === 0 || k === 6 || k === 12 || k === N - 1; a.push({ x: Math.round(cx + Math.cos(ang) * R), y: 42 + Math.round(Math.sin(k * 0.9) * 1.2), z: Math.round(cz + Math.sin(ang) * R), s: big ? 1 : 0 }); } return a; })();
 function thCell(x, y, z, L) {
   L = L || LAYOUTS.spread;
   const TH = L.TH, TH_ROOMS = L.TH_ROOMS, COT = L.COT, COT_ROOMS = L.COT_ROOMS;
@@ -149,6 +151,7 @@ function thCell(x, y, z, L) {
   // the owls' secret lab: the shell is fixed, owl owners may build inside
   if (inB(LAB)) return LAB.inside.some(inB) ? 'shared' : 'base';
   if (y >= LAB.y1 && y <= 45 && Math.hypot(x + 0.5 - LAB.hx, z + 0.5 - LAB.hz) < LAB.R + 1) return 'base';
+  if (COURSE.some((p) => y === p.y && Math.abs(x - p.x) <= p.s && Math.abs(z - p.z) <= p.s)) return 'base';
   if (inB(UNH) || (x >= UNH.sx0 - 1 && x <= UNH.sx1 + 1 && z >= UNH.sz0 && z < UNH.z0 && y >= 2 && y <= UNH.top)) return 'base';
   // Biscuit & Mochi's bunker: the shell and shaft are fixed, their owners may build inside
   if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) ? 'cottage' : 'base';
@@ -208,7 +211,7 @@ const SKIN_STYLES = {
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
   pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky'],
-  petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie'], petCollarStyle: ['none', 'plain', 'bell', 'bandana'], petSaddleStyle: ['none', 'plain', 'fancy']
+  petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie'], petCollarStyle: ['none', 'plain', 'bell', 'bandana', 'robe'], petSaddleStyle: ['none', 'plain', 'fancy']
 };
 const HEX6 = /^#[0-9a-f]{6}$/i, PX256 = /^[0-9a-f]{256}$/;
 function cleanSkin(raw) {
@@ -1036,7 +1039,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }

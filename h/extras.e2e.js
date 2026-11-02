@@ -893,6 +893,92 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
   }
+  {
+  // ----- the disguise kit -----
+  await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.bm.infilOff(); I.setSkin({ pet: 'hoot', shirt: '#ff0000' }); });
+  await a.evaluate(() => window.__isle.lab.use('disguise'));
+  check('the disguise kit makes you look like Pemberton', (await a.evaluate(() => window.__isle.disguise.mode())) === 'pemb');
+  await a.evaluate(() => window.__isle.lab.use('disguise'));
+  check('again, and you copy another player’s look (on your own, a test dummy’s)', (await a.evaluate(() => window.__isle.disguise.mode())) === 'player' && (await a.evaluate(() => window.__isle.mySkin.shirt)) !== '#ff0000' && (await a.evaluate(() => window.__isle.mySkin.pet)) === 'hoot');
+  await a.evaluate(() => window.__isle.lab.use('disguise'));
+  check('and again takes it off', !(await a.evaluate(() => window.__isle.disguise.mode())) && (await a.evaluate(() => window.__isle.mySkin.shirt)) === '#ff0000');
+
+  // ----- the secret library -----
+  const LS = await a.evaluate(() => window.__isle.lib.spot());
+  await a.evaluate((o) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = o.x0 + 1; P.y = o.y; P.z = o.z - 1.2; }, LS); await wait(300);
+  await a.evaluate((o) => { const P = window.__isle.player; P.x = o.x0 + 1; P.z = o.z + 0.5; }, LS);
+  check('the bookshelf is solid', !(await a.evaluate(() => window.__isle.roomy())));
+  await a.evaluate((o) => { const P = window.__isle.player; P.z = o.z - 1.2; }, LS);
+  const wrong = await a.evaluate(() => window.__isle.lib.pull(0));
+  check('pull the wrong book: it’s just a book', wrong === 'Knitting for Penguins' && !(await a.evaluate(() => window.__isle.lib.open())));
+  await a.evaluate(() => window.__isle.lib.pull(2));
+  check('pull “Owl Secrets” and the shelf swings open', await a.evaluate(() => window.__isle.lib.open()));
+  await a.evaluate((o) => { const P = window.__isle.player; P.x = o.x0 + 1; P.z = o.z + 0.5; P.y = o.y; }, LS);
+  const down = await a.waitForFunction(() => window.__isle.lib.inRoom(), null, { timeout: 20000 }).then(() => true).catch(() => false);
+  check('and you drop down into the hidden library', down);
+  const lp = await a.evaluate(() => window.__isle.lib.lectern());
+  const lc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate((p) => { const P = window.__isle.player; P.x = p.x + 1; P.z = p.z; P.y = p.y; }, lp); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('the big book of secrets (and a 25 coin bookmark)', (await a.evaluate(() => window.__isle.shop.coins())) === lc0 + 25);
+  const lpd = await a.evaluate(() => window.__isle.lib.pad());
+  await put(a, lpd.x, lpd.y, lpd.z); await wait(800);
+  await a.keyboard.down('Space'); await wait(250); await a.keyboard.up('Space');
+  const back = await a.waitForFunction(() => !window.__isle.lib.inRoom(), null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('the spring pad takes you back up to the hall', back);
+
+  // ----- the pet hotel -----
+  await a.evaluate(() => window.__isle.butler.ready());
+  const bp = await a.evaluate(() => window.__isle.butler.pose());
+  await a.evaluate((b) => { const P = window.__isle.player; P.x = b.x + 1.5; P.y = b.y; P.z = b.z; }, bp); await wait(200);
+  await a.evaluate(() => window.__isle.cmd('/hotel'));
+  check('/hotel by Pemberton checks your pet in', (await a.evaluate(() => window.__isle.hotel.pet())) === 'hoot' && (await a.evaluate(() => window.__isle.mySkin.pet)) === 'none');
+  await a.evaluate(() => window.__isle.cmd('/hotel'));
+  check('it needs a moment in the bath', (await a.evaluate(() => window.__isle.hotel.pet())) === 'hoot');
+  await a.evaluate(() => { const I = window.__isle; I.hotel.rush(); I.cmd('/hotel'); });
+  check('then it comes back wearing a tiny bathrobe', (await a.evaluate(() => window.__isle.mySkin.pet)) === 'hoot' && (await a.evaluate(() => window.__isle.mySkin.petCollarStyle)) === 'robe');
+  await a.evaluate(() => window.__isle.setSkin({ petCollarStyle: 'none' }));
+
+  // ----- Bazza FM -----
+  const rp = await a.evaluate(() => window.__isle.radio.at());
+  await put(a, rp.x + 1, rp.y, rp.z);
+  const onAir = await a.waitForFunction(() => !!window.__isle.radio.said(), null, { timeout: 20000 }).then(() => true).catch(() => false);
+  check('Bazza FM plays in the cottage garden', onAir && /📻/.test(await a.evaluate(() => window.__isle.radio.said()) || ''));
+  await a.keyboard.press('KeyE'); await wait(200);
+  check('E turns it off', !(await a.evaluate(() => window.__isle.radio.on())));
+  await a.keyboard.press('KeyE'); await wait(200);
+
+  // ----- the seagull mafia -----
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ hatStyle: 'cap' }); I.mafia.go(); });
+  check('wear a hat and the seagull mafia turns up', (await a.evaluate(() => window.__isle.mafia.on())) === 'talk');
+  const mc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('pay them 10 coins and your hat is safe', (await a.evaluate(() => window.__isle.shop.coins())) === mc0 - 10 && (await a.evaluate(() => window.__isle.mySkin.hatStyle)) === 'cap');
+  await wait(3000);
+  await a.evaluate(() => { const I = window.__isle; I.mafia.go(); I.mafia.rush(); }); await wait(600);
+  check('don’t pay and they steal it', (await a.evaluate(() => window.__isle.mySkin.hatStyle)) === 'none');
+  await wait(3500);
+
+  // ----- the sky course -----
+  const CL = await a.evaluate(() => window.__isle.course.list());
+  check('a sky course floats over the meadow', await a.evaluate((C) => C.every((p) => window.__isle.get(p.x, p.y, p.z) > 0), CL));
+  const cpd = await a.evaluate(() => window.__isle.course.pad);
+  await put(a, cpd.x, 13, cpd.z); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('E on the pad takes you up to the start', await a.evaluate((C) => { const P = window.__isle.player; return Math.hypot(P.x - C[0].x, P.z - C[0].z) < 2 && P.y > C[0].y; }, CL) && !!(await a.evaluate(() => window.__isle.course.run())));
+  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[1].x + 0.5; P.z = C[1].z + 0.5; P.y = C[1].y + 1; }, CL); await wait(800);
+  check('step off the start and the clock runs', (await a.evaluate(() => window.__isle.course.run().t0)) > 0);
+  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[6].x + 0.5; P.z = C[6].z + 0.5; P.y = C[6].y + 1; }, CL); await wait(800);
+  check('land on a checkpoint', (await a.evaluate(() => window.__isle.course.run().cp)) === 1);
+  await a.evaluate((C) => { const P = window.__isle.player; P.x = C[8].x + 3.5; P.z = C[8].z + 3.5; P.y = C[8].y - 2; }, CL); await wait(1500);
+  check('fall off and you’re back on the checkpoint', await a.evaluate((C) => { const P = window.__isle.player; return Math.hypot(P.x - C[6].x - 0.5, P.z - C[6].z - 0.5) < 2.5; }, CL));
+  await a.evaluate((C) => { const f = C[C.length - 1], P = window.__isle.player; P.x = f.x + 0.5; P.z = f.z + 0.5; P.y = f.y + 1; }, CL); await wait(1000);
+  check('reach the finish and your time is kept', !(await a.evaluate(() => window.__isle.course.run())) && (await a.evaluate(() => window.__isle.course.best())) > 0);
+  await wait(3000);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
