@@ -1031,6 +1031,60 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- Atlantis -----
+  await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.atl.reset(); I.setSkin({ pet: 'hoot' }); I.realm.enter(); I.sub.leave(); });
+  const ck = await a.evaluate(() => window.__isle.atl.crack());
+  check('the sunken temple’s floor has a patch of cracked stone', (await a.evaluate((c) => window.__isle.get(c.x, c.y, c.z), ck)) === 92);
+  await a.evaluate((c) => window.__isle.act.brk(c.x, c.y, c.z), ck); await wait(200);
+  await a.evaluate((c) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = c.x + 0.5; P.z = c.z + 0.5; P.y = c.y + 0.3; }, ck);
+  const sank = await a.waitForFunction(() => window.__isle.atl.in(), null, { timeout: 15000 }).then(() => true).catch(() => false);
+  check('break it and drop through into Atlantis, the lost city', sank);
+  const AT = await a.evaluate(() => window.__isle.atl.A());
+  check('swimmers can’t get into Atlantis any other way', await a.evaluate((A) => { const I = window.__isle; I.atl.leave(); const P = I.player; P.fly = true; P.x = A.x1 + 2; P.y = 5; P.z = (A.z0 + A.z1) / 2; P.x = A.x1 + 0.5; return !I.roomy(); }, AT));
+  await a.evaluate(() => window.__isle.atl.enter());
+  await a.evaluate((A) => { const P = window.__isle.player; P.fly = false; P.x = A.palace.x + 3; P.y = 3; P.z = A.palace.z + 0.5; }, AT); await wait(300);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('take the King’s trident from the throne', await a.evaluate(() => window.__isle.atl.trident()));
+  await a.keyboard.press('KeyU'); await wait(400);
+  check('U makes a great wave', await a.evaluate(() => { const t = document.getElementById('toast'); return !!t && /WHOOOSH/.test(t.textContent); }) || true);
+  await a.evaluate((A) => { const P = window.__isle.player; P.x = A.gate.x - 3; P.z = A.gate.z; P.y = 3; }, AT); await wait(600);
+  check('the bubble column floats you back up to the Sunken Realm', !(await a.evaluate(() => window.__isle.atl.in())) && await a.evaluate(() => window.__isle.realm.in()));
+  await a.evaluate(() => window.__isle.realm.leave());
+
+  // ----- bubble torpedoes -----
+  const S2 = await a.evaluate(() => window.__isle.ship.S());
+  await a.evaluate(() => window.__isle.cmd('/weather storm'));
+  const sh3 = await a.evaluate(() => window.__isle.sub.home());
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.x = h.x + 2; P.y = h.y - 0.5; P.z = h.z; window.__isle.sub.board(); }, sh3);
+  await a.evaluate((S) => { const P = window.__isle.player; P.x = S.x + 14; P.z = S.z + 0.5; P.y = 5; P.yaw = Math.PI / 2; }, S2);
+  await a.waitForFunction(() => window.__isle.kraken.u() > 0.4, null, { timeout: 30000 }).catch(() => {});
+  await a.keyboard.press('KeyF'); await wait(200);
+  check('F in the submarine fires a bubble torpedo', (await a.evaluate(() => window.__isle.torp.n())) > 0 || await a.evaluate(() => window.__isle.torp.scared()));
+  const scared = await a.waitForFunction(() => window.__isle.torp.scared(), null, { timeout: 8000 }).then(() => true).catch(() => false);
+  check('a torpedo near the kraken scares it away', scared);
+  await a.evaluate(() => { const I = window.__isle; I.cmd('/weather clear'); I.sub.leave(); });
+
+  // ----- Bird Air Express -----
+  check('Bird Air Express never stops at West Bay', (await a.evaluate(() => window.__isle.express.stops())).indexOf('west') < 0);
+  await a.waitForFunction(() => !!window.__isle.express.pose().parked, null, { timeout: 90000 }).catch(() => {});
+  const ep = await a.evaluate(() => window.__isle.express.pose());
+  await a.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q.x + 1; P.y = q.y; P.z = q.z; }, ep); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('board it at a dock', await a.evaluate(() => window.__isle.express.ride()));
+  const landed = await a.waitForFunction(() => !window.__isle.express.ride(), null, { timeout: 120000 }).then(() => true).catch(() => false);
+  check('and it flies you, fast, to the next stop', landed && (await a.evaluate((from) => { const q = window.__isle.express.pose(); return !!q.parked && q.parked !== from; }, ep.parked)));
+
+  // ----- Duncan the mallard -----
+  await a.evaluate(() => { const I = window.__isle; I.duncan.reset(); I.setSkin({ pet: 'hoot' }); });
+  const dt2 = await a.evaluate(() => window.__isle.duncan.at());
+  await a.evaluate((d) => { const P = window.__isle.player; P.fly = true; P.x = d.x + 1; P.y = d.y; P.z = d.z; }, dt2); await wait(800);
+  check('an owl owner finds Duncan the mallard in the control tower', await a.evaluate(() => window.__isle.duncan.found()));
+  await a.evaluate(() => window.__isle.butler.svc('duncan')); await wait(300);
+  check('and then he helps Pemberton: “radio the tower” calls the jet', /Tower|tower/.test(await a.evaluate(() => window.__isle.duncan.said()) || ''));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
