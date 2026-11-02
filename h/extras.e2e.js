@@ -1085,7 +1085,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('KeyE'); await wait(300);
   check('board it at a dock', await a.evaluate(() => window.__isle.express.ride()));
   const landed = await a.waitForFunction(() => !window.__isle.express.ride(), null, { timeout: 120000 }).then(() => true).catch(() => false);
-  check('and it flies you, fast, to the next stop', landed && (await a.evaluate((from) => { const q = window.__isle.express.pose(); return !!q.parked && q.parked !== from; }, ep.parked)));
+  await wait(1500);
+  check('and it flies you, fast, to the next stop (or crashes)', landed && (await a.evaluate((from) => { const I = window.__isle, q = I.express.pose(), P = I.player, b = I.crash.beach(); return (!!q.parked && q.parked !== from) || q.gone || Math.hypot(P.x - b.x, P.z - b.z) < 2; }, ep.parked)));
 
   // ----- Flapper the mallard -----
   await a.evaluate(() => { const I = window.__isle; I.duncan.reset(); I.setSkin({ pet: 'hoot' }); });
@@ -1097,6 +1098,24 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const sp0 = (await a.evaluate(() => window.__isle.duncan.log())).express || 0;
   await a.evaluate(() => window.__isle.duncan.spot('express'));
   check('Flapper is a plane spotter: he logs every sighting', ((await a.evaluate(() => window.__isle.duncan.log())).express || 0) === sp0 + 1 && /EXPRESS/.test(await a.evaluate(() => window.__isle.duncan.said()) || ''));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- Bird Air Express crashing -----
+  await a.waitForFunction(() => !!window.__isle.express.pose().parked, null, { timeout: 120000 }).catch(() => {});
+  const eq = await a.evaluate(() => window.__isle.express.pose());
+  await a.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q.x + 1; P.y = q.y; P.z = q.z; }, eq); await wait(200);
+  await a.evaluate(() => window.__isle.express.board());
+  const cr0 = await a.evaluate(() => window.__isle.silly.crashes());
+  await a.evaluate(() => window.__isle.express.crash()); await wait(500);
+  check('when Bird Air Express crashes, it goes down in a huge explosion and you wake up on East Beach', !(await a.evaluate(() => window.__isle.express.ride())) && (await a.evaluate(() => window.__isle.silly.crashes())) === cr0 + 1 && await a.evaluate(() => { const I = window.__isle, P = I.player, b = I.crash.beach(); return Math.hypot(P.x - b.x, P.z - b.z) < 2; }));
+  await a.waitForFunction(() => window.__isle.mail.pending() > 0, null, { timeout: 10000 }).catch(() => {});
+  const mb2 = await a.evaluate(() => window.__isle.mail.at());
+  await a.evaluate((m) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = m.x + 1; P.y = m.y; P.z = m.z; }, mb2); await wait(300);
+  let lt = '';
+  for (let k = 0; k < 4 && !/EXPRESS/.test(lt); k++) { await a.keyboard.press('KeyE'); await wait(400); lt = await a.evaluate(() => { const el = document.getElementById('letter'); return el && !el.hidden ? el.textContent : ''; }); await a.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); }); }
+  check('and Bird Air Express sends a different letter', /BIRD AIR EXPRESS/.test(lt) && /West Bay/.test(lt), lt.slice(0, 120));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
