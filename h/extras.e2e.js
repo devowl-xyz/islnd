@@ -946,8 +946,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, rp.x + 1, rp.y, rp.z);
   const onAir = await a.waitForFunction(() => !!window.__isle.radio.said(), null, { timeout: 20000 }).then(() => true).catch(() => false);
   check('Bazza FM plays in the cottage garden', onAir && /📻/.test(await a.evaluate(() => window.__isle.radio.said()) || ''));
-  await a.keyboard.press('KeyE'); await wait(200);
-  check('E turns it off', !(await a.evaluate(() => window.__isle.radio.on())));
+  await put(a, rp.x + 1, rp.y, rp.z); await wait(600);
+  await a.keyboard.press('KeyE');
+  check('E turns it off', await a.waitForFunction(() => !window.__isle.radio.on(), null, { timeout: 4000 }).then(() => true).catch(() => false));
   await a.keyboard.press('KeyE'); await wait(200);
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
 
@@ -979,6 +980,54 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate((C) => { const f = C[C.length - 1], P = window.__isle.player; P.x = f.x + 0.5; P.z = f.z + 0.5; P.y = f.y + 1; }, CL); await wait(1000);
   check('reach the finish and your time is kept', !(await a.evaluate(() => window.__isle.course.run())) && (await a.evaluate(() => window.__isle.course.best())) > 0);
   await wait(3000);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- the new submarine and the Sunken Realm -----
+  await a.evaluate(() => { const I = window.__isle; I.bm.calm(); I.setSkin({ pet: 'none' }); });
+  check('the submarine has an inside as well as an outside', await a.evaluate(() => window.__isle.sub2.inner()));
+  const RM = await a.evaluate(() => window.__isle.realm.R());
+  await a.evaluate((R) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = R.x1 + 3; P.y = 5; P.z = (R.z0 + R.z1) / 2; }, RM); await wait(300);
+  await a.evaluate((R) => { const P = window.__isle.player; P.x = R.x1 + 0.5; }, RM);
+  check('swimmers can’t get into the realm: a current pushes them back', !(await a.evaluate(() => window.__isle.roomy())));
+  const sh2 = await a.evaluate(() => window.__isle.sub.home());
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.x = h.x + 2; P.y = h.y - 0.5; P.z = h.z; }, sh2); await wait(200);
+  await a.evaluate(() => window.__isle.sub.board());
+  await a.evaluate(() => { const P = window.__isle.player; P.x = 2.2; P.z = 120; P.y = 5; }); await wait(1200);
+  check('sail the sub to the edge of the map and you’re sucked down into the Sunken Realm', await a.evaluate(() => window.__isle.realm.in()) && await a.evaluate((R) => { const P = window.__isle.player; return P.x > R.x0 && P.x < R.x1 && P.z > R.z0 && P.z < R.z1; }, RM));
+  check('nobody sees you on the map down there', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.lab.hidden(P.x, P.y, P.z); }));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('you can climb out of the sub and swim about', !(await a.evaluate(() => window.__isle.sub.state().on)) && await a.evaluate(() => window.__isle.player.y < 10));
+  const cl = await a.evaluate(() => window.__isle.realm.clam());
+  await a.evaluate((c) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = c.x + 1.5; P.y = c.y; P.z = c.z; }, cl); await wait(200);
+  const pc0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('a giant clam in the sunken temple with a 75 coin pearl', (await a.evaluate(() => window.__isle.shop.coins())) === pc0 + 75);
+  const dd = await a.evaluate(() => window.__isle.realm.dome());
+  await a.evaluate((d) => { const P = window.__isle.player; P.x = d.x; P.y = d.y; P.z = d.z - 1; }, dd); await wait(200);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('the airlock lets you into the air dome', await a.evaluate((R) => { const P = window.__isle.player, d = R.dome; return Math.hypot(P.x - d.cx, P.z - d.cz) < d.R && window.__isle.water(Math.floor(P.x), Math.floor(P.y + 0.5), Math.floor(P.z)) === 0; }, RM));
+  const ax = await a.evaluate(() => window.__isle.pets.home.axel);
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.x = h.x + 1; P.z = h.z; P.y = window.__isle.realm.R().dome.fy; }, ax); await wait(400);
+  check('where Axel the axolotl, a secret pet, lives', (await a.evaluate(() => window.__isle.pets.near())) === 'axel');
+  await a.evaluate(() => window.__isle.pets.adopt('axel'));
+  check('and you can adopt Axel', (await a.evaluate(() => window.__isle.mySkin.pet)) === 'axel');
+  await a.evaluate(() => window.__isle.realm.leave());
+  check('the whirlpool takes you home', !(await a.evaluate(() => window.__isle.realm.in())));
+  await a.evaluate(() => window.__isle.sub.leave());
+
+  // ----- Gruff the goat -----
+  const gh = await a.evaluate(() => window.__isle.pets.home.goat);
+  check('Gruff the goat lives on the highest peak of the southern mountains', !!gh && gh.y > 30, gh);
+  await put(a, gh.x + 1, gh.y, gh.z); await wait(400);
+  await a.evaluate(() => window.__isle.pets.adopt('goat'));
+  check('you can adopt Gruff', (await a.evaluate(() => window.__isle.mySkin.pet)) === 'goat');
+  await put(a, 80.5, 13, 92.5); await wait(800);
+  await a.evaluate(() => window.__isle.power.T());
+  check('T is Gruff’s mighty leap', (await a.evaluate(() => window.__isle.player.vy)) > 10);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await wait(1500);
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
