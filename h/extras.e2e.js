@@ -1082,7 +1082,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => !!window.__isle.express.pose().parked, null, { timeout: 90000 }).catch(() => {});
   const ep = await a.evaluate(() => window.__isle.express.pose());
   await a.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q.x + 1; P.y = q.y; P.z = q.z; }, ep); await wait(200);
-  await a.keyboard.press('KeyE'); await wait(300);
+  await a.evaluate(() => window.__isle.express.board()); await wait(300);
   check('board it at a dock', await a.evaluate(() => window.__isle.express.ride()));
   const landed = await a.waitForFunction(() => !window.__isle.express.ride(), null, { timeout: 120000 }).then(() => true).catch(() => false);
   await wait(1500);
@@ -1116,6 +1116,24 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   let lt = '';
   for (let k = 0; k < 4 && !/EXPRESS/.test(lt); k++) { await a.keyboard.press('KeyE'); await wait(400); lt = await a.evaluate(() => { const el = document.getElementById('letter'); return el && !el.hidden ? el.textContent : ''; }); await a.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); }); }
   check('and Bird Air Express sends a different letter', /BIRD AIR EXPRESS/.test(lt) && /West Bay/.test(lt), lt.slice(0, 120));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- flying Bird Air Express -----
+  await a.evaluate(() => window.__isle.bm.calm());
+  await a.waitForFunction(() => { const q = window.__isle.express.pose(); return !!q.parked && q.left > 14; }, null, { timeout: 180000 }).catch(() => {});
+  await a.evaluate(() => window.__isle.cmd('/tp express')); await wait(300);
+  check('/tp express takes you to the red jet', await a.evaluate(() => { const q = window.__isle.express.pose(), P = window.__isle.player; return Math.hypot(P.x - q.x, P.z - q.z) < 6; }));
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('E takes the controls, and you sit in the cockpit', await a.evaluate(() => window.__isle.express.ride() && !!window.__isle.express.fly()));
+  const f0 = await a.evaluate(() => window.__isle.express.fly());
+  await a.keyboard.down('KeyW'); await a.keyboard.down('Space'); await wait(3000); await a.keyboard.up('Space'); await a.keyboard.up('KeyW');
+  const f1 = await a.evaluate(() => window.__isle.express.fly());
+  check('W opens the throttle, Space climbs: you’re flying it', !!f1 && Math.hypot(f1.x - f0.x, f1.z - f0.z) > 5 && f1.spd > 5, [f0, f1]);
+  check('sitting in your seat as it goes', await a.evaluate(() => { const P = window.__isle.player, f = window.__isle.express.fly(); return !!f && Math.hypot(P.x - f.x, P.z - f.z) < 5; }));
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('E gets you out, and it goes back to its timetable', !(await a.evaluate(() => window.__isle.express.ride())) && !(await a.evaluate(() => window.__isle.express.fly())));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
