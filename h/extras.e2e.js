@@ -921,6 +921,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate((p) => { const P = window.__isle.player; P.x = p.x + 1; P.z = p.z; P.y = p.y; }, lp); await wait(200);
   await a.keyboard.press('KeyE'); await wait(300);
   check('the big book of secrets (and a 25 coin bookmark)', (await a.evaluate(() => window.__isle.shop.coins())) === lc0 + 25);
+  check('the library has its own gadgets', (await a.evaluate(() => window.__isle.lab.gadgets().filter((g) => ['riches', 'atlas', 'potion', 'oracle'].indexOf(g.id) >= 0).length)) === 4);
+  try { await a.evaluate(() => localStorage.removeItem('voxel-isle-riches')); } catch (e) {}
+  const rc1 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.lab.use('riches'));
+  check('the Book of Riches: 300 coins', (await a.evaluate(() => window.__isle.shop.coins())) === rc1 + 300);
+  await a.evaluate(() => window.__isle.lab.use('oracle'));
+  check('the crystal ball shows where everyone is', (await a.evaluate(() => window.__isle.chatLines().filter((l) => /crystal ball/.test(l)).length)) > 0);
+  await a.evaluate(() => window.__isle.lab.use('atlas')); await wait(300);
+  check('the Secret Atlas teleports you to the secret places (first, the lab)', await a.evaluate(() => window.__isle.lab.inside()));
+  await a.evaluate(() => window.__isle.lab.use('potion'));
+  const lpd0 = await a.evaluate(() => window.__isle.lib.pad());
+  await put(a, lpd0.x, lpd0.y, lpd0.z); await wait(300);
   const lpd = await a.evaluate(() => window.__isle.lib.pad());
   await put(a, lpd.x, lpd.y, lpd.z); await wait(800);
   await a.keyboard.down('Space'); await wait(250); await a.keyboard.up('Space');
