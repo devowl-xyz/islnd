@@ -1,5 +1,5 @@
 /*
-  Voxel Isle room rules, shared by the Node server (server.js) and by a host's
+  ISLND room rules, shared by the Node server (server.js) and by a host's
   browser when a room runs without a server (peer-to-peer).
   createHub() gives one hub: its rooms, and handle/leave for its peers.
   A peer's ws only needs readyState (1 = open) and send(string).

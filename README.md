@@ -1,6 +1,8 @@
-# Voxel Isle
+# ISLND
 
 A third-person voxel sandbox with a smooth, toy-like look (soft rounded block textures, round characters), in one HTML file, plus a small Node server for multiplayer rooms.
+
+**The ISLND look.** The start screen is a black-and-white poster: ISLND right across the top, *WASD — Control your character.*, and a black ribbon button to play. Everything in the game is black and white with sharp edges: the HUD, toasts, chat, the hotbar and block picker, the shop and Pemberton's menu, the map, name tags and speech bubbles. Big headers use **HORIZON** and everything else, speech included, uses **Cy Grotesk V3 Key**. Neither is a free web font, so the game uses them when they're installed on the computer, or when the font files are put in `public/fonts/` (`horizon.woff2` or `.otf`, and `cy-grotesk-key.woff2` or `.otf`). Otherwise it uses the nearest free fonts: Unbounded for HORIZON and Lexend Giga for Cy Grotesk Key. Saves still use the old `voxel-isle-` names, so nobody loses their island.
 
 The camera sits over your right shoulder and pulls in when a block is in the way. Press **V** (or the **View** touch button) to switch to first person. Aiming casts from the camera through the crosshair, limited to 6 blocks from the player.
 
