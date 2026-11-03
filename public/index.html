@@ -611,7 +611,7 @@ function cellTop(b){return b===0||b===B.WATER||b===B.LAVA||b===B.SIGN||doorOpen(
 const CARPET_H=0.0625;
 const NAMES=['Air','Grass','Dirt','Stone','Sand','Log','Leaves','Planks','Brick','Glass','Concrete','Lamp','Water',
   'Clay','Gravel','Deepstone','Granite','Basalt','Coal ore','Copper ore','Iron ore','Crystal','Bedrock','Sandstone','Marble','Gold','Snow',
-  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence','Wood slab','Stone slab','Wood stairs','Wood stairs','Wood stairs','Wood stairs','Stone stairs','Stone stairs','Stone stairs','Stone stairs','Slide','Slide','Slide','Slide'],PAINTS.map(function(p){return p[1]+' wool';}),PAINTS.map(function(p){return p[1]+' carpet';}),['Glass pane','Zip line post','Ostrich egg','Obsidian','Magma','Lava','Cracked stone','Redstone wire','Redstone wire','Lever','Lever','Button','Button','Pressure plate','Pressure plate','Redstone block','Redstone lamp','Redstone lamp','NOT gate','NOT gate','NOT gate','NOT gate','Delay','Delay','Delay','Delay','TNT','Note block'].concat(Array(12).fill('Piston'),Array(12).fill('Sticky piston'),Array(12).fill('Piston head'),Array(6).fill('Observer')));
+  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence','Wood slab','Stone slab','Wood stairs','Wood stairs','Wood stairs','Wood stairs','Stone stairs','Stone stairs','Stone stairs','Stone stairs','Slide','Slide','Slide','Slide'],PAINTS.map(function(p){return p[1]+' wool';}),PAINTS.map(function(p){return p[1]+' carpet';}),['Glass pane','Zip line post','Ostrich egg','Obsidian','Magma','Lava','Cracked stone','Spark wire','Spark wire','Lever','Lever','Button','Button','Pressure plate','Pressure plate','Redstone block','Redstone lamp','Redstone lamp','NOT gate','NOT gate','NOT gate','NOT gate','Delay','Delay','Delay','Delay','TNT','Note block'].concat(Array(12).fill('Piston'),Array(12).fill('Sticky piston'),Array(12).fill('Piston head'),Array(6).fill('Observer')));
 const HOTBAR=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANKS,B.BRICK,B.GLASS,B.WHITE,B.LAMP,B.WATER];
 /* everything in the block picker, in order */
 const PICKS=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.SANDSTONE,B.SNOW,B.LOG,B.PLANKS,B.LEAVES,B.BRICK,B.WHITE,B.GLASS,B.LAMP,B.WATER,B.LAVA,B.BED,B.DOOR,B.SIGN,B.FENCE,B.SLAB_WOOD,B.SLAB_STONE,B.STAIR_WOOD,B.STAIR_STONE,B.SLIDE,B.PANE,B.ZIP,
@@ -1062,6 +1062,9 @@ paint(33,function(u,v){const n=pf(u,v,331),vo=vor(u,v,3,333),cr=1-smooth(0.0,0.0
 /* redstone: dull red dust, bright red dust, a circuit-board block, a lamp off and on, TNT, a note block */
 paint(64,function(u,v){const n=pf(u,v,641);return mixc([92,14,12],[138,26,20],n);});
 paint(65,function(u,v){const n=pf(u,v,651);return mixc([236,36,24],[255,140,100],n);});
+/* spark wire: a dull blue-green dust, and bright glowing blue-green when it carries power */
+paint(79,function(u,v){const n=pf(u,v,791);return mixc([14,72,78],[26,108,110],n);});
+paint(80,function(u,v){const n=pf(u,v,801);return mixc([30,214,200],[150,255,236],n);});
 paint(66,function(u,v){const n=pf(u,v,661),ln=1-smooth(0.02,0.06,0.5-Math.max(Math.abs((u*4)%1-0.5),Math.abs((v*4)%1-0.5)));return mulc(mixc(mixc([168,22,20],[206,44,34],n),[255,120,100],ln*0.6),bev(u,v,1.3));});
 paint(67,function(u,v){const n=pf(u,v,671),vo=vor(u,v,4,673),edge=Math.max(Math.abs(u-0.5),Math.abs(v-0.5))>0.4;return edge?mulc([70,46,30],0.9+0.2*n):mixc([86,58,38],[130,92,58],smooth(0,0.15,vo.d2-vo.d1)*0.6+n*0.4);});
 paint(68,function(u,v){const n=pf(u,v,681),vo=vor(u,v,4,683),edge=Math.max(Math.abs(u-0.5),Math.abs(v-0.5))>0.4;return edge?mulc([110,70,40],0.9+0.2*n):mixc([255,190,80],[255,246,190],smooth(0,0.15,vo.d2-vo.d1)*0.7+n*0.3);});
@@ -1110,7 +1113,7 @@ BT[B.SLAB_WOOD]=[8,8,8];BT[B.SLAB_STONE]=[3,3,3];
 for(let k=0;k<4;k++){BT[B.STAIR_WOOD+k]=[8,8,8];BT[B.STAIR_STONE+k]=[3,3,3];BT[B.SLIDE+k]=[36,36,36];}
 for(let k=0;k<12;k++){BT[B.WOOL+k]=BT[B.CARPET+k]=[49+k,49+k,49+k];}
 BT[B.PANE]=[10,10,10];BT[B.ZIP]=[6,6,5];BT[B.EGG]=[61,61,61];BT[B.OBSIDIAN]=[62,62,62];BT[B.MAGMA]=[63,63,63];BT[B.LAVA]=[63,63,63];BT[B.CRACKED]=[33,33,33];
-BT[B.WIRE]=[64,64,64];BT[B.WIRE_ON]=[65,65,65];BT[B.LEVER]=BT[B.LEVER_ON]=BT[B.BUTTON]=BT[B.BUTTON_ON]=BT[B.PLATE]=BT[B.PLATE_ON]=[3,3,3];
+BT[B.WIRE]=[79,79,79];BT[B.WIRE_ON]=[80,80,80];BT[B.LEVER]=BT[B.LEVER_ON]=BT[B.BUTTON]=BT[B.BUTTON_ON]=BT[B.PLATE]=BT[B.PLATE_ON]=[3,3,3];
 BT[B.RSBLOCK]=[66,66,66];BT[B.RLAMP]=[67,67,67];BT[B.RLAMP_ON]=[68,68,68];for(let k=0;k<8;k++)BT[B.NOTG+k]=[3,3,3];BT[B.TNT]=[70,70,69];BT[B.NOTE]=[71,71,71];
 for(let k=0;k<12;k++){BT[B.PISTON+k]=[8,73,72];BT[B.STICKY+k]=[74,73,72];BT[B.HEAD+k]=[8,8,8];}for(let k=0;k<6;k++)BT[B.OBSERVER+k]=[78,78,75];
 
@@ -14218,7 +14221,7 @@ function rsShape(out,b,x,y,z,x0,z0,lt){
   const T=function(t){return[t,t,t,t,t,t];},glow=Math.max(lt,LCURVE[15]);
   const A=function(a,c,t,l){addBox(out,x,y,z,x0,z0,a,c,T(t),l||lt);};
   if(isWireB(b)){
-    const on=b===B.WIRE_ON,t=on?64+1:64,l=on?glow:lt,h=0.04,w=0.14;
+    const on=b===B.WIRE_ON,t=on?80:79,l=on?glow:lt,h=0.04,w=0.14;
     const link=function(dx,dz){const n=get(x+dx,y,z+dz);if(rsLinks(n))return 1;if(isWireB(get(x+dx,y-1,z+dz))&&!solidB(n))return 1;if(isWireB(get(x+dx,y+1,z+dz))&&!solidB(get(x,y+1,z)))return 2;return 0;};
     const e=link(1,0),wv=link(-1,0),s=link(0,1),n=link(0,-1),any=e||wv||s||n;
     const E=e||(wv&&!s&&!n)||!any,Wd=wv||(e&&!s&&!n)||!any,S=s||(n&&!e&&!wv)||!any,N=n||(s&&!e&&!wv)||!any;
@@ -14266,7 +14269,7 @@ function rsShape(out,b,x,y,z,x0,z0,lt){
 function rsIcon(c,k,b){
   c.save();c.setTransform(k,0,0,k,0,0);
   const R=function(x,y,w,h,col){c.fillStyle=col;c.fillRect(x,y,w,h);};
-  if(isWireB(b)){R(6,28,52,8,'#b81818');R(28,6,8,52,'#b81818');R(24,24,16,16,'#d02020');}
+  if(isWireB(b)){R(6,28,52,8,'#178f86');R(28,6,8,52,'#178f86');R(24,24,16,16,'#22c2b2');}
   else if(b===B.LEVER||b===B.LEVER_ON){R(12,44,40,12,'#8a8a90');R(29,16,6,30,'#9a6a3a');R(25,10,14,10,'#e03030');}
   else if(b===B.BUTTON||b===B.BUTTON_ON){R(24,28,16,28,'#8a8a90');R(18,20,28,10,'#e03030');}
   else if(b===B.PLATE||b===B.PLATE_ON){R(6,44,52,8,'#a8a8ae');R(6,52,52,4,'#6a6a70');}

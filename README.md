@@ -254,7 +254,7 @@ Take the King's trident from the throne (**E**) and from then on **U** makes a g
 
 **Redstone.** The block picker has a set of redstone parts for building circuits:
 
-- **Redstone wire** lies flat on the ground and joins up with the wire and parts beside it. It also runs up or down one block, so it can climb a staircase. It glows red when it carries power, and the power gets one weaker each block, so a signal reaches 15 blocks.
+- **Spark wire** lies flat on the ground and joins up with the wire and parts beside it. It also runs up or down one block, so it can climb a staircase. It's a dull blue-green, and glows bright blue-green when it carries power, and the power gets one weaker each block, so a signal reaches 15 blocks.
 - **Lever:** right-click to flip it on or off.
 - **Button:** right-click to press it. It stays on for a second, then pops back up.
 - **Pressure plate:** on while anyone stands on it.
