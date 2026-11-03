@@ -1241,6 +1241,54 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- pistons and observers -----
+  const MB = await a.evaluate(() => { const I = window.__isle, n = {}; for (const k of ['PISTON', 'PISTON_ON', 'STICKY', 'STICKY_ON', 'HEAD', 'SHEAD', 'OBSERVER', 'LEVER', 'STONE', 'OBSIDIAN', 'WIRE', 'RLAMP', 'RLAMP_ON', 'PLANKS']) n[k] = I.blockId(k); return n; });
+  check('pistons, sticky pistons and observers are in the block picker', await a.evaluate((M) => ['PISTON', 'STICKY', 'OBSERVER'].every((k) => window.__isle.picker.picks.indexOf(M[k]) >= 0), MB));
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  const S = (x, y, z, b) => a.evaluate((q) => window.__isle.setBlock(q[0], q[1], q[2], q[3]), [x, y, z, b]);
+  const G = (x, y, z) => a.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [x, y, z]);
+  const ticks = (n) => a.evaluate((n) => { for (let k = 0; k < n; k++) window.__isle.rs.step(); }, n);
+  const flip = (x, y, z) => a.evaluate((q) => window.__isle.rs.use(q[0], q[1], q[2]), [x, y, z]);
+  // a piston pushing two blocks
+  await S(66, 13, 106, MB.LEVER); await S(67, 13, 106, MB.PISTON + 1); await S(68, 13, 106, MB.STONE); await S(69, 13, 106, MB.PLANKS);
+  await ticks(2); await flip(66, 13, 106); await ticks(2);
+  const pushed = [await G(67, 13, 106), await G(68, 13, 106), await G(69, 13, 106), await G(70, 13, 106)];
+  check('a powered piston pushes out and shoves the blocks in front along one', pushed[0] === MB.PISTON_ON + 1 && pushed[1] === MB.HEAD + 1 && pushed[2] === MB.STONE && pushed[3] === MB.PLANKS, pushed);
+  await flip(66, 13, 106); await ticks(2);
+  check('and pulls back when the power goes, leaving them there', (await G(67, 13, 106)) === MB.PISTON + 1 && (await G(68, 13, 106)) === 0 && (await G(69, 13, 106)) === MB.STONE);
+  // sticky
+  await S(66, 13, 108, MB.LEVER); await S(67, 13, 108, MB.STICKY + 1); await S(68, 13, 108, MB.STONE);
+  await ticks(2); await flip(66, 13, 108); await ticks(2);
+  const sOut = [await G(68, 13, 108), await G(69, 13, 108)];
+  await flip(66, 13, 108); await ticks(2);
+  check('a sticky piston pulls its block back with it', sOut[0] === MB.SHEAD + 1 && sOut[1] === MB.STONE && (await G(68, 13, 108)) === MB.STONE && (await G(69, 13, 108)) === 0 && (await G(67, 13, 108)) === MB.STICKY + 1, sOut);
+  // obsidian won't budge
+  await S(66, 13, 110, MB.LEVER); await S(67, 13, 110, MB.PISTON + 1); await S(68, 13, 110, MB.OBSIDIAN);
+  await ticks(2); await flip(66, 13, 110); await ticks(2);
+  check('obsidian can’t be pushed', (await G(67, 13, 110)) === MB.PISTON + 1 && (await G(68, 13, 110)) === MB.OBSIDIAN, [await G(66, 13, 110), await G(67, 13, 110), await G(68, 13, 110), await G(69, 13, 110)]);
+  // wire gets crushed
+  await S(66, 13, 112, MB.LEVER); await S(67, 13, 112, MB.PISTON + 1); await S(68, 13, 112, MB.WIRE);
+  await ticks(2); await flip(66, 13, 112); await ticks(2);
+  check('wire in the way gets crushed', (await G(68, 13, 112)) === MB.HEAD + 1 && (await G(69, 13, 112)) === 0);
+  // breaking the head takes the piston too
+  await a.evaluate(() => window.__isle.act.brk(68, 13, 112)); await ticks(1);
+  check('breaking a piston’s head breaks the piston too', (await G(68, 13, 112)) === 0 && (await G(67, 13, 112)) === 0);
+  // a piston facing up launches you
+  await S(63, 13, 84, MB.LEVER); await S(64, 13, 84, MB.PISTON + 4); await ticks(2);
+  await put(a, 64.5, 14, 84.5);
+  const y0 = await a.evaluate(() => window.__isle.player.y);
+  await flip(63, 13, 84); await ticks(1);
+  const up = await a.evaluate(() => ({ y: window.__isle.player.y, vy: window.__isle.player.vy }));
+  check('a piston pointing up pushes you up with it', (await G(64, 14, 84)) === MB.HEAD + 4 && up.y >= y0 + 0.9, [y0, up]);
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  // observer: watches east, fires out of its back into a lamp
+  await S(65, 13, 80, MB.RLAMP); await S(66, 13, 80, MB.OBSERVER + 1); await ticks(3);
+  const ob = await a.evaluate(() => { const I = window.__isle, r = [I.get(65, 13, 80)]; I.setBlock(67, 13, 80, I.blockId('STONE')); I.rs.step(); r.push(I.get(65, 13, 80)); for (let k = 0; k < 4; k++) I.rs.step(); r.push(I.get(65, 13, 80)); return r; });
+  check('an observer gives a short pulse when the block in front of it changes', ob[0] === MB.RLAMP && ob[1] === MB.RLAMP_ON && ob[2] === MB.RLAMP, ob);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
