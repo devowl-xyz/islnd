@@ -1128,12 +1128,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('KeyE'); await wait(400);
   check('E takes the controls, and you sit in the cockpit', await a.evaluate(() => window.__isle.express.ride() && !!window.__isle.express.fly()));
   const f0 = await a.evaluate(() => window.__isle.express.fly());
+  check('it starts at 25% throttle, like the old jet', Math.abs(f0.thr - 0.25) < 0.01, f0);
   await a.keyboard.down('KeyW'); await a.keyboard.down('Space'); await wait(3000); await a.keyboard.up('Space'); await a.keyboard.up('KeyW');
   const f1 = await a.evaluate(() => window.__isle.express.fly());
-  check('W opens the throttle, Space climbs: you’re flying it', !!f1 && Math.hypot(f1.x - f0.x, f1.z - f0.z) > 5 && f1.spd > 5, [f0, f1]);
+  check('W opens the throttle and it flies off', !!f1 && f1.thr > f0.thr && Math.hypot(f1.x - f0.x, f1.z - f0.z) > 3, [f0, f1, await a.evaluate(() => window.__isle.express.why())]);
   check('sitting in your seat as it goes', await a.evaluate(() => { const P = window.__isle.player, f = window.__isle.express.fly(); return !!f && Math.hypot(P.x - f.x, P.z - f.z) < 5; }));
+  // up high and clear of everything, then steer with the mouse like the old jet
+  await a.evaluate(() => window.__isle.express.setFly({ y: 110, thr: 1, spd: 30 }));
+  const turn = await a.evaluate(async () => { const I = window.__isle, P = I.player, f = I.express.fly(), want = f.h + 1.2; P.yaw = Math.atan2(-Math.cos(want), -Math.sin(want)); P.pitch = 0; await new Promise((r) => setTimeout(r, 2500)); const g = I.express.fly(); const d = (a, b) => { let x = b - a; while (x > Math.PI) x -= 2 * Math.PI; while (x < -Math.PI) x += 2 * Math.PI; return Math.abs(x); }; return g ? [d(f.h, want), d(g.h, want)] : null; });
+  check('it steers where you look, like the old jet', !!turn && turn[1] < turn[0] - 0.3, turn);
+  // 1000%: Spark Dust
+  await a.evaluate(() => window.__isle.express.setFly({ y: 110 }));
+  await a.keyboard.down('KeyW'); await wait(2500); await a.keyboard.up('KeyW');
+  const f2 = await a.evaluate(() => window.__isle.express.fly());
+  check('the throttle goes past 100%', !!f2 && f2.thr > 1, f2);
+  await a.evaluate(() => window.__isle.express.setThr(10)); await wait(2000);
+  const f3 = await a.evaluate(() => window.__isle.express.fly());
+  check('all the way to 1000%, and it gets very fast', !!f3 && Math.round(f3.thr * 100) === 1000 && f3.spd > 100, f3);
+  check('leaving a trail of Spark Dust', (await a.evaluate(() => window.__isle.spark.live())) > 30);
+  const gr = await a.evaluate(() => [0, 0.2, 0.5, 0.8].map((u) => window.__isle.spark.grad(u)));
+  check('in the Nightly gradient: mint, cyan and blue through violet to indigo', gr[0][1] > 0.85 && gr[0][1] > gr[0][0] && gr[2][2] > 0.85 && gr[2][0] > gr[2][1] && gr[3][2] < 0.7 && gr[3][0] < 0.4, gr);
+  await a.evaluate(() => window.__isle.express.setFly({ y: 110 }));
   await a.keyboard.press('KeyE'); await wait(400);
-  check('E gets you out, and it goes back to its timetable', !(await a.evaluate(() => window.__isle.express.ride())) && !(await a.evaluate(() => window.__isle.express.fly())));
+  check('E bails you out, and it goes back to its timetable', !(await a.evaluate(() => window.__isle.express.ride())) && !(await a.evaluate(() => window.__isle.express.fly())));
+  await a.evaluate(() => window.__isle.noChute());
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
