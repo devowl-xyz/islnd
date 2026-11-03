@@ -1307,6 +1307,65 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- wire's thin hitbox -----
+  const WB = await a.evaluate(() => ({ WIRE: window.__isle.blockId('WIRE'), STONE: window.__isle.blockId('STONE') }));
+  await a.evaluate((W) => { const I = window.__isle; I.setBlock(70, 13, 80, W.STONE); I.setBlock(70, 14, 80, W.WIRE); I.setBlock(72, 14, 80, W.STONE); I.setBlock(72, 13, 80, W.STONE); }, WB);
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = 67.5; P.y = 13.0; P.z = 80.5; P.yaw = -Math.PI / 2; P.pitch = 0; });
+  if (await a.evaluate(() => window.__isle.camAt().third)) await a.keyboard.press('KeyV');
+  await wait(300);
+  const t1 = await a.evaluate(() => { const P = window.__isle.player; P.x = 67.5; P.y = 13.0; P.z = 80.5; P.yaw = -Math.PI / 2; P.pitch = 0; return window.__isle.aimAt(); });
+  check('looking over a wire, you aim at what’s behind it, not the wire', !!t1 && t1.x === 72 && t1.y === 14, t1);
+  const t2 = await a.evaluate(() => { const P = window.__isle.player; P.x = 68.5; P.y = 13.0; P.z = 80.5; P.yaw = -Math.PI / 2; const ey = 13 + 1.62, dx = 70.5 - 68.5, dy = 14.05 - ey; P.pitch = Math.atan2(dy, dx); return window.__isle.aimAt(); });
+  check('but looking at the wire itself hits it', !!t2 && t2.x === 70 && t2.y === 14, t2);
+  await a.evaluate(() => { window.__isle.player.fly = false; });
+  // ----- the jumbo -----
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.jumbo.board(); });
+  await wait(600);
+  check('the jet is now a jumbo, and you come aboard standing by the door', await a.evaluate(() => { const w = window.__isle.jumbo.walk(); return !!w && !w.sit && w.y < 0 && window.__isle.jumbo.door(); }));
+  // walk down the cabin
+  const w0 = await a.evaluate(() => window.__isle.jumbo.walk());
+  await a.evaluate(() => window.__isle.jumbo.put({ x: 4.8, z: 0, y: -0.4 }));
+  await a.keyboard.down('KeyW'); await wait(1500); await a.keyboard.up('KeyW');
+  const w1 = await a.evaluate(() => window.__isle.jumbo.walk());
+  check('W walks you down the aisle', w1.x < 4.4, [w0, w1]);
+  check('you stay in the aisle between the seats', Math.abs(w1.z) <= 0.31, w1);
+  // sit and stand
+  await a.evaluate(() => window.__isle.jumbo.put({ x: 2.5, z: 0.2, y: -0.4 }));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(200);
+  const sat = await a.evaluate(() => window.__isle.jumbo.walk());
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(200);
+  check('E by a seat sits you down, and E again stands you up', !!sat.sit && !sat.sit.biz && !(await a.evaluate(() => window.__isle.jumbo.walk().sit)), sat);
+  // business is for owl owners
+  const up0 = await a.evaluate(() => { const I = window.__isle; I.jumbo.put({ x: -3.5, z: 0.5, y: -0.4, sit: null }); return I.jumbo.walk(); });
+  await a.evaluate(() => { const I = window.__isle, P = I.player, h = I.jet.pose.h; P.yaw = Math.atan2(-Math.cos(h), -Math.sin(h)) + Math.PI; });
+  await a.keyboard.down('KeyW'); await wait(1500); await a.keyboard.up('KeyW');
+  const up1 = await a.evaluate(() => window.__isle.jumbo.walk());
+  check('without an owl you can’t go up to business class', up1.y < -0.3 && up1.x > -3.7, [up0, up1]);
+  await a.evaluate(() => { window.__isle.setSkin({ pet: 'hoot' }); window.__isle.jumbo.put({ x: -3.5, z: 0.5, y: -0.4 }); });
+  const climb = await a.evaluate(async () => { const I = window.__isle, P = I.player; for (let k = 0; k < 40; k++) { const h = I.jet.pose.h; P.yaw = Math.atan2(-Math.cos(h), -Math.sin(h)) + Math.PI; await new Promise((r) => setTimeout(r, 100)); if (I.jumbo.walk().y > 1.7) break; } return I.jumbo.walk(); });
+  await a.keyboard.down('KeyW');
+  await a.waitForFunction(() => window.__isle.jumbo.walk().y > 1.7, null, { timeout: 15000 }).catch(() => {});
+  await a.keyboard.up('KeyW');
+  const top = await a.evaluate(() => window.__isle.jumbo.walk());
+  check('Hoot’s owner walks up the stairs to business class', top.y > 1.7, [climb, top]);
+  // a business pod and the bar
+  await a.evaluate(() => window.__isle.jumbo.put({ x: 2.7, z: 0.4, y: 1.75 }));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(200);
+  const pod = await a.evaluate(() => window.__isle.jumbo.walk());
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(200);
+  check('upstairs, E sits you in a lie-flat business pod', !!pod.sit && pod.sit.biz, pod);
+  await a.evaluate(() => window.__isle.jumbo.put({ x: 4.7, z: 0, y: 1.75 }));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('and the business bar serves you a drink', /bubbly|Strawberries|tea|juice/.test(await a.textContent('#toast')) && !!(await a.evaluate(() => window.__isle.jumbo.walk())));
+  // off at the door
+  await a.evaluate(() => window.__isle.jumbo.put({ x: 5.2, z: 0.5, y: -0.4 }));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(400);
+  check('E by the front door gets you off', !(await a.evaluate(() => window.__isle.jumbo.walk())) && !(await a.evaluate(() => window.__isle.jet.seat)));
+  await a.evaluate(() => { const I = window.__isle; I.noChute(); I.setSkin({ pet: 'none' }); });
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
   // ----- in a room -----
   await a.keyboard.press('Escape'); await wait(200);
   await a.evaluate(() => document.getElementById('nHost').click());
