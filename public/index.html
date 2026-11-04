@@ -3851,6 +3851,8 @@ const overlay=$('overlay'),playBtn=$('play');
 function setPlaying(v){
   if(v&&skinOpen)openSkin(false);
   if(v&&morePage)setMore(false);
+  /* once you're in, pausing opens the Paused page (pets, the Sky Palace, the fish book, games) rather than the controls */
+  if(!v&&started&&!morePage)setMore(true);
   playing=v;overlay.classList.toggle('hidden',v);
   if(!v&&pickerOpen){pickerOpen=false;$('picker').hidden=true;}
   if(!v&&chatOpen){chatOpen=false;$('chatIn').hidden=true;}
@@ -3877,6 +3879,8 @@ setTimeout(fitBrand,0);
 var morePage=false;
 function setMore(v){
   morePage=!!v;const mc=$('moreCard');
+  {const t=document.querySelector('#moreCard .mtitle');if(t)t.textContent=started?'Paused':'Everything else';}
+  {const sb=$('sub');if(sb)sb.hidden=!!started;}
   if(mc){$('mainCard').hidden=morePage||skinOpen;mc.hidden=!morePage||skinOpen;}
   try{overlay.scrollTop=0;}catch(e){}
   if(!morePage)setTimeout(fitBrand,0);
