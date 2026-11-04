@@ -44,7 +44,7 @@ const stat = http.createServer((req, res) => {
     await page.route(PEERJS_URL, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: PEERJS }));
     await page.goto(url || PAGE);
     await page.waitForFunction(() => window.__isle && window.__isle.isReady(), null, { timeout: 120000 });
-    await page.fill('#nName', name);
+    await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name);
     return page;
   };
   const cell = (p, x, y, z) => p.evaluate(([x, y, z]) => window.__isle.get(x, y, z), [x, y, z]);
@@ -52,7 +52,7 @@ const stat = http.createServer((req, res) => {
 
   const host = await open('Hana');
   check('the room panel shows with no server', await host.isVisible('#nHost'));
-  await host.click('#nHost');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nHost');
   await host.waitForFunction(() => window.__isle.net.code, null, { timeout: 30000 }).catch(() => {});
   const code = await host.textContent('#nRoomCode');
   check('the host’s browser opens a room: ' + code, /^[A-Z0-9]{5}$/.test(code || ''));
@@ -61,8 +61,8 @@ const stat = http.createServer((req, res) => {
   await set(host, 80, 13, 90, 8);
 
   const guest = await open('Gus');
-  await guest.fill('#nCode', code.toLowerCase());
-  await guest.click('#nJoin');
+  await guest.evaluate(() => window.__isle && window.__isle.more(true)); await guest.fill('#nCode', code.toLowerCase());
+  await guest.evaluate(() => window.__isle && window.__isle.more(true)); await guest.click('#nJoin');
   await guest.waitForFunction(() => window.__isle.net.code, null, { timeout: 30000 }).catch(() => {});
   check('the guest joins straight to the host’s browser', (await guest.evaluate(() => window.__isle.net.code)) === code);
   await guest.waitForFunction(() => window.__isle.isReady(), null, { timeout: 120000 });
@@ -88,8 +88,8 @@ const stat = http.createServer((req, res) => {
 
   // a wrong code says so
   const lost = await open('Lou');
-  await lost.fill('#nCode', 'ZZZZZ');
-  await lost.click('#nJoin');
+  await lost.evaluate(() => window.__isle && window.__isle.more(true)); await lost.fill('#nCode', 'ZZZZZ');
+  await lost.evaluate(() => window.__isle && window.__isle.more(true)); await lost.click('#nJoin');
   await lost.waitForFunction(() => /No room with code ZZZZZ|Could not reach room/.test(document.getElementById('nMsg').textContent), null, { timeout: 30000 }).catch(() => {});
   check('a wrong code says there is no such room', /No room with code ZZZZZ|Could not reach room/.test(await lost.textContent('#nMsg')), await lost.textContent('#nMsg'));
   check('and does not join', !(await lost.evaluate(() => window.__isle.net.code)));
@@ -100,7 +100,7 @@ const stat = http.createServer((req, res) => {
   check('when the host leaves, the guest is told the room closed', !(await guest.evaluate(() => window.__isle.net.code)) && /host left|Lost the connection/.test(await guest.textContent('#nMsg')), await guest.textContent('#nMsg'));
 
   // the host can open another room right away
-  await host.click('#nHost');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nHost');
   await host.waitForFunction(() => window.__isle.net.code, null, { timeout: 30000 }).catch(() => {});
   check('the host can open a new room after', /^[A-Z0-9]{5}$/.test((await host.evaluate(() => window.__isle.net.code)) || ''));
 

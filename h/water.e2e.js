@@ -113,7 +113,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await p.waitForFunction(() => window.__isle.net.code);
   const code = await p.textContent('#nRoomCode');
   const g = await open();
-  await g.fill('#nCode', code); await g.click('#nJoin');
+  await g.evaluate(() => window.__isle && window.__isle.more(true)); await g.fill('#nCode', code); await g.evaluate(() => window.__isle && window.__isle.more(true)); await g.click('#nJoin');
   await g.waitForFunction(() => window.__isle.net.code); await g.waitForFunction(() => window.__isle.isReady(), null, { timeout: 120000 });
   await settle(g);
   check('joiner sees the host water already flowing', (await g.evaluate(() => window.__isle.water(102, 13, 92))) === 6);

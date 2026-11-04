@@ -19,7 +19,7 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
     if (seed) await page.addInitScript((s) => localStorage.setItem('voxel-isle-edits-v1', s), JSON.stringify(seed));
     await page.goto(URL);
     await page.waitForFunction(() => window.__isle && window.__isle.isReady(), null, { timeout: 120000 });
-    await page.fill('#nName', name);
+    await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name);
     return page;
   };
   const ready = (p) => p.waitForFunction(() => window.__isle.isReady(), null, { timeout: 120000 });
@@ -30,14 +30,14 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
   // Host already has a tower off the field (at 40,30,40) saved from single player.
   const host = await open('Hana', [idx(40, 30, 40), 8]);
   check('net panel visible', await host.isVisible('#nHost'));
-  await host.click('#nHost');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nHost');
   await host.waitForFunction(() => window.__isle.net.code);
   const code = await host.textContent('#nRoomCode');
   check('room code is 5 chars: ' + code, /^[A-Z0-9]{5}$/.test(code));
 
   const guest = await open('Gus');
-  await guest.fill('#nCode', code.toLowerCase());
-  await guest.click('#nJoin');
+  await guest.evaluate(() => window.__isle && window.__isle.more(true)); await guest.fill('#nCode', code.toLowerCase());
+  await guest.evaluate(() => window.__isle && window.__isle.more(true)); await guest.click('#nJoin');
   await guest.waitForFunction(() => window.__isle.net.code);
   await ready(guest);
   check('joiner got host snapshot (brick at 40,30,40)', (await cell(guest, 40, 30, 40)) === 8);
@@ -70,14 +70,14 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
   check('non-host cannot grant admin', (await guest.evaluate(() => window.__isle.net.admin)) === false);
 
   // Host grants admin.
-  await host.click('#nPeers button');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nPeers button');
   await guest.waitForFunction(() => window.__isle.net.admin);
   check('guest became admin', true);
   check('admin off-field edit allowed', (await set(guest, 40, 31, 40, 7)) === true);
   await wait(300);
   check('admin off-field edit reaches host', (await cell(host, 40, 31, 40)) === 7);
   check('button now says Remove admin', (await host.textContent('#nPeers button')) === 'Remove admin');
-  await host.click('#nPeers button');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nPeers button');
   await guest.waitForFunction(() => !window.__isle.net.admin);
   check('admin revoked, off-field blocked again', (await set(guest, 41, 31, 40, 7)) === false);
 
@@ -88,8 +88,8 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
 
   // Late joiner gets everything so far.
   const late = await open('Lia');
-  await late.fill('#nCode', code);
-  await late.click('#nJoin');
+  await late.evaluate(() => window.__isle && window.__isle.more(true)); await late.fill('#nCode', code);
+  await late.evaluate(() => window.__isle && window.__isle.more(true)); await late.click('#nJoin');
   await late.waitForFunction(() => window.__isle.net.code);
   await ready(late);
   check('late joiner sees all edits', (await cell(late, 80, 13, 92)) === 8 && (await cell(late, 40, 31, 40)) === 7 && (await cell(late, 20, 30, 120)) === 3);
@@ -128,7 +128,7 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
   check('host receives guest position', seen.includes(85.5));
   await host.evaluate(() => { const P = window.__isle.player; P.x = 82.5; P.z = 100.5; P.yaw = 0; P.pitch = 0; });
   await wait(800);
-  await guest.click('#play');
+  await guest.evaluate(() => window.__isle && window.__isle.more(false)); await guest.click('#play');
   await wait(1200);
   await guest.screenshot({ path: path.join(process.env.SHOTS || __dirname, 'guest-view.png') });
 
@@ -143,7 +143,7 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
   check('host list drops guest', !(await host.textContent('#nPeers')).includes('Gus'));
 
   // Host leaves: room closes for others, host keeps the builds.
-  await host.click('#nLeave');
+  await host.evaluate(() => window.__isle && window.__isle.more(true)); await host.click('#nLeave');
   await late.waitForFunction(() => !window.__isle.net.code);
   check('room closed for late joiner', true);
   await wait(1800);
@@ -151,7 +151,7 @@ const idx = (x, y, z) => (y * 160 + z) * 160 + x;
   check('host island kept room builds', saved.includes((13 * 352 + 92) * 352 + 80));
   check('bad code shows error', await (async () => {
     await ready(late);
-    await late.fill('#nCode', 'ZZZZZ'); await late.click('#nJoin');
+    await late.evaluate(() => window.__isle && window.__isle.more(true)); await late.fill('#nCode', 'ZZZZZ'); await late.evaluate(() => window.__isle && window.__isle.more(true)); await late.click('#nJoin');
     await late.waitForFunction(() => /No room/.test(document.getElementById('nMsg').textContent));
     return true;
   })());
