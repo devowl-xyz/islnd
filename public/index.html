@@ -5498,105 +5498,145 @@ function buildJetInterior(body,m,lam){
    only, so from inside you look straight out through the windows */
 const JJ_YC=1.4,JJ_HR=2.45,JJ_WR=1.75,JJ_HL=2.3,JJ_WL=1.62;
 function jjOvalZ(y,H,Wd){const t=(y-JJ_YC)/H;return t*t>=1?0:Wd*Math.sqrt(1-t*t);}
+/* the skin's shape along its length: how far the centre line rises or droops, and how fat it is */
+function jjHull(x){
+  if(x>6.4){const t=Math.min(1,(x-6.4)/2.9);return{dy:-0.75*Math.pow(t,1.6),rf:Math.sqrt(Math.max(0,1-Math.pow(t,2.4)))};}
+  if(x<-6.6){const t=Math.min(1,(-6.6-x)/4.7);return{dy:1.25*Math.pow(t,1.4),rf:Math.max(0,1-Math.pow(t,1.25))*0.98+0.02*(t<1?1:0)};}
+  return{dy:0,rf:1};
+}
+/* a point on the skin: a is the angle round the body from the top (positive towards +z) */
+function jjSkin(x,a,off){const h=jjHull(x),o=off||0;return new THREE.Vector3(x,JJ_YC+h.dy+(JJ_HR*h.rf+o)*Math.cos(a),(JJ_WR*h.rf+o)*Math.sin(a));}
 function buildJumboModel(){
   const g=new THREE.Group(),body=new THREE.Group();g.add(body);
   const lam=function(c,o){return new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));};
-  const white=lam(0xf4f6f8),blue=lam(0x1f4fb0),sky=lam(0x4f86e0),dark=lam(0x1d2733),belly=lam(0xc9d0d8),metal=lam(0xa9b2bc),tyre=lam(0x22262b),gold=lam(0xf2c230);
+  const DS=THREE.DoubleSide;
+  /* a little self-glow keeps the white looking white in the shade */
+  const white=lam(0xf7f8fa,{emissive:0x34373c}),whiteD=lam(0xf4f5f7,{emissive:0x303338,side:DS}),
+    blue=lam(0x1d4cad,{emissive:0x0a1838,side:DS}),sky=lam(0x5b93ea,{emissive:0x14284a,side:DS}),grey=lam(0xc6ccd4,{emissive:0x2a2d32,side:DS}),
+    dark=lam(0x18222e),metal=lam(0xb4bcc6,{emissive:0x202428,side:DS}),tyre=lam(0x22262b),door=lam(0xe1e6ec,{emissive:0x2a2d30}),seam=lam(0x8c96a2);
   const glowB=function(c){return new THREE.MeshBasicMaterial({color:c});};
   const m=function(geo,mat,x,y,z,parent){const o=new THREE.Mesh(geo,mat);o.position.set(x||0,y||0,z||0);(parent||body).add(o);return o;};
   const PI=Math.PI;
-  /* the body: an oval tube, a blunt drooping nose and a long upswept tail cone */
-  const tube=new THREE.CylinderGeometry(1,1,13,36,1,true).rotateZ(PI/2);tube.scale(1,JJ_HR,JJ_WR);tube.translate(-0.1,JJ_YC,0);m(tube,white);
-  const lathe=function(prof,len,bend,x0,dir){
-    const ge=new THREE.LatheGeometry(prof.map(function(p){return new THREE.Vector2(p[0],p[1]);}),36);
-    ge.rotateZ(dir>0?-PI/2:PI/2);ge.scale(1,JJ_HR,JJ_WR);
-    const pa=ge.attributes.position;
-    for(let i=0;i<pa.count;i++){const x=pa.getX(i),t=Math.abs(x)/len;pa.setY(i,pa.getY(i)+bend(t));pa.setX(i,x+x0);}
-    ge.translate(0,JJ_YC,0);ge.computeVertexNormals();return m(ge,white);
-  };
-  const nose=[];for(let i=0;i<=14;i++){const t=i/14;nose.push([Math.sqrt(Math.max(0,1-Math.pow(t,2.4))),t*2.9]);}
-  lathe(nose,2.9,function(t){return-0.75*Math.pow(t,1.6);},6.4,1);
-  const tail=[];for(let i=0;i<=12;i++){const t=i/12;tail.push([1-0.93*Math.pow(t,1.2),-t*4.6]);}
-  tail.push([0,-4.65]);tail.reverse();
-  lathe(tail,4.6,function(t){return 1.25*Math.pow(t,1.4);},-6.6,-1);
-  /* a grey belly, and Bird Air's blue sweeping up round the back of the body */
-  const strip=function(x0,x1,y0,y1,sd,mat,H,Wd,ny,off){
-    const nx=8;ny=ny||8;const pos=[],idx=[];
-    for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=x0+(x1-x0)*i/nx,y=y0+(y1-y0)*j/ny;pos.push(x,y,sd*(jjOvalZ(y,H,Wd)+(off||0)));}
-    for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+1,c=a+nx+1,d=c+1;idx.push(a,b,d,a,d,c);}
+  /* the stations along the body, closer together where the nose and tail curve */
+  const XS=[];for(let i=0;i<=14;i++){const t=1-Math.pow(1-i/14,1.6);XS.push(9.3-t*2.9);}
+  for(let i=1;i<14;i++)XS.push(6.4-i*13/14);
+  for(let i=0;i<=16;i++){const t=Math.pow(i/16,0.9);XS.push(-6.6-t*4.7);}
+  /* a patch of skin over x0..x1 between angles a0(x) and a1(x), lifted off by off; it turns its faces outward */
+  const patch=function(x0,x1,af,mat,off,na){
+    na=na||40;const xs=XS.filter(function(x){return x<=x0+1e-6&&x>=x1-1e-6;});
+    if(xs[0]<x0-1e-6)xs.unshift(x0);if(xs[xs.length-1]>x1+1e-6)xs.push(x1);
+    const pos=[],idx=[];
+    xs.forEach(function(x){const r=af(x);for(let j=0;j<=na;j++){const a=r[0]+(r[1]-r[0])*j/na,p=jjSkin(x,a,off);pos.push(p.x,p.y,p.z);}});
+    for(let i=0;i+1<xs.length;i++)for(let j=0;j<na;j++){const a=i*(na+1)+j,b=a+1,c=a+na+1,d=c+1;idx.push(a,c,d,a,d,b);}
     const ge=new THREE.BufferGeometry();ge.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));ge.setIndex(idx);ge.computeVertexNormals();
-    const o=new THREE.Mesh(ge,mat);body.add(o);return o;
+    /* make sure the faces point out of the body */
+    const nm=ge.attributes.normal,ps=ge.attributes.position,k=Math.floor(ps.count/2);
+    const out=(ps.getY(k)-JJ_YC)*nm.getY(k)+ps.getZ(k)*nm.getZ(k);
+    if(out<0){for(let q=0;q<idx.length;q+=3){const t=idx[q+1];idx[q+1]=idx[q+2];idx[q+2]=t;}ge.setIndex(idx);ge.computeVertexNormals();}
+    return m(ge,mat);
   };
-  const deco=function(c){return lam(c,{side:THREE.DoubleSide});};
+  /* the whole skin, nose to tail, in one piece */
+  patch(9.3,-11.3,function(){return[0,PI*2];},white,0,48);
+  /* Bird Air's livery: a pale grey belly, and a deep blue sweep up round the back of the body to the fin
+     with a sky-blue edge */
+  patch(8.9,-7.6,function(){return[PI*0.8,PI*1.2];},grey,0.01,10);
+  const sweepTop=function(x){const t=Math.max(0,Math.min(1,(-1.6-x)/8.6)),e=t*t*(3-2*t);return PI*(1-0.86*e);};
+  patch(-1.6,-11.2,function(x){const a=sweepTop(x);return[a,PI*2-a];},blue,0.016,30);
+  patch(-1.6,-11.0,function(x){const a=sweepTop(x);return[a-0.16,a];},sky,0.014,4);
+  patch(-1.6,-11.0,function(x){const a=sweepTop(x);return[PI*2-a,PI*2-a+0.16];},sky,0.014,4);
+  /* things stuck flat on the skin: windows, doors, the cockpit glass and the name */
+  const decal=function(x,a,w,h,mat,flip,off){
+    const p=jjSkin(x,a,(off||0.02)),px=jjSkin(x+0.05,a,0),pa=jjSkin(x,a+0.02,0),p0=jjSkin(x,a,0);
+    const tx=px.sub(p0).normalize(),ta=pa.sub(p0).normalize(),n=new THREE.Vector3().crossVectors(tx,ta).normalize();
+    if((p0.y-JJ_YC)*n.y+p0.z*n.z<0)n.negate();
+    const xAxis=flip?tx.clone().negate():tx.clone(),yAxis=new THREE.Vector3().crossVectors(n,xAxis).normalize();
+    const o=m(new THREE.PlaneGeometry(w,h),mat,p.x,p.y,p.z);
+    o.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis,yAxis,n));return o;
+  };
+  const aAt=function(y){return Math.acos(Math.max(-1,Math.min(1,(y-JJ_YC)/JJ_HR)));};
+  const MAIN_DOORS=[5.3,2.4,-3.0,-5.6],UP_DOORS=[4.4,-1.3,-5.2];
   [-1,1].forEach(function(sd){
-    strip(-6.6,6.4,JJ_YC-JJ_HR+0.02,-0.55,sd,deco(0xc9d0d8),JJ_HR,JJ_WR,4,0.012);
-    strip(-6.6,-3.2,-0.5,1.6,sd,deco(0x1f4fb0),JJ_HR,JJ_WR,6,0.012);
-    strip(-3.2,-1.8,-0.5,0.3,sd,deco(0x4f86e0),JJ_HR,JJ_WR,4,0.012);
-  });
-  /* two rows of windows down each side, dark from outside and clear from inside, and the front door */
-  const winG=new THREE.PlaneGeometry(0.24,0.32),winM=lam(0x1d2733);
-  [-1,1].forEach(function(sd){
-    [[0.45,-5.6,5.6],[2.5,-5.9,5.0]].forEach(function(row){
-      const zz=jjOvalZ(row[0],JJ_HR,JJ_WR)+0.014;
-      for(let x=row[1];x<=row[2];x+=0.55){if(row[0]<1&&Math.abs(x-5.3)<0.5)continue;const w=m(winG,winM,x,row[0],sd*zz);w.rotation.y=sd>0?0:PI;w.rotation.x=sd*-(row[0]>1?0.32:-0.15);}
+    [[0.45,-5.9,5.8,MAIN_DOORS,0.2,0.28],[2.5,-6.0,5.0,UP_DOORS,0.19,0.26]].forEach(function(r){
+      const a=sd*aAt(r[0]);
+      for(let x=r[1];x<=r[2];x+=0.55){if(r[3].some(function(d){return Math.abs(x-d)<0.45;}))continue;decal(x,a,r[4],r[5],dark,sd<0);}
     });
+    MAIN_DOORS.forEach(function(x){decal(x,sd*aAt(0.3),0.62,1.22,seam,sd<0,0.018);decal(x,sd*aAt(0.3),0.56,1.16,door,sd<0,0.022);decal(x,sd*aAt(0.55),0.13,0.17,dark,sd<0,0.026);});
+    UP_DOORS.forEach(function(x){decal(x,sd*aAt(2.3),0.56,1.06,seam,sd<0,0.018);decal(x,sd*aAt(2.3),0.5,1.0,door,sd<0,0.022);decal(x,sd*aAt(2.5),0.12,0.16,dark,sd<0,0.026);});
   });
-  {const zz=jjOvalZ(0.45,JJ_HR,JJ_WR)+0.016;const dm=m(new THREE.PlaneGeometry(0.8,1.65),lam(0xdfe4ea),5.3,0.35,zz);dm.rotation.x=0.12;
-   [[-0.42,0],[0.42,0]].forEach(function(e){const ln=m(new THREE.PlaneGeometry(0.04,1.65),lam(0x7a8694),5.3+e[0],0.35,zz+0.002);ln.rotation.x=0.12;});}
-  /* the cockpit windows, high on the nose */
-  [-1,1].forEach(function(sd){for(let k=0;k<3;k++){const w=m(new THREE.PlaneGeometry(0.42,0.3),dark,7.6+k*0.42,1.55-k*0.12,sd*(1.05-k*0.18));w.rotation.y=sd>0?0.55+k*0.25:PI-0.55-k*0.25;w.rotation.x=sd*-0.35;}});
-  /* the name, big, along the top deck */
+  /* the cockpit windows: a curved row of dark panes wrapping round the top of the nose */
+  [[-1.25,-0.86],[-0.8,-0.44],[-0.38,-0.03],[0.03,0.38],[0.44,0.8],[0.86,1.25]].forEach(function(r){patch(8.52,8.14,function(){return r;},dark,0.012,4);});
   const nameC=document.createElement('canvas');nameC.width=1024;nameC.height=128;
-  {const c=nameC.getContext&&nameC.getContext('2d');if(c&&c.fillText){c.fillStyle='#1f4fb0';c.font='italic 800 92px "ISLND Body", "Lexend Giga", sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('BIRD AIR',512,66);}}
+  {const c=nameC.getContext&&nameC.getContext('2d');if(c&&c.fillText){c.fillStyle='#1d4cad';c.font='italic 800 92px "ISLND Body", "Lexend Giga", sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('BIRD AIR',512,66);}}
   const nameM=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(nameC),transparent:true});
-  [-1,1].forEach(function(sd){const p=m(new THREE.PlaneGeometry(5.2,0.65),nameM,1.6,3.15,sd*(jjOvalZ(3.15,JJ_HR,JJ_WR)+0.03));p.rotation.y=sd>0?0:PI;p.rotation.x=sd*-0.6;});
-  /* long swept wings with fences at the tips, under a big fairing */
-  const wing=new THREE.Shape();wing.moveTo(2.6,0);wing.lineTo(-3.9,0);wing.lineTo(-5.4,9.4);wing.lineTo(-3.9,9.4);wing.lineTo(2.6,0);
+  [-1,1].forEach(function(sd){decal(1.8,sd*0.62,5.4,0.68,nameM,sd<0,0.03);});
+  /* the wings: long, swept and low on the body, with a kinked trailing edge, fences at the tips, flap
+     track fairings underneath, and a smooth fairing where they meet the body */
+  const DIH=0.09,ROOTY=-0.55,ROOTZ=0.9;
+  const wing=new THREE.Shape();wing.moveTo(2.8,0);wing.lineTo(-4.4,9.4);wing.lineTo(-5.6,9.4);wing.lineTo(-5.2,3.6);wing.lineTo(-4.6,0);wing.lineTo(2.8,0);
+  const wingY=function(s){return ROOTY+s*Math.tan(DIH);};
   [-1,1].forEach(function(sd){
-    const wg=new THREE.ExtrudeGeometry(wing,{depth:0.24,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.06,bevelSegments:1});
-    wg.rotateX(PI/2);if(sd<0)wg.scale(1,1,-1);wg.translate(0,0.12,0);
-    const w=m(wg,white,0,-0.35,sd*1.1);w.rotation.x=sd*-0.07;
-    const f=m(new THREE.BoxGeometry(1.1,1.1,0.08),white,-4.7,0.55,sd*10.55);f.rotation.x=sd*0.1;
-    m(new THREE.SphereGeometry(0.09,8,6),glowB(sd>0?0x30ff60:0xff3030),-4.0,0.3,sd*10.6);
-    m(new THREE.SphereGeometry(1,16,8).scale(2.6,0.55,0.9),belly,-0.4,-0.85,sd*0.9);
-    /* two engines under each wing */
-    [3.9,6.7].forEach(function(ez){
-      const le=2.6-(ez-1.1)/9.4*8.0,ex=le-0.2,ey=-1.25;
-      m(new THREE.BoxGeometry(1.6,0.5,0.18),white,ex-0.6,ey+0.62,sd*ez);
-      m(new THREE.CylinderGeometry(0.62,0.5,2.6,22).rotateZ(PI/2),white,ex,ey,sd*ez);
-      m(new THREE.CylinderGeometry(0.625,0.625,0.7,22,1,true).rotateZ(PI/2),blue,ex+0.75,ey,sd*ez);
-      const lip=m(new THREE.TorusGeometry(0.56,0.07,8,22),metal,ex+1.3,ey,sd*ez);lip.rotation.y=PI/2;
-      m(new THREE.CircleGeometry(0.53,22).rotateY(PI/2),dark,ex+1.22,ey,sd*ez);
-      m(new THREE.ConeGeometry(0.16,0.3,12).rotateZ(-PI/2),metal,ex+1.27,ey,sd*ez);
-      m(new THREE.ConeGeometry(0.3,0.6,14).rotateZ(PI/2),metal,ex-1.55,ey,sd*ez);
-      const gl=m(new THREE.CircleGeometry(0.42,16).rotateY(-PI/2),new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0}),ex-1.32,ey,sd*ez);
+    const wg=new THREE.ExtrudeGeometry(wing,{depth:0.3,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.07,bevelSegments:2});
+    wg.rotateX(PI/2);if(sd<0)wg.scale(1,1,-1);wg.translate(0,0.15,0);
+    const w=m(wg,whiteD,0,ROOTY,sd*ROOTZ);w.rotation.x=-sd*DIH;
+    /* tip fences above and below */
+    const ft=new THREE.Shape();ft.moveTo(0,0);ft.lineTo(-1.1,0);ft.lineTo(-1.35,0.75);ft.lineTo(-0.9,0.75);ft.lineTo(0,0);
+    [1,-0.7].forEach(function(up){const fg=new THREE.ExtrudeGeometry(ft,{depth:0.06,bevelEnabled:false});fg.scale(1,up,1);fg.translate(0,0,-0.03);m(fg,whiteD,-4.45,wingY(9.4)+(up>0?0.12:-0.12),sd*(ROOTZ+9.4));});
+    m(new THREE.SphereGeometry(0.09,8,6),glowB(sd>0?0x30ff60:0xff3030),-4.5,wingY(9.4),sd*(ROOTZ+9.45));
+    [2.0,4.6,7.2].forEach(function(sp){const x=-4.6-(sp/9.4)*0.9+0.3;const f=m(new THREE.CylinderGeometry(0.1,0.04,1.3,8).rotateZ(PI/2),grey,x,wingY(sp)-0.28,sd*(ROOTZ+sp));void f;});
+    m(new THREE.SphereGeometry(1,20,10).scale(4.4,0.62,1.35),grey,-0.8,-0.82,0);
+    /* two engines under each wing: a fat nacelle with a chrome lip, a dark intake with a spinner, a pylon
+       sweeping up to the wing, and an exhaust cone that glows when they run */
+    [[3.6,0.64],[6.4,0.58]].forEach(function(e){
+      const sp=e[0],r=e[1],le=2.8-sp*(7.2/9.4),ez=sd*(ROOTZ+sp),cy=wingY(sp)-0.2-r-0.12,cx=le-0.35,L=3.0;
+      const prof=[[0.02,0],[r*0.62,0.05],[r*0.72,0.5],[r*0.92,1.3],[r,2.0],[r*0.97,2.7],[r*0.9,L]];
+      const ng=new THREE.LatheGeometry(prof.map(function(p){return new THREE.Vector2(p[0],p[1]);}),28);ng.rotateZ(-PI/2);ng.translate(cx-L/2,cy,ez);
+      body.add(new THREE.Mesh(ng,whiteD));
+      const lip=m(new THREE.TorusGeometry(r*0.9,0.06,8,26),metal,cx+L/2,cy,ez);lip.rotation.y=PI/2;
+      m(new THREE.CircleGeometry(r*0.86,24).rotateY(PI/2),dark,cx+L/2-0.12,cy,ez);
+      m(new THREE.ConeGeometry(r*0.26,0.42,14).rotateZ(-PI/2),metal,cx+L/2-0.02,cy,ez);
+      m(new THREE.ConeGeometry(r*0.45,0.9,16).rotateZ(PI/2),metal,cx-L/2-0.32,cy,ez);
+      const gl=m(new THREE.CircleGeometry(r*0.55,16).rotateY(-PI/2),new THREE.MeshBasicMaterial({color:0xffa040,transparent:true,opacity:0}),cx-L/2+0.06,cy,ez);
       (jet.glows||(jet.glows=[])).push(gl);
+      const py=new THREE.Shape();py.moveTo(0.6,0);py.lineTo(-1.8,0);py.lineTo(-2.3,0.62);py.lineTo(-0.2,0.62);py.lineTo(0.6,0);
+      const pg=new THREE.ExtrudeGeometry(py,{depth:0.2,bevelEnabled:false});pg.translate(0,0,-0.1);m(pg,whiteD,cx+0.3,cy+r-0.12,ez);
     });
   });
-  /* the tailplanes, low on the tail cone, and a tall blue fin with lighter blue sweeps and JUMBO on it */
-  const tp=new THREE.Shape();tp.moveTo(-7.0,0);tp.lineTo(-10.0,0);tp.lineTo(-11.1,4.4);tp.lineTo(-10.0,4.4);tp.lineTo(-7.0,0);
-  [-1,1].forEach(function(sd){const tg=new THREE.ExtrudeGeometry(tp,{depth:0.14,bevelEnabled:false});tg.rotateX(PI/2);if(sd<0)tg.scale(1,1,-1);m(tg,white,0,2.0,sd*0.4);});
-  const finPts=[[-5.9,3.55],[-10.3,3.3],[-11.9,8.7],[-9.9,8.7]];
-  const fin=new THREE.Shape();fin.moveTo(finPts[0][0],finPts[0][1]);for(let i=1;i<finPts.length;i++)fin.lineTo(finPts[i][0],finPts[i][1]);fin.lineTo(finPts[0][0],finPts[0][1]);
-  const fg=new THREE.ExtrudeGeometry(fin,{depth:0.26,bevelEnabled:false});fg.translate(0,0,-0.13);m(fg,blue);
-  const finC=document.createElement('canvas');finC.width=512;finC.height=512;
-  {const c=finC.getContext&&finC.getContext('2d');if(c&&c.fillText){
-    /* the fin's box is x -11.9..-5.9 and y 3.3..8.7 */
-    const X=function(x){return(x+11.9)/6.0*512;},Y=function(y){return(8.7-y)/5.4*512;};
-    c.save();c.beginPath();c.moveTo(X(finPts[0][0]),Y(finPts[0][1]));for(let i=1;i<finPts.length;i++)c.lineTo(X(finPts[i][0]),Y(finPts[i][1]));c.closePath();c.clip();
-    c.lineWidth=26;for(let k=0;k<5;k++){c.strokeStyle=k%2?'rgba(140,185,255,0.75)':'rgba(90,140,235,0.8)';c.beginPath();c.arc(X(-5.2),Y(9.6),150+k*48,Math.PI*0.5,Math.PI*1.05);c.stroke();}
-    c.fillStyle='#ffffff';c.font='italic 800 70px "ISLND Body", "Lexend Giga", sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('JUMBO',X(-9.0),Y(4.6));
-    c.restore();}}
-  const finM=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(finC),transparent:true});
-  [-1,1].forEach(function(sd){const p=m(new THREE.PlaneGeometry(6.0,5.4),finM,-8.9,6.0,sd*0.14);p.rotation.y=sd>0?0:PI;});
-  /* beacons, a tail light */
-  const bcn=[m(new THREE.SphereGeometry(0.1,8,6),glowB(0xff2020),0.5,JJ_YC+JJ_HR,0),m(new THREE.SphereGeometry(0.1,8,6),glowB(0xff2020),1.0,JJ_YC-JJ_HR,0)];
-  m(new THREE.SphereGeometry(0.08,8,6),glowB(0xffffff),-11.25,2.65,0);
-  /* landing gear: a nose leg and four big bogies; it folds away in flight */
+  /* the tail: tailplanes low on the tail cone, and a tall swept fin in deep blue with sky-blue sweeps,
+     a white bird and JUMBO on it */
+  const tp=new THREE.Shape();tp.moveTo(-8.0,0);tp.lineTo(-10.5,4.9);tp.lineTo(-11.4,4.9);tp.lineTo(-10.9,0);tp.lineTo(-8.0,0);
+  [-1,1].forEach(function(sd){const tg=new THREE.ExtrudeGeometry(tp,{depth:0.2,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.05,bevelSegments:1});tg.rotateX(PI/2);if(sd<0)tg.scale(1,1,-1);tg.translate(0,0.1,0);const t=m(tg,whiteD,0,1.75,sd*0.55);t.rotation.x=-sd*0.1;});
+  const FIN=[[-6.9,3.5],[-10.6,9.2],[-12.2,9.2],[-10.95,2.75]];
+  const fin=new THREE.Shape();fin.moveTo(FIN[0][0],FIN[0][1]);for(let i=1;i<FIN.length;i++)fin.lineTo(FIN[i][0],FIN[i][1]);fin.lineTo(FIN[0][0],FIN[0][1]);
+  const fg=new THREE.ExtrudeGeometry(fin,{depth:0.3,bevelEnabled:true,bevelThickness:0.05,bevelSize:0.06,bevelSegments:2});fg.translate(0,0,-0.15);m(fg,blue);
+  const FX0=-12.3,FX1=-6.8,FY0=2.7,FY1=9.3;
+  const finTex=function(mirror){
+    const cv=document.createElement('canvas');cv.width=512;cv.height=Math.round(512*(FY1-FY0)/(FX1-FX0));
+    const c=cv.getContext&&cv.getContext('2d');
+    if(c&&c.fillText){
+      const X=function(x){const u=(x-FX0)/(FX1-FX0)*cv.width;return mirror?cv.width-u:u;},Y=function(y){return(FY1-y)/(FY1-FY0)*cv.height;};
+      c.save();c.beginPath();c.moveTo(X(FIN[0][0]),Y(FIN[0][1]));for(let i=1;i<FIN.length;i++)c.lineTo(X(FIN[i][0]),Y(FIN[i][1]));c.closePath();c.clip();
+      c.lineCap='round';
+      for(let k=0;k<6;k++){c.strokeStyle=k%2?'rgba(120,175,250,0.85)':'rgba(70,130,230,0.85)';c.lineWidth=18-k*1.5;c.beginPath();c.arc(X(-5.4),Y(10.6),cv.width*(0.36+k*0.085),0,PI*2);c.stroke();}
+      /* the bird: a simple white swoop */
+      c.fillStyle='#ffffff';const bx=X(-10.6),by=Y(7.5),s2=cv.width*0.075;
+      c.beginPath();c.moveTo(bx-s2*1.6,by);c.quadraticCurveTo(bx-s2*0.4,by-s2*1.2,bx,by-s2*0.2);c.quadraticCurveTo(bx+s2*0.5,by-s2*1.3,bx+s2*1.7,by-s2*0.6);c.quadraticCurveTo(bx+s2*0.4,by-s2*0.1,bx,by+s2*0.45);c.quadraticCurveTo(bx-s2*0.5,by,bx-s2*1.6,by);c.fill();
+      c.font='italic 800 '+Math.round(cv.width*0.11)+'px "ISLND Body", "Lexend Giga", sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('JUMBO',X(-9.85),Y(5.4));
+      c.restore();
+    }
+    return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),transparent:true});
+  };
+  [-1,1].forEach(function(sd){const p=m(new THREE.PlaneGeometry(FX1-FX0,FY1-FY0),finTex(sd<0),(FX0+FX1)/2,(FY0+FY1)/2,sd*0.235);p.rotation.y=sd>0?0:PI;});
+  /* beacons top and bottom, a white tail light, landing lights in the wing roots, and the APU exhaust */
+  const bcn=[m(new THREE.SphereGeometry(0.1,8,6),glowB(0xff2020),0.5,JJ_YC+JJ_HR+0.02,0),m(new THREE.SphereGeometry(0.1,8,6),glowB(0xff2020),1.0,JJ_YC-JJ_HR-0.02,0)];
+  m(new THREE.SphereGeometry(0.08,8,6),glowB(0xffffff),-11.32,jjHull(-11.3).dy+JJ_YC,0);
+  [-1,1].forEach(function(sd){m(new THREE.SphereGeometry(0.07,8,6),glowB(0xfff3c0),2.2,ROOTY-0.05,sd*1.5);});
+  /* landing gear: a nose leg and four big bogies, with gear doors; it folds away in flight */
   const gear=new THREE.Group();body.add(gear);
   const bogie=function(x,z,n){
-    m(new THREE.CylinderGeometry(0.09,0.09,0.5,8),metal,x,-1.0,z,gear);
-    for(let a=0;a<n;a++)[-0.18,0.18].forEach(function(dz){const wx=x+(n>1?(a-(n-1)/2)*0.62:0);m(new THREE.CylinderGeometry(0.3,0.3,0.2,14).rotateX(PI/2),tyre,wx,-1.25,z+dz,gear);m(new THREE.CylinderGeometry(0.13,0.13,0.21,10).rotateX(PI/2),metal,wx,-1.25,z+dz,gear);});
+    m(new THREE.CylinderGeometry(0.09,0.09,0.55,8),metal,x,-1.0,z,gear);
+    m(new THREE.BoxGeometry(Math.max(0.5,n*0.62),0.06,0.06),metal,x,-1.25,z,gear);
+    for(let a=0;a<n;a++)[-0.18,0.18].forEach(function(dz){const wx=x+(n>1?(a-(n-1)/2)*0.62:0);m(new THREE.CylinderGeometry(0.3,0.3,0.2,16).rotateX(PI/2),tyre,wx,-1.25,z+dz,gear);m(new THREE.CylinderGeometry(0.14,0.14,0.21,10).rotateX(PI/2),metal,wx,-1.25,z+dz,gear);});
+    m(new THREE.BoxGeometry(0.7,0.04,0.36),grey,x,-0.98,z+(z>=0?0.35:-0.35),gear).rotation.x=z>=0?-0.9:0.9;
   };
   bogie(7.3,0,1);bogie(-0.3,1.7,2);bogie(-0.3,-1.7,2);bogie(-1.9,0.62,3);bogie(-1.9,-0.62,3);
   m(new THREE.SphereGeometry(0.1,8,6),glowB(0xfff3b0),7.6,-0.7,0,gear);
@@ -6887,29 +6927,37 @@ function makePetModel(id,food){
     [-1,1].forEach(function(sd){const st=cyl(saddle,0.012,0.45,dk,sd*0.31,1.33,0);st.rotation.z=sd*0.05;const sr=new THREE.TorusGeometry(0.05,0.012,6,12);geos.push(sr);const sm=new THREE.Mesh(sr,gold);sm.position.set(sd*0.33,0.86,0);sm.rotation.y=Math.PI/2;saddle.add(sm);});
     saddle.visible=false;
   }else if(d.kind==='goat'){
-    /* a shaggy white mountain goat: curly horns, a little beard, dark hooves and a stubby tail */
-    const fur=lam(0xeeeae0),fur2=lam(0xd8d2c4),hoof=lam(0x3a3430),horn=lam(0x9a8a70),iris=lam(0x8a6a20),nose=lam(0x6e5a50);
-    sph(body,1,0.2,0.2,0.32,fur,0,0.48,0);
-    for(let i=0;i<6;i++)sph(body,0.08,1,1,1,fur2,Math.sin(i*2.2)*0.16,0.36+(i%3)*0.06,-0.2+i*0.08);
+    /* Gruff: a tidy white mountain goat with a deep chest, a neat shaggy fringe along the belly, slim legs
+       with dark cloven hooves, a long face with a beard, slit-pupil eyes, and two smooth horns that sweep
+       back and curl down */
+    const fur=lam(0xf3efe6),fur2=lam(0xe3ddce),hoof=lam(0x34302c),horn=lam(0x8a7860),iris=lam(0xb88a26),nose=lam(0x5a4840),pink=lam(0xe9b8ac);
+    sph(body,1,0.18,0.19,0.3,fur,0,0.52,0);
+    sph(body,1,0.17,0.19,0.15,fur,0,0.54,-0.19);
+    sph(body,1,0.16,0.17,0.14,fur,0,0.55,0.19);
+    [-1,1].forEach(function(sd){for(let i=0;i<6;i++)sph(body,1,0.03,0.06,0.055,fur2,sd*0.13,0.39+(i===0||i===5?0.02:0),-0.22+i*0.088);});
+    sph(body,1,0.09,0.11,0.07,fur2,0,0.42,-0.29);
     [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(c){
-      const l=piv(body,c[0]*0.11,0.38,c[1]*0.2);
-      cyl(l,0.045,0.3,fur,0,0,0,0.04);
-      const hf=new THREE.CylinderGeometry(0.042,0.05,0.06,10);hf.translate(0,-0.33,0);geos.push(hf);l.add(new THREE.Mesh(hf,hoof));
+      const l=piv(body,c[0]*0.1,0.43,c[1]*0.2);
+      cyl(l,0.05,0.19,fur,0,0,0,0.038);
+      cyl(l,0.034,0.17,fur2,0,-0.18,0,0.03);
+      [-1,1].forEach(function(k){const hf=new THREE.BoxGeometry(0.03,0.055,0.06);hf.translate(k*0.017,-0.375,-0.005);geos.push(hf);l.add(new THREE.Mesh(hf,hoof));});
       P.legs.push([l,c[0]*c[1]]);
     });
-    const head=piv(body,0,0.68,-0.32);P.head=head;
-    sph(head,1,0.1,0.11,0.16,fur,0,0,-0.03);
-    sph(head,1,0.07,0.07,0.08,fur2,0,-0.04,-0.16);
-    sph(head,0.022,1.3,0.8,1,nose,0,-0.04,-0.24);
-    [-1,1].forEach(function(s){
-      eye(head,s*0.075,0.03,-0.08,0.026,iris,true);
-      const ear=sph(head,1,0.06,0.02,0.035,fur2,s*0.12,0.03,0.02);ear.rotation.z=s*-0.3;
-      /* a horn curling back and down */
-      const hg=piv(head,s*0.05,0.09,0.02);
-      for(let k=0;k<5;k++){const a=k*0.5;sph(hg,0.03-k*0.003,1,1,1,horn,s*0.01*k,Math.cos(a)*0.06*k*0.4+k*0.025,Math.sin(a)*0.05*k*0.5+k*0.02);}
+    sph(body,1,0.085,0.14,0.09,fur,0,0.7,-0.27);
+    const head=piv(body,0,0.82,-0.33);P.head=head;
+    sph(head,1,0.095,0.1,0.12,fur,0,0,-0.01);
+    sph(head,1,0.058,0.064,0.1,fur2,0,-0.045,-0.14);
+    sph(head,0.02,1.4,0.8,1,nose,0,-0.035,-0.235);
+    [-1,1].forEach(function(sd){
+      eye(head,sd*0.068,0.025,-0.07,0.024,iris,true);
+      const ear=sph(head,1,0.07,0.02,0.034,fur2,sd*0.12,0.015,0.01);ear.rotation.z=sd*-0.25;
+      const inner=sph(head,1,0.045,0.008,0.02,pink,sd*0.125,0.018,0.0);inner.rotation.z=sd*-0.25;
+      /* a smooth horn: beads that taper along a curve back over the head */
+      const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(sd*0.035,0.075,-0.03),new THREE.Vector3(sd*0.06,0.15,0.02),new THREE.Vector3(sd*0.08,0.17,0.11),new THREE.Vector3(sd*0.09,0.11,0.18),new THREE.Vector3(sd*0.085,0.05,0.16)]);
+      for(let k=0;k<=14;k++){const t=k/14,q=curve.getPoint(t);sph(head,0.026-0.015*t,1,1,1,horn,q.x,q.y,q.z);}
     });
-    const beard=cone(head,0.035,0.1,fur2,0,-0.14,-0.14,Math.PI);beard.rotation.x=Math.PI+0.2;
-    const tail=piv(body,0,0.58,0.3);P.tail=tail;sph(tail,0.045,1,1.3,1,fur,0,0.03,0.02);
+    const beard=cone(head,0.028,0.11,fur2,0,-0.125,-0.15,Math.PI+0.15);void beard;
+    const tail=piv(body,0,0.64,0.32);P.tail=tail;sph(tail,1,0.035,0.055,0.03,fur,0,0.03,0.015).rotation.x=-0.5;
   }else if(d.kind==='axolotl'){
     /* a pink axolotl: a wide smiley head with three feathery gills on each side, little legs and a long finned tail */
     const pk=lam(0xf6a6c0),pk2=lam(0xf28aa8),gill=lam(0xe0507a),eyeM=lam(0x1d1d22),fin=lam(0xf8c0d0,{transparent:true,opacity:0.85,side:THREE.DoubleSide});
@@ -8637,9 +8685,9 @@ function frame(now){
   {
     const px=Math.floor(P.x),pz=Math.floor(P.z);let cover=-1;
     for(let y=Math.max(0,Math.floor(P.y+1.7));y<H;y++){const b=get(px,y,pz);if(!passLight(b)){cover=y;break;}}
-    const want=cover<0?1:Math.max(0.3,0.85-0.07*(cover-P.y));
+    const want=cover<0||cover-P.y>12?1:Math.max(0.3,0.85-0.07*(cover-P.y));
     ambient+=(want-ambient)*Math.min(1,dt*2);
-    envTick(rawDt,cover>=0);
+    envTick(rawDt,cover>=0&&cover-P.y<=12);
     hemiLight.intensity=0.75*ambient*envOut.figK;sunLight.intensity=0.55*ambient*envOut.figK;
   }
   const under=ready&&waterAt(cam.x,cam.y,cam.z);
