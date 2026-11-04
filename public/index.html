@@ -5499,8 +5499,10 @@ function buildJetInterior(body,m,lam){
 const JJ_YC=1.4,JJ_HR=2.45,JJ_WR=1.75,JJ_HL=2.3,JJ_WL=1.62;
 function jjOvalZ(y,H,Wd){const t=(y-JJ_YC)/H;return t*t>=1?0:Wd*Math.sqrt(1-t*t);}
 /* the skin's shape along its length: how far the centre line rises or droops, and how fat it is */
+const JJ_NOSE=3.9;
 function jjHull(x){
-  if(x>6.4){const t=Math.min(1,(x-6.4)/2.9);return{dy:-0.75*Math.pow(t,1.6),rf:Math.sqrt(Math.max(0,1-Math.pow(t,2.4)))};}
+  /* a long nose that tapers to a point, drooping a little below the centre line */
+  if(x>6.4){const t=Math.min(1,(x-6.4)/JJ_NOSE);return{dy:-0.95*Math.pow(t,1.5),rf:Math.max(0,1-Math.pow(t,1.7))};}
   if(x<-6.6){const t=Math.min(1,(-6.6-x)/4.7);return{dy:1.25*Math.pow(t,1.4),rf:Math.max(0,1-Math.pow(t,1.25))*0.98+0.02*(t<1?1:0)};}
   return{dy:0,rf:1};
 }
@@ -5518,7 +5520,7 @@ function buildJumboModel(){
   const m=function(geo,mat,x,y,z,parent){const o=new THREE.Mesh(geo,mat);o.position.set(x||0,y||0,z||0);(parent||body).add(o);return o;};
   const PI=Math.PI;
   /* the stations along the body, closer together where the nose and tail curve */
-  const XS=[];for(let i=0;i<=14;i++){const t=1-Math.pow(1-i/14,1.6);XS.push(9.3-t*2.9);}
+  const XS=[];for(let i=0;i<=18;i++){const t=1-Math.pow(1-i/18,1.4);XS.push(6.4+JJ_NOSE-t*JJ_NOSE);}
   for(let i=1;i<14;i++)XS.push(6.4-i*13/14);
   for(let i=0;i<=16;i++){const t=Math.pow(i/16,0.9);XS.push(-6.6-t*4.7);}
   /* a patch of skin over x0..x1 between angles a0(x) and a1(x), lifted off by off; it turns its faces outward */
@@ -5536,7 +5538,7 @@ function buildJumboModel(){
     return m(ge,mat);
   };
   /* the whole skin, nose to tail, in one piece */
-  patch(9.3,-11.3,function(){return[0,PI*2];},white,0,48);
+  patch(6.4+JJ_NOSE,-11.3,function(){return[0,PI*2];},white,0,48);
   /* Bird Air's livery: a pale grey belly, and a deep blue sweep up round the back of the body to the fin
      with a sky-blue edge */
   patch(8.9,-7.6,function(){return[PI*0.8,PI*1.2];},grey,0.01,10);
@@ -5564,7 +5566,7 @@ function buildJumboModel(){
     UP_DOORS.forEach(function(x){decal(x,sd*aAt(2.3),0.56,1.06,seam,sd<0,0.018);decal(x,sd*aAt(2.3),0.5,1.0,door,sd<0,0.022);decal(x,sd*aAt(2.5),0.12,0.16,dark,sd<0,0.026);});
   });
   /* the cockpit windows: a curved row of dark panes wrapping round the top of the nose */
-  [[-1.25,-0.86],[-0.8,-0.44],[-0.38,-0.03],[0.03,0.38],[0.44,0.8],[0.86,1.25]].forEach(function(r){patch(8.52,8.14,function(){return r;},dark,0.012,4);});
+  [[-1.25,-0.86],[-0.8,-0.44],[-0.38,-0.03],[0.03,0.38],[0.44,0.8],[0.86,1.25]].forEach(function(r){patch(6.4+JJ_NOSE*0.62,6.4+JJ_NOSE*0.5,function(){return r;},dark,0.012,4);});
   const nameC=document.createElement('canvas');nameC.width=1024;nameC.height=128;
   {const c=nameC.getContext&&nameC.getContext('2d');if(c&&c.fillText){c.fillStyle='#1d4cad';c.font='italic 800 92px "ISLND Body", "Lexend Giga", sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('BIRD AIR',512,66);}}
   const nameM=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(nameC),transparent:true});
@@ -5933,7 +5935,7 @@ function flyJet(dt){
   const nx=q.x+Math.cos(q.h)*Math.cos(q.p)*jet.spd*dt,nz=q.z+Math.sin(q.h)*Math.cos(q.p)*jet.spd*dt;
   const ny=Math.min(140,q.y+(Math.sin(q.p)*jet.spd+lift)*dt);
   /* bump into the island instead of flying through it */
-  const pts=[[0,-1.7,0],[9.1,0.8,0],[-11.0,2.6,0],[-4.2,-0.3,10.2],[-4.2,-0.3,-10.2]];
+  const pts=[[0,-1.7,0],[10.1,0.5,0],[-11.0,2.6,0],[-4.2,-0.3,10.2],[-4.2,-0.3,-10.2]];
   let hit=false,hk=-1;
   /* check the whole way along this frame's move, half a block at a time, so a fast jet can't skip
      through a thin wall */
@@ -9678,7 +9680,7 @@ function fireGrapple(){
 }
 /* the vehicles' shapes, as balls in each one's own frame (x forward, y up, z right) */
 const VEH_BALLS={
-  jet:[[-10.2,2.4,0,0.9],[-8.4,1.9,0,1.5],[-6.4,1.4,0,2.2],[-4.2,1.4,0,2.3],[-2.0,1.4,0,2.3],[0.2,1.4,0,2.3],[2.4,1.4,0,2.3],[4.6,1.4,0,2.3],[6.8,1.2,0,2.0],[8.6,0.8,0,1.1],[-1.0,-0.4,3.9,1.2],[-1.0,-0.4,-3.9,1.2],[-2.8,-0.4,6.7,1.1],[-2.8,-0.4,-6.7,1.1],[-4.2,-0.3,9.6,0.8],[-4.2,-0.3,-9.6,0.8],[-9.8,6.2,0,1.3]],
+  jet:[[-10.2,2.4,0,0.9],[-8.4,1.9,0,1.5],[-6.4,1.4,0,2.2],[-4.2,1.4,0,2.3],[-2.0,1.4,0,2.3],[0.2,1.4,0,2.3],[2.4,1.4,0,2.3],[4.6,1.4,0,2.3],[6.8,1.2,0,2.0],[8.6,0.8,0,1.3],[9.8,0.5,0,0.6],[-1.0,-0.4,3.9,1.2],[-1.0,-0.4,-3.9,1.2],[-2.8,-0.4,6.7,1.1],[-2.8,-0.4,-6.7,1.1],[-4.2,-0.3,9.6,0.8],[-4.2,-0.3,-9.6,0.8],[-9.8,6.2,0,1.3]],
   express:[[-6.7,0.1,0,0.8],[-4,0,0,1.1],[-1.3,0,0,1.1],[1.3,0,0,1.1],[4,0,0,1.05],[5.4,0,0,0.8],[-1,-0.5,2.7,0.8],[-1,-0.5,-2.7,0.8],[-6.3,1.8,0,0.7]],
   heli:[[0.2,1.6,0,1.3],[1.3,1.5,0,1.0],[-1.4,1.8,0,0.8],[-2.8,2.0,0,0.5],[-4.2,2.1,0,0.5],[-5.5,2.5,0,0.6],[0.2,0.2,0,0.9]],
   ski:[[0,0.25,0,0.75],[0.85,0.2,0,0.55],[-0.85,0.25,0,0.6]]
