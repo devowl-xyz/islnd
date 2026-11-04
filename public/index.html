@@ -390,6 +390,40 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
 .guidet{margin-top:clamp(28px,4vw,56px)!important}
 .keys.guide dd{color:#000}
 @media (max-width:600px){.hero{flex-direction:column;align-items:flex-start}.hero dd{text-align:left}.hero.ctl{grid-template-columns:1fr;row-gap:4px}.hero.ctl dd{margin-bottom:10px}.keys{grid-template-columns:1fr;gap:4px}.keys dd{text-align:left;margin-bottom:10px}}
+
+/* the Everything else page, in the same big poster rows */
+#moreCard .pets{margin-top:clamp(28px,4vw,60px);gap:clamp(10px,1.4vw,20px)}
+#moreCard .pets h3,#moreCard .net h2,#moreCard .guidet{font:900 clamp(26px,4.2vw,64px)/1 var(--display)!important;text-transform:uppercase;margin:0 0 clamp(8px,1.4vw,20px)}
+#moreCard .petrow{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:baseline;column-gap:clamp(10px,1.6vw,24px);font-size:inherit}
+#moreCard .petrow .sw{width:clamp(12px,1.4vw,22px);height:clamp(12px,1.4vw,22px);margin:0;align-self:center}
+#moreCard .petrow .pn{font:900 clamp(20px,2.9vw,46px)/1.05 var(--display);text-transform:uppercase;min-width:0}
+#moreCard .petrow .ph{font:400 clamp(14px,1.9vw,30px)/1.2 var(--body);text-align:right;color:#000}
+#moreCard .petrow .ph.on{font-weight:700}
+#moreCard .petrow .ghost{align-self:center;font-size:clamp(12px,1.2vw,18px);padding:8px 12px}
+#moreCard .hintp{font:400 clamp(14px,1.8vw,28px)/1.25 var(--body);color:#000}
+#moreCard .fishbook{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:clamp(8px,1vw,14px) clamp(16px,2vw,28px)}
+#moreCard .fish{font:400 clamp(13px,1.4vw,20px)/1.2 var(--body)}
+#moreCard .fish b{font:900 clamp(14px,1.5vw,22px)/1.1 var(--display);text-transform:uppercase}
+#moreCard .fish i{flex:0 0 22px;height:14px}
+#moreCard .cnt{font:400 clamp(14px,1.6vw,24px) var(--body);margin-left:10px}
+#moreCard .ghost.wide,#moreCard .playctl .ghost{display:flex;justify-content:space-between;align-items:center;width:100%;margin:clamp(10px,1.4vw,18px) 0 0;padding:clamp(14px,1.8vw,26px) clamp(16px,2.2vw,32px);border:3px solid #000;font:900 clamp(18px,2.4vw,38px)/1 var(--display);text-transform:uppercase;text-align:left}
+#moreCard .ghost.wide::after,#moreCard .playctl .ghost::after{content:"→"}
+#moreCard .ghost.wide:hover,#moreCard .playctl .ghost:hover{background:#000;color:#fff}
+#moreCard .ghost.wide .dot{width:clamp(14px,1.6vw,24px);height:clamp(14px,1.6vw,24px);margin-right:auto;order:-1}
+#moreCard .ghost.wide{justify-content:flex-start;gap:16px}
+#moreCard .ghost.wide::after{margin-left:auto}
+#moreCard .row{font:400 clamp(14px,1.8vw,26px)/1.2 var(--body);margin-top:clamp(24px,3vw,44px)}
+#moreCard .row .ghost{font:900 clamp(14px,1.6vw,24px)/1 var(--display);text-transform:uppercase;padding:12px 16px;border-width:3px}
+#moreCard .field{font:400 clamp(16px,2vw,30px)/1 var(--body);padding:clamp(10px,1.4vw,18px) 14px;border-width:3px}
+#moreCard .netrow .ghost{font:900 clamp(14px,1.8vw,26px)/1 var(--display);text-transform:uppercase;padding:clamp(12px,1.4vw,18px) clamp(14px,2vw,28px);border-width:3px}
+#moreCard .hero.ctl.rest.guide dd{font-size:clamp(15px,2.1vw,34px)}
+#moreCard .hero.ctl.rest.guide dt{font-size:clamp(18px,2.5vw,40px)}
+#moreCard .netmsg{font-size:clamp(14px,1.6vw,22px)}
+#moreCard .roomcode{font-size:clamp(28px,5vw,72px)}
+#moreCard .peers li{font:400 clamp(14px,1.8vw,26px) var(--body)}
+#moreCard .card .sub,#moreCard .sub{font-size:clamp(18px,2.6vw,40px)}
+#closeMore{font:900 clamp(14px,1.6vw,22px)/1 var(--display);text-transform:uppercase;padding:12px 16px;border-width:3px}
+@media (max-width:600px){#moreCard .petrow{grid-template-columns:auto minmax(0,1fr) auto}#moreCard .petrow .ph{grid-column:1/-1;text-align:left;margin-bottom:8px}}
 </style>
 
 <div id="app">
@@ -522,43 +556,44 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
       </div>
     
       <h2 class="ctitle guidet">Around the island</h2>
-      <dl class="keys guide">
-        <dt>Pet powers</dt><dd>Your pet&rsquo;s power: Biscuit or Mochi turns into food (don&rsquo;t eat them!), Hoot or Snowy lifts you into the sky, Goldie&rsquo;s Bubble Dash, a flight on Cinder&rsquo;s back</dd>
-        <dt>Second powers</dt><dd>A second power: Hoot&rsquo;s Owl Eyes, Snowy&rsquo;s Frost Wings, Goldie&rsquo;s Lucky Fin, Cinder&rsquo;s fire breath</dd>
-        <dt>Right click a door or bed</dt><dd>Open or shut the door, or lie down and sleep</dd>
-        <dt>Water (0)</dt><dd>Right click pours, left click scoops</dd>
-        <dt>E, explained</dt><dd>Board or leave the jet at the east dock, adopt a pet, or get on and off Clover the horse</dd>
-        <dt>On the jumbo</dt><dd><b>W</b><b>A</b><b>S</b><b>D</b> walk about, <b>E</b> sit or stand. Business class is up the stairs at the back (Hoot’s and Snowy’s owners), with pods and a bar. <b>E</b> at the front door gets you off</dd>
-        <dt>Wire</dt><dd>Aim at the thin strip itself to hit it; aim over it to reach the block behind</dd>
-        <dt>Fishing</dt><dd>On a jet dock: cast your fishing line, and reel in when the bobber dips</dd>
-        <dt>The Sky Palace</dt><dd>Float up to the Sky Palace, or back down (owl owners and their guests)</dd>
-        <dt>Helicopter</dt><dd>At North Shore, owl owners only: <b>E</b> to fly or get out, <b>W</b>/<b>S</b> <b>A</b>/<b>D</b> and the mouse to fly, <b>Space</b>/<b>Shift</b> up and down, <b>H</b> rope down or up, <b>J</b> let everyone go, <b>K</b> bridge out or in</dd>
-        <dt>Jet skis, cable car</dt><dd>At the campsite jetty, <b>E</b> to ride a jet ski (<b>W</b>/<b>S</b> throttle, <b>A</b>/<b>D</b> steer). At the summit of the southern peaks or by the cottage, <b>E</b> to ride the cable car</dd>
-        <dt>Signs, fences</dt><dd>In the block picker (B). Place a sign and type what it says; right click it to change the words</dd>
-        <dt>Parachute</dt><dd>Opens when you jump out of the jet or helicopter high up; <b>Space</b> while falling opens it too</dd>
-        <dt>Commands</dt><dd>Type a command (<b>/help</b> lists them: <b>/spawn</b> a test dummy, <b>/tp</b>, <b>/fly</b>, <b>/home</b>, <b>/pet</b>, <b>/jet</b>, <b>/block</b>, <b>/where</b>)</dd>
-        <dt>Emotes</dt><dd>Emotes: then 1 wave, 2 dance, 3 sit, 4 cheer, 5 clap, and 6 to 0 for emoji reactions (👍 ❤️ 😂 😮 🎉)</dd>
-        <dt>Secret lab</dt><dd>Owl owners only: a grass-painted hatch in a clearing east of the cable car summit opens when you walk right up (Pemberton can take you). Fly the helicopter down in; <b>E</b> at the gadgets; level 2 is down the corridor west; <b>Space</b> on the spring pad to get out</dd>
-        <dt>Atlantis</dt><dd>Break the cracked stone in the Sunken Realm’s temple floor. Take the trident, then <b>U</b> makes a wave</dd>
-        <dt>Torpedoes</dt><dd><b>F</b> in the submarine</dd>
-        <dt>Redstone</dt><dd>Wire, levers, buttons, pressure plates, redstone blocks, lamps, NOT gates, delays, TNT and note blocks are in the picker. <b>Right-click</b> a lever or button. Wire carries power 15 blocks; powered doors open. <b>Pistons</b> push up to 12 blocks (sticky ones pull back), <b>observers</b> pulse when the block they watch changes. Look straight down to place a piston pointing up</dd>
-        <dt>Bird Air Express</dt><dd>The red jet. <b>/tp express</b> to get to it; <b>E</b> by it to fly it like the other jet (W/S throttle, the mouse steers, Space/Shift up and down) but the throttle goes to 1000%: past 100% it's on ✨ Spark Dust. <b>E</b> again to climb out or bail out</dd>
-        <dt>Sky course</dt><dd><b>E</b> on the glowing pad on the meadow’s east side. Checkpoints, a timer, no flying</dd>
-        <dt>Pet hotel</dt><dd>/hotel beside Pemberton. Your pet comes back in a bathrobe</dd>
-        <dt>Submarine</dt><dd>By the West Bay dock. <b>E</b> to climb in, W/A/S/D, Space up, Shift down</dd>
-        <dt>Capture the flag</dt><dd>/ctf start, /ctf red or blue. Red’s flag at the lighthouse, Blue’s on Volcano Island. First to 3</dd>
-        <dt>Bazza’s Taxis</dt><dd><b>E</b> by Bazza: 5 coins, very fast, usually ends in the sea</dd>
-        <dt>Lava</dt><dd>In the block picker. Flows slowly, burns wood and wool, and turns to obsidian when water touches it. Don’t stand in it</dd>
-        <dt>Volcano Island</dt><dd>Out at sea to the south-west (/tp volcano). Magma burns! <b>E</b> to talk to Ember, Cinder’s cousin, for a fireproof blessing</dd>
-        <dt>Shipwreck</dt><dd>West of West Bay (/tp wreck). Swim down to the treasure chests (<b>E</b>); the ghost captain appears at night</dd>
-        <dt>Island Nations</dt><dd>Stairs down from the west of the meadow (/tp un). <b>E</b> at the podium to pass a resolution</dd>
-        <dt>Slinky</dt><dd>The snake under the treehouse has all the owls’ powers (<b>T</b> lift, <b>G</b> Snake Senses). Its owner can go wherever owl owners go, but can’t use the lab’s gadgets</dd>
-        <dt>B&amp;M HQ</dt><dd>Biscuit’s and Mochi’s owners only: a hatch in the lighthouse floor, just right of the door, drops you into their bunker. <b>Space</b> on the spring pad to pop back up</dd>
-        <dt>Island Shop</dt><dd>South of where you start: <b>E</b> by Polly the parrot to spend coins (from fishing, cracking Bazza’s eggs, races and a daily visit) on treats and hats</dd>
-        <dt>Trampoline</dt><dd>Just west of where you start: land on it to bounce, hold <b>Space</b> as you land to go higher, <b>Shift</b> to stop</dd>
-        <dt>Bazza</dt><dd>Biscuit and Mochi’s ostrich by the cottage gate: <b>E</b> to get him mopping up sewage or off egging someone (Biscuit’s and Mochi’s owners). Crack his eggs to get rid of them</dd>
-        <dt>Pemberton</dt><dd>The owls’ penguin butler in the treehouse hall (owl owners): <b>B</b> by him for his service: tea and a burst of speed, a snack for your owl, a gull-proof polish, teleporting anywhere, clearing Bazza’s eggs, mending the lighthouse, fine weather, fireworks, the helicopter, shooing the seagulls and day or night. He also pops up to save you</dd>
-        <dt>Zip lines</dt><dd>Put two zip line posts (in the block picker) at different heights and a line strings itself between them. Stand under it and press <b>E</b> to ride down; <b>Space</b> lets go</dd>
+      <dl class="hero ctl rest guide">
+        <dt>Pet powers</dt><dd>T. Lift, dash, fly, or turn into food.</dd>
+        <dt>Second powers</dt><dd>G. Owl Eyes, Frost Wings, Lucky Fin, fire.</dd>
+        <dt>Doors and beds</dt><dd>Right click to open, shut or sleep.</dd>
+        <dt>Water</dt><dd>Right click pours. Left click scoops.</dd>
+        <dt>E</dt><dd>Board, adopt, ride, talk, use.</dd>
+        <dt>On the jumbo</dt><dd>WASD walk. E sit. Business is upstairs.</dd>
+        <dt>Spark wire</dt><dd>Aim at the strip to hit it.</dd>
+        <dt>Fishing</dt><dd>Q on a dock. Reel in when it dips.</dd>
+        <dt>Sky Palace</dt><dd>P. Owl owners and guests.</dd>
+        <dt>Helicopter</dt><dd>E at North Shore. H rope, J let go, K bridge.</dd>
+        <dt>Jet skis</dt><dd>E at the campsite jetty.</dd>
+        <dt>Cable car</dt><dd>E at the summit or the cottage.</dd>
+        <dt>Signs</dt><dd>Right click a sign to change it.</dd>
+        <dt>Parachute</dt><dd>Space while falling.</dd>
+        <dt>Commands</dt><dd>/help lists them all.</dd>
+        <dt>Emotes</dt><dd>X, then 1–5. 6–0 for reactions.</dd>
+        <dt>Secret lab</dt><dd>Owl owners. Hatch east of the cable car.</dd>
+        <dt>Atlantis</dt><dd>Break the temple floor. U for a wave.</dd>
+        <dt>Torpedoes</dt><dd>F in the submarine.</dd>
+        <dt>Redstone</dt><dd>Right click levers and buttons.</dd>
+        <dt>Bird Air Express</dt><dd>/tp express. E to fly it.</dd>
+        <dt>Sky course</dt><dd>E on the meadow’s glowing pad.</dd>
+        <dt>Pet hotel</dt><dd>/hotel beside Pemberton.</dd>
+        <dt>Submarine</dt><dd>E at West Bay. Space up, Shift down.</dd>
+        <dt>Capture the flag</dt><dd>/ctf start. First to 3.</dd>
+        <dt>Bazza’s Taxis</dt><dd>E by Bazza. 5 coins.</dd>
+        <dt>Lava</dt><dd>Don’t stand in it.</dd>
+        <dt>Volcano</dt><dd>/tp volcano. E to meet Ember.</dd>
+        <dt>Shipwreck</dt><dd>/tp wreck. The ghost comes at night.</dd>
+        <dt>Island Nations</dt><dd>/tp un. E at the podium.</dd>
+        <dt>Slinky</dt><dd>Under the treehouse. Owl powers.</dd>
+        <dt>B&amp;M HQ</dt><dd>The hatch in the lighthouse floor.</dd>
+        <dt>Island Shop</dt><dd>E by Polly to spend coins.</dd>
+        <dt>Trampoline</dt><dd>Hold Space to bounce higher.</dd>
+        <dt>Bazza</dt><dd>E at the cottage gate.</dd>
+        <dt>Pemberton</dt><dd>B by him in the treehouse hall.</dd>
+        <dt>Zip lines</dt><dd>E under the line. Space lets go.</dd>
       </dl>
     </div>
     <div class="card" id="skinCard" hidden>
@@ -2232,8 +2267,8 @@ function renderPalace(){
   const el=$('palList'),hint=$('palHint');if(!el||!el.appendChild)return;
   el.innerHTML='';
   const owner=isOwlOwner();
-  hint.textContent=owner?'Hoot and Snowy\u2019s palace floats in the sky '+palWhere()+'. Ride the cloud on the treehouse\u2019s observation deck, or press P. Invite players and pets up, and send them down again, with one click.'+(inRoom()?'':' Host or join a room to invite other players.'):
-    (palGuest()?'You\u2019re invited to the Sky Palace! Press P to float up, or ride the cloud on the treehouse\u2019s observation deck.':'Hoot and Snowy\u2019s palace floats in the sky '+palWhere()+'. Only their owners and the guests they invite can go up.');
+  hint.textContent=owner?'P, or the cloud on the observation deck. Invite players and pets.':
+    (palGuest()?'You’re invited! Press P to float up.':'For owl owners and their guests.');
   const mk=function(t,cls,f){const b=document.createElement('button');b.type='button';b.className='ghost'+(cls?' '+cls:'');b.textContent=t;b.addEventListener('click',f);return b;};
   const row=function(col,name,txt,btn,key){
     const r=document.createElement('div');r.className='petrow';if(key)r.setAttribute('data-pal',key);
@@ -6799,15 +6834,15 @@ const PETS={
 };
 const PET_IDS=Object.keys(PETS);
 function petHint(id){
-  if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace, up in the sky '+palWhere()+'.';
-  if(id==='goat')return'Up on the highest peak of the southern mountains, chewing something. Gruff leaps on T.';
-  if(id==='axel')return'Nobody knows. Some say a secret world under the sea, past the very edge of the map…';
-  if(id==='slinky')return'Coiled up among the roots under the big treehouse '+(LAYOUT==='classic'?'west of the meadow':'in the eastern hills')+'. Slinky has all the owls’ powers.';
-  if(id==='hoot'||id==='snowy')return'Perched on the roof of the big treehouse '+(LAYOUT==='classic'?'west of the meadow':'in the eastern hills, at the end of the road over the bridge')+'.';
-  if(id==='goldie')return'Swimming round a little glass house on the sea bed out west of West Bay (x 50, z 226).';
-  if(id==='biscuit'||id==='mochi')return'Waiting under the arbour at the gate of their cottage, out in the '+(PET_HOME.shelterDir||'far')+' of the island.';
-  if(id==='horse')return'Grazing in a paddock on the neck of land between the eastern and southern lands'+(LAYOUT==='classic'?'':', by the road')+'. You can ride Clover.';
-  return'Asleep in a den under the '+(PET_HOME.lairDir||'south')+' beach. Its stairway starts at the south edge of the meadow.';
+  if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace.';
+  if(id==='goat')return'On the highest southern peak.';
+  if(id==='axel')return'Somewhere under the sea…';
+  if(id==='slinky')return'Under the treehouse roots.';
+  if(id==='hoot'||id==='snowy')return'On the treehouse roof.';
+  if(id==='goldie')return'In the glass house, west of West Bay.';
+  if(id==='biscuit'||id==='mochi')return'At the cottage gate.';
+  if(id==='horse')return'In the paddock. You can ride Clover.';
+  return'In the den under the '+(PET_HOME.lairDir||'south')+' beach.';
 }
 /* rounded toy pets, built facing -z like the characters. Each keeps the same moving parts (head, tail,
    legs, wings, and the horse's neck and saddle) so the animations and tricks work on all of them */
