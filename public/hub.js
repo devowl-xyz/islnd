@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 155; // 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 165; // 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -486,11 +486,22 @@ function handle(peer, msg) {
       broadcast(room, { t: 'skin', id: peer.id, skin: peer.skin }, peer.id);
       return;
     }
+    case 'licence': { peer.licence = true; return; }
+    // room games (hide and seek, build battles): relayed to everyone; only the host or an admin can start or stop one
+    case 'game': {
+      if (!room) return;
+      const kind = String(msg.kind || '').slice(0, 12), data = msg.data && typeof msg.data === 'object' && !Array.isArray(msg.data) ? msg.data : {};
+      if ((data.act === 'start' || data.act === 'stop') && !isBoss(room, peer)) return;
+      if (JSON.stringify(data).length > 1500) return;
+      broadcast(room, { t: 'game', by: peer.id, kind, data });
+      return;
+    }
     case 'board': {
       if (!room) return;
       const j = room.jet;
       if (j.pilot === peer.id || j.pass.includes(peer.id)) return;
-      const may = peer.id === room.hostId || peer.admin;
+      // a Bird Air pilot licence (landed the jumbo on the runway) lets anyone fly it
+      const may = peer.id === room.hostId || peer.admin || peer.licence;
       if (msg.seat === 'pilot' && may && j.pilot === null) { j.pilot = peer.id; j.release = null; j.call = null; j.last = null; j.park = null; }
       else if (msg.seat === 'pilot' && !may) return send(peer.ws, { t: 'boardNo', why: 'admin' });
       else if (j.pass.length < 4) j.pass.push(peer.id);

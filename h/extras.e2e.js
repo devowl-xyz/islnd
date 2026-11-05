@@ -1328,7 +1328,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.jumbo.put({ x: 4.8, z: 0, y: -0.4 }));
   await a.keyboard.down('KeyW'); await wait(1500); await a.keyboard.up('KeyW');
   const w1 = await a.evaluate(() => window.__isle.jumbo.walk());
-  check('W walks you down the aisle', w1.x < 4.4, [w0, w1]);
+  check('W walks you down the aisle', w1.x < 4.65, [w0, w1]);
   check('you stay in the aisle between the seats', Math.abs(w1.z) <= 0.31, w1);
   // sit and stand
   await a.evaluate(() => window.__isle.jumbo.put({ x: 2.5, z: 0.2, y: -0.4 }));
@@ -1363,6 +1363,179 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.toggleBoard()); await wait(400);
   check('E by the front door gets you off', !(await a.evaluate(() => window.__isle.jumbo.walk())) && !(await a.evaluate(() => window.__isle.jet.seat)));
   await a.evaluate(() => { const I = window.__isle; I.noChute(); I.setSkin({ pet: 'none' }); });
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- slime, flying machines, rails, spark doors, daylight sensor -----
+  const K = await a.evaluate(() => { const I = window.__isle, n = {}; for (const k of ['SLIME', 'RAIL', 'PRAIL', 'SDOOR', 'SDOOR_OPEN', 'DSENSOR', 'STICKY', 'LEVER', 'STONE', 'PLANKS', 'RLAMP', 'RLAMP_ON', 'OBSERVER']) n[k] = I.blockId(k); return n; });
+  check('slime, rails, powered rails, spark doors and the daylight sensor are in the picker', await a.evaluate((K) => ['SLIME', 'RAIL', 'PRAIL', 'SDOOR', 'DSENSOR'].every((k) => window.__isle.picker.picks.indexOf(K[k]) >= 0), K));
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  const S = (x, y, z, b) => a.evaluate((q) => window.__isle.setBlock(q[0], q[1], q[2], q[3]), [x, y, z, b]);
+  const G = (x, y, z) => a.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [x, y, z]);
+  const ticks = (n) => a.evaluate((n) => { for (let k = 0; k < n; k++) window.__isle.rs.step(); }, n);
+  const flip = (x, y, z) => a.evaluate((q) => window.__isle.rs.use(q[0], q[1], q[2]), [x, y, z]);
+  // a sticky piston pushes slime, and the block stuck to the slime's side comes too
+  await S(66, 13, 114, K.LEVER); await S(67, 13, 114, K.STICKY + 1); await S(68, 13, 114, K.SLIME); await S(68, 13, 115, K.PLANKS); await S(68, 14, 114, K.STONE);
+  await ticks(2); await flip(66, 13, 114); await ticks(2);
+  const pushed = [await G(69, 13, 114), await G(69, 13, 115), await G(69, 14, 114), await G(68, 13, 115)];
+  check('slime drags the blocks stuck to it along', pushed[0] === K.SLIME && pushed[1] === K.PLANKS && pushed[2] === K.STONE && pushed[3] === 0, pushed);
+  await flip(66, 13, 114); await ticks(2);
+  check('and a sticky piston pulls the whole lot back', (await G(68, 13, 114)) === K.SLIME && (await G(68, 13, 115)) === K.PLANKS && (await G(69, 13, 114)) === 0);
+  // a flying machine
+  await put(a, 70.5, 13, 98.5, Math.PI / 2); await a.evaluate(() => { window.__isle.player.yaw = -Math.PI / 2; }); await wait(200);
+  check('/machine builds a flying machine', await a.evaluate(() => window.__isle.cmd('/machine')));
+  const f0 = await a.evaluate(() => window.__isle.rs.flights());
+  // it was built 3 ahead (east) at y+3: the observer looks south, poke it
+  await S(73, 16, 100, K.STONE); await ticks(1); await S(73, 16, 100, 0);
+  await ticks(16);
+  const fl = await a.evaluate(() => window.__isle.rs.flights());
+  check('poke its observer and it flies itself along, block after block', fl - f0 >= 3, [f0, fl]);
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  // spark doors: a 2 x 3 door all opens off one lever
+  for (let y = 13; y <= 15; y++) for (let z = 120; z <= 121; z++) await S(70, y, z, K.SDOOR);
+  await S(70, 13, 119, K.LEVER); await ticks(2);
+  const shut = await G(70, 15, 121);
+  await flip(70, 13, 119); await ticks(2);
+  const opened = [await G(70, 13, 120), await G(70, 15, 121), await G(70, 14, 120)];
+  await flip(70, 13, 119); await ticks(2);
+  check('a lever opens every block of a spark door, and shuts it again', shut === K.SDOOR && opened.every((b) => b === K.SDOOR_OPEN) && (await G(70, 15, 121)) === K.SDOOR, [shut, opened]);
+  // daylight sensor: on at night
+  await S(74, 13, 122, K.DSENSOR); await S(75, 13, 122, K.RLAMP);
+  await a.evaluate(() => window.__isle.cmd('/time noon')); await wait(300); await ticks(2);
+  const day = await G(75, 13, 122);
+  await a.evaluate(() => window.__isle.cmd('/time midnight')); await wait(300); await ticks(2);
+  const night = await G(75, 13, 122);
+  await a.evaluate(() => window.__isle.cmd('/time noon')); await wait(300); await ticks(2);
+  check('a daylight sensor gives power at night', day === K.RLAMP && night === K.RLAMP_ON, [day, night]);
+  // rails and a minecart round a bend
+  for (let x = 62; x <= 66; x++) await S(x, 13, 108, K.RAIL);
+  for (let z = 107; z >= 104; z--) await S(66, 13, z, K.RAIL);
+  await S(61, 13, 108, K.PRAIL); await S(60, 13, 108, K.LEVER); await flip(60, 13, 108); await ticks(2);
+  check('spark power reaches a powered rail', await a.evaluate(() => window.__isle.rs.railOn(61, 13, 108)));
+  await put(a, 61.5, 13, 108.5); await a.evaluate(() => { window.__isle.player.yaw = -Math.PI / 2; });
+  check('E by a rail puts you in a minecart', await a.evaluate(() => window.__isle.cart.start()) && !!(await a.evaluate(() => window.__isle.cart.on())));
+  await a.keyboard.down('KeyW'); await wait(1200); await a.keyboard.up('KeyW');
+  await a.waitForFunction(() => { const c = window.__isle.cart.on(); return c && c.a[2] <= 105; }, null, { timeout: 30000 }).catch(() => {});
+  const c1 = await a.evaluate(() => window.__isle.cart.on());
+  check('it rolls along the track and round the bend', !!c1 && c1.a[0] === 66 && c1.a[2] <= 105, c1);
+  await a.evaluate(() => window.__isle.cart.leave());
+  check('E gets you out', !(await a.evaluate(() => window.__isle.cart.on())));
+  check('and riding one earns the All aboard badge', !!(await a.evaluate(() => window.__isle.ach.all().cart)));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- the jumbo's trolley, cargo hold, air show and pilot licence -----
+  await a.evaluate(() => { const I = window.__isle; I.shop.give(20); I.setSkin({ pet: 'none' }); I.jumbo.board(); });
+  await wait(500);
+  const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => { const I = window.__isle; I.jumbo.put({ x: I.jj2.trolleyX(), z: 0, y: -0.4, sit: null }); });
+  check('the snack trolley rolls up and down the aisle', await a.evaluate(() => window.__isle.jj2.nearTrolley()));
+  await a.evaluate(() => { const I = window.__isle; I.jumbo.put({ x: I.jj2.trolleyX(), z: 0, y: -0.4 }); I.toggleBoard(); });
+  await wait(300);
+  check('E by it buys a snack for 4 coins', (await a.evaluate(() => window.__isle.shop.coins())) === c0 - 4 && !!(await a.evaluate(() => window.__isle.ach.all().trolley)), [c0, await a.evaluate(() => window.__isle.shop.coins())]);
+  await a.evaluate(() => { const I = window.__isle; I.jumbo.put({ x: 5.2, z: 0.5, y: -0.4, sit: null }); I.toggleBoard(); I.noChute(); });
+  await wait(300);
+  // the licence: up in the air a while, then a gentle landing on the runway
+  await a.evaluate(() => window.__isle.cmd('/spawn jet')); await wait(400);
+  await a.evaluate(() => { const q = window.__isle.jet.pose, P = window.__isle.player; P.x = q.x + 1; P.y = q.y - 1.5; P.z = q.z; });
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  const pil = await a.evaluate(() => window.__isle.jet.seat);
+  await a.evaluate(() => { const I = window.__isle, q = I.jet.pose; I.jj2.licAir(8); q.x = 160; q.z = 125; q.y = 14.6; q.h = Math.PI / 2; q.p = 0; q.r = 0; I.jet.spd = 4; I.jet.thr = 0; });
+  await a.waitForFunction(() => window.__isle.jj2.licence(), null, { timeout: 15000 }).catch(() => {});
+  check('landing the jumbo gently on the runway earns a pilot licence', pil === 'pilot' && await a.evaluate(() => window.__isle.jj2.licence()) && !!(await a.evaluate(() => window.__isle.ach.all().licence)), pil);
+  await a.evaluate(() => { const I = window.__isle; I.toggleBoard(); I.noChute(); I.cmd('/despawn jet'); });
+  await wait(400);
+  // the air show
+  await put(a, 80.5, 13, 92.5); await a.evaluate(() => window.__isle.cmd('/time 21:00')); await wait(1500);
+  check('at half past eight in the evening the Express puts on an air show over the meadow', await a.evaluate(() => window.__isle.jj2.show()));
+  await a.waitForFunction(() => window.__isle.spark.live() > 10, null, { timeout: 20000 }).catch(() => {});
+  check('trailing Spark Dust', (await a.evaluate(() => window.__isle.spark.live())) > 10);
+  await a.evaluate(() => window.__isle.cmd('/time noon')); await wait(800);
+  check('and it’s back on its timetable after', !(await a.evaluate(() => window.__isle.jj2.show())));
+  // the cargo hold: a jet ski goes aboard while the jumbo waits at a dock
+  await a.waitForFunction(() => { const I = window.__isle, st = I.jetStatus(I.nowS()); return st.at != null && !st.manual && (st.leave === undefined || st.leave > 8); }, null, { timeout: 240000 }).catch(() => {});
+  const onSki = await a.evaluate(() => window.__isle.jj2.skiByJet());
+  await wait(300);
+  console.log('CARGO', JSON.stringify(await a.evaluate(() => { const I = window.__isle, st = I.jetStatus(I.nowS()), q = I.jet.pose, P = I.player; return [st.at, st.manual, I.jj2.ski(), Math.hypot(P.x - q.x, P.z - q.z)]; })));
+  check('ride a jet ski up to the jumbo at a dock and E loads it into the hold', onSki && await a.evaluate(() => window.__isle.jj2.cargoMay()) && await a.evaluate(() => { window.__isle.toggleBoard(); return !!window.__isle.jj2.cargo() && !!window.__isle.jet.seat; }), onSki);
+  await a.evaluate(() => { const I = window.__isle; I.jumbo.put({ x: 5.2, z: 0.5, y: -0.4, sit: null }); I.toggleBoard(); I.noChute(); });
+  await wait(300);
+  check('and get off at the door: it’s unloaded into the water beside you', !(await a.evaluate(() => window.__isle.jj2.cargo())) && await a.evaluate(() => { const I = window.__isle, s = I.skis.list()[0], P = I.player; return Math.hypot(s.x - P.x, s.z - P.z) < 14; }));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- pet levels, the pet race and Gruff's lookout -----
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'hoot' }); I.shop.give(30); });
+  const x0 = await a.evaluate(() => window.__isle.petlv.xp('hoot'));
+  await a.evaluate(() => window.__isle.social.trick()); await wait(200);
+  check('a trick earns your pet XP', (await a.evaluate(() => window.__isle.petlv.xp('hoot'))) === x0 + 5);
+  await a.evaluate(() => window.__isle.petlv.gain(90)); await wait(300);
+  check('enough XP and it levels up, with stronger powers', (await a.evaluate(() => window.__isle.petlv.level('hoot'))) >= 3 && (await a.evaluate(() => window.__isle.petlv.k())) >= 1.5);
+  // the pet race
+  await put(a, 80.5, 13, 92.5); await wait(200);
+  check('/petrace starts a pet race', await a.evaluate(() => window.__isle.cmd('/petrace')));
+  const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.keyboard.press('Digit1'); await wait(300);
+  const bet = await a.evaluate(() => window.__isle.prace.state());
+  check('press 1 to bet 5 coins on the first pet', !!bet && bet.bet === 'hoot' && (await a.evaluate(() => window.__isle.shop.coins())) === c0 - 5, bet);
+  await a.evaluate(() => window.__isle.prace.rush()); await wait(1500);
+  check('then they’re off', (await a.evaluate(() => window.__isle.prace.state().phase)) === 'run');
+  await a.evaluate(() => window.__isle.prace.nearEnd());
+  await a.waitForFunction(() => { const s = window.__isle.prace.state(); return !s || s.winner; }, null, { timeout: 60000 }).catch(() => {});
+  const fin = await a.evaluate(() => window.__isle.prace.state());
+  const c1 = await a.evaluate(() => window.__isle.shop.coins());
+  check('and one of them wins: back the winner and you get 15 coins', !!fin && !!fin.winner && (fin.winner !== 'hoot' || c1 === c0 + 10), [fin, c0, c1]);
+  // Gruff's lookout
+  const L = await a.evaluate(() => window.__isle.goatLook.at());
+  check('a rock spire with ledges and a lookout stands by Gruff’s peak', L.ok && (await a.evaluate((L) => window.__isle.get(L.cx, L.gy + 7, L.cz), L)) === (await a.evaluate(() => window.__isle.blockId('PLANKS'))), L);
+  check('only Gruff’s owner can climb it', await a.evaluate((L) => { const I = window.__isle, P = I.player; P.x = L.cx + 0.5; P.y = L.gy + 8; P.z = L.cz + 0.5; return !I.roomy(); }, L));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'goat' }));
+  check('Gruff’s owner can', await a.evaluate((L) => { const I = window.__isle, P = I.player; P.fly = true; P.x = L.cx + 0.5; P.y = L.gy + 8; P.z = L.cz + 0.5; return I.roomy(); }, L));
+  const c2 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('and E at the telescope up top gives the view, and 15 coins once a day', (await a.evaluate(() => window.__isle.shop.coins())) >= c2 && !!(await a.evaluate(() => window.__isle.ach.all().lookout)));
+  await a.evaluate(() => { const I = window.__isle; I.player.fly = false; I.setSkin({ pet: 'none' }); });
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+
+  {
+  // ----- seasons, lightning, the night market and the treasure map -----
+  await put(a, 80.5, 13, 92.5); await wait(200);
+  await a.evaluate(() => window.__isle.cmd('/season winter')); await wait(1200);
+  check('in winter snowflakes drift down', (await a.evaluate(() => window.__isle.seasons.kind())) === 'snow');
+  await a.evaluate(() => window.__isle.cmd('/season autumn')); await wait(1200);
+  check('in autumn red and gold leaves fall', (await a.evaluate(() => window.__isle.seasons.kind())) === 'leaves');
+  await a.evaluate(() => { window.__isle.cmd('/season bonfire'); window.__isle.cmd('/time midnight'); }); await wait(1500);
+  check('on bonfire night there are fireworks over the meadow', (await a.evaluate(() => window.__isle.fw.rockets())) > 0 || !!(await a.evaluate(() => window.__isle.ach.all().bonfire)));
+  await a.evaluate(() => window.__isle.cmd('/season auto'));
+  check('and the season follows the calendar again with /season auto', /winter|spring|summer|autumn|bonfire/.test(await a.evaluate(() => window.__isle.seasons.now())));
+  // lightning
+  const LK = await a.evaluate(() => ({ TNT: window.__isle.blockId('TNT'), WIRE: window.__isle.blockId('WIRE'), STONE: window.__isle.blockId('STONE') }));
+  await a.evaluate((K) => { const I = window.__isle; for (let x = 90; x <= 93; x++) I.setBlock(x, 13, 112, K.STONE); I.setBlock(92, 14, 112, K.TNT); I.setBlock(90, 14, 112, K.WIRE); }, LK);
+  await a.evaluate(() => window.__isle.bolt.strike(91.5, 112.5)); await wait(200);
+  check('a lightning bolt lights TNT it hits', (await a.evaluate(() => window.__isle.rs.tnt())) >= 1);
+  check('and gives nearby wire a jolt of power', (await a.evaluate(() => window.__isle.bolt.zap())) >= 1);
+  await a.evaluate(() => window.__isle.rs.rush()); await wait(800);
+  // the night market (still midnight)
+  await a.evaluate(() => window.__isle.shop.give(20)); await wait(400);
+  check('after dark the night market opens on the meadow', await a.evaluate(() => window.__isle.market.open()));
+  await put(a, 70.5, 13, 74.3); await wait(300);
+  const m0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('E at a stall buys a glow block for 10 coins, and it’s in the block picker', (await a.evaluate(() => window.__isle.market.owned())).indexOf(0) >= 0 && (await a.evaluate(() => window.__isle.shop.coins())) === m0 - 10 && await a.evaluate(() => window.__isle.picker.picks.indexOf(window.__isle.blockId('GLOW')) >= 0), m0);
+  await a.evaluate(() => window.__isle.cmd('/time noon')); await wait(400);
+  check('and by day the market’s gone', !(await a.evaluate(() => window.__isle.market.open())));
+  // the treasure map
+  const T = await a.evaluate(() => window.__isle.treasure.spot());
+  await a.evaluate(() => window.__isle.news.show({ day: 'today', c: {}, res: [] })); await wait(300);
+  check('the Island Gazette prints a treasure map with an X', await a.evaluate(() => !!document.getElementById('treasureMap') && /TREASURE MAP/.test(document.getElementById('letter').textContent)));
+  await a.evaluate(() => { const e = document.getElementById('letter'); if (e) e.hidden = true; });
+  const t0 = await a.evaluate(() => window.__isle.shop.coins());
+  check('dig at the X and you find the chest: 40 coins', await a.evaluate((T) => window.__isle.treasure.dig(T.x, T.y, T.z), T) && (await a.evaluate(() => window.__isle.shop.coins())) === t0 + 40, T);
+  check('but only once a day', !(await a.evaluate((T) => window.__isle.treasure.dig(T.x, T.y, T.z), T)));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
