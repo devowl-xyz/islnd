@@ -1784,7 +1784,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const peerA = () => g.evaluate(() => [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'));
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && p.av; }, null, { timeout: 15000 }).catch(() => {});
   // accessories travel with the skin
-  await a.evaluate(() => window.__isle.setSkin({ petCollarStyle: 'bandana', petCollar: '#56b04a' }));
+  await a.evaluate(() => window.__isle.setSkin({ petHatStyle: 'party', petHat: '#ff8fb1', petCollarStyle: 'bandana', petCollar: '#56b04a' }));
   await g.waitForFunction(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return p && window.__isle.petAcc('peer:' + p.id) >= 2; }, null, { timeout: 15000 }).catch(() => {});
   check('others see your pet’s hat and collar', await g.evaluate(() => { const p = [...window.__isle.net.peers.values()].find((q) => q.name !== 'Gus'); return !!p && window.__isle.petAcc('peer:' + p.id) >= 2; }));
   // zip lines come from the blocks, so everyone gets them
