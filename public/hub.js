@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 165; // 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 174; // 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -211,7 +211,7 @@ const SKIN_STYLES = {
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
   pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky', 'goat', 'axel'],
-  petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie'], petCollarStyle: ['none', 'plain', 'bell', 'bandana', 'robe'], petSaddleStyle: ['none', 'plain', 'fancy']
+  petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie', 'witch', 'santa', 'sparkler'], petCollarStyle: ['none', 'plain', 'bell', 'bandana', 'robe'], petSaddleStyle: ['none', 'plain', 'fancy']
 };
 const HEX6 = /^#[0-9a-f]{6}$/i, PX256 = /^[0-9a-f]{256}$/;
 function cleanSkin(raw) {
@@ -369,6 +369,19 @@ function seedEdits(room, arr) {
   }
 }
 
+/* team bases: each team's flag spot and shared coin bank, kept by the room */
+const TEAMS = ['red', 'blue', 'green', 'yellow'];
+function teamState(room) {
+  const out = {}, t = room.teams || (room.teams = {});
+  TEAMS.forEach((k) => {
+    const members = [];
+    room.peers.forEach((p) => { if (p.team === k) members.push(p.id); });
+    const q = t[k] || {};
+    if (members.length || q.base || q.bank) out[k] = { base: q.base || null, bank: q.bank || 0, members };
+  });
+  return out;
+}
+
 let nextId = 1;
 function handle(peer, msg) {
   if (!msg || typeof msg.t !== 'string') return;
@@ -401,7 +414,7 @@ function handle(peer, msg) {
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null, teams: teamState(r) });
       return;
     }
     case 'seed': {
@@ -494,6 +507,47 @@ function handle(peer, msg) {
       if ((data.act === 'start' || data.act === 'stop') && !isBoss(room, peer)) return;
       if (JSON.stringify(data).length > 1500) return;
       broadcast(room, { t: 'game', by: peer.id, kind, data });
+      return;
+    }
+    // the postman pigeon and gifts go to one player only
+    case 'letter': case 'gift': {
+      if (!room) return;
+      const now = Date.now();
+      if (now - (peer.postT || 0) < 1500) return;
+      peer.postT = now;
+      const target = room.peers.get(msg.to);
+      if (!target || target === peer) return;
+      if (msg.t === 'letter') {
+        const text = String(msg.text || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 200);
+        if (text) send(target.ws, { t: 'letter', from: peer.id, name: peer.name, text });
+        return;
+      }
+      const kind = msg.kind === 'coins' || msg.kind === 'hat' || msg.kind === 'glow' ? msg.kind : null;
+      if (!kind) return;
+      const n = kind === 'coins' ? Math.floor(Number(msg.n)) : 0;
+      if (kind === 'coins' && !(n > 0 && n <= 100000)) return;
+      send(target.ws, { t: 'gift', from: peer.id, name: peer.name, kind, n, v: kind === 'hat' ? String(msg.v || '').slice(0, 12) : (kind === 'glow' ? Math.floor(Number(msg.v)) || 0 : undefined) });
+      return;
+    }
+    case 'team': {
+      if (!room) return;
+      const t = room.teams || (room.teams = {});
+      if (msg.act === 'join') { if (!TEAMS.includes(msg.team)) return; peer.team = msg.team; }
+      else {
+        const k = peer.team; if (!k) return;
+        const q = t[k] || (t[k] = { base: null, bank: 0 });
+        if (msg.act === 'base') {
+          const x = Number(msg.x), y = Number(msg.y), z = Number(msg.z);
+          if (![x, y, z].every(Number.isFinite)) return;
+          q.base = { x: Math.max(0, Math.min(W, x)), y: Math.max(0, Math.min(H, y)), z: Math.max(0, Math.min(D, z)) };
+        } else if (msg.act === 'dep') {
+          const n = Math.floor(Number(msg.n)); if (!(n > 0 && n <= 100000)) return; q.bank = Math.min(1e7, (q.bank || 0) + n);
+        } else if (msg.act === 'wd') {
+          const n = Math.floor(Number(msg.n)); if (!(n > 0) || n > (q.bank || 0)) return send(peer.ws, { t: 'teams', teams: teamState(room) });
+          q.bank -= n; send(peer.ws, { t: 'teamPay', n });
+        } else return;
+      }
+      broadcast(room, { t: 'teams', teams: teamState(room) });
       return;
     }
     case 'board': {

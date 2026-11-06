@@ -285,7 +285,48 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 
 **Hide and seek and build battles.** In a room, the host can start **Hide and seek** (under Games, or /hide). One player is picked to seek and counts to 15, frozen, while everyone else gets the disguise kit and hides. The seeker tags hiders by getting close; find everyone within four minutes to win. **Build battle** (/battle) gives everyone a theme and three minutes to build it, then 30 seconds to vote with **1** to **9** for the best build that isn't yours. Most votes wins. On your own it's just the theme and the clock. Circuits are shared too: everyone in a room sees everyone's pistons, doors and flying machines move, because every screen runs the same circuit from the same lever and button presses.
 
-**Badges and the map.** The Paused page has a list of 18 badges, such as Crashed the Express, Found Axel, Business class, Pilot licence, Kaboom and Treasure hunter, each ticked when you've earned it. The island map (M) is in the ISLND style: black labels, square markers, where every pet lives, the red Express and the submarine, the shop, Gruff's lookout, the night market after dark, and the treasure X.
+**Badges and the map.** The Paused page has a list of badges (26 now), such as Crashed the Express, Found Axel, Business class, Pilot licence, Kaboom and Treasure hunter, each ticked when you've earned it. The island map (M) is in the ISLND style: black labels, square markers, where every pet lives, the red Express and the submarine, the shop, Gruff's lookout, the night market after dark, and the treasure X.
+
+**More spark parts.** Six new things in the picker:
+
+- **Display block:** shows the spark power reaching it as a digit, 0 to F (15 right next to a source, one less for each block of wire).
+- **Elevator pad:** give it power and step on, and it carries you straight up until a ceiling stops you. Walk off the side to get off.
+- **Conveyor belt:** faces the way you look when you place it; powered, it carries you along.
+- **Paint bucket:** a tool, not a block. Click a coloured patch (colour blocks, wool, carpet or glow blocks) and the whole joined patch turns the next colour.
+- **Beat block:** a power source that pulses on and off in time.
+- **Pet house:** see below.
+
+**Blueprints.** Select a build with /pos1 and /pos2, /copy it, then **/blueprint** turns it into a code starting ISLND1: (copied to your clipboard). Anyone can type /blueprint and the code to load it, then /paste it.
+
+**The hot-air balloon.** It waits in the meadow's south-east corner. **E** in the basket to get in, **Space** fires the burner, **Shift** opens the vent, **WASD** nudges it, and the wind carries it round the island. **E** to get out: high up, you jump and your parachute opens.
+
+**The speedboat race.** On a jet ski, **/boatrace** (or **Speedboat race** under Games): eight buoys ring the island and you go through them in order, following the green beam. Finishing pays 10 coins and your best lap is kept.
+
+**The monorail.** A railway on white stilts runs high over the island between the four jet docks. At each dock an elevator in a glass shaft takes you up to the platform; **E** by the track for a minecart, and powered rails along the way keep it rolling.
+
+**Cabin crew.** On the jumbo, **/crew** makes you cabin crew: **E** at the trolley hands out snacks (and earns tips), **/pa** makes a cabin announcement everyone sees, and **/demo** runs the safety demonstration.
+
+**Pet houses, friends and babies.** Build a pet house, stand by it with your pet and press **E**: your pet moves in and naps there instead of at its usual home (adopt it back from the house; break the house and it goes home). When your pet meets another pet they do a greeting dance and your pet earns XP (more for a new friend). At level 5 your pet has a baby that toddles along behind it. Pets have three new hats: a witch hat, a Santa hat and a sparkler.
+
+**Rainbows, aurora and tides.** When the rain stops in the daytime, a rainbow arches over the meadow for three minutes, and you can walk right up it (**/rainbow** brings one out). On winter nights green and violet curtains of light ripple across the northern sky. The sea rises and falls twice a day: at low tide the water drops and crabs scuttle about on the beaches (**/tide low**, **high**, or back to the clock with **/tide**).
+
+**The island festival.** Every weekend the festival comes to the meadow: a Ferris wheel (**E** at its foot to ride round, **E** to hop off) and three stalls: candy floss, hook-a-duck and the coconut shy. **/festival on**, **off** or **auto**.
+
+**Mystery caves.** Each week a new cave is dug out under the island. Look for the swirling purple portal on the surface, press **E** to go down, follow the glowing lights along the tunnel, and **E** at the end for 30 coins (once a week). The portal by the start takes you back up.
+
+**Polly's quests.** Polly at the Island Shop has three little jobs for you each day (catch fish, ride the balloon, place blocks, walk 400 blocks and so on): 10 coins each and 15 more for all three. They're listed in the shop and with **/quests**.
+
+**DJ Bazza's disco.** Every night at the campsite there's a dance floor that flashes to the beat, a mirror ball with coloured beams, and DJ Bazza on the decks. **E** at the decks requests the next song. **/disco on**, **off** or **auto**.
+
+**Letters, gifts and teams (in a room).** **/letter Name message** sends a pigeon flying to them with your letter. **/gift Name 10** gives them coins, **/gift Name hat pirate** gives away one of your shop hats, and **/gift Name glow** shares a glow block colour. **/team red** (or blue, green, yellow) joins a team; **/team base** plants your team's flag where you stand for everyone to see; **/team deposit 10** and **/team withdraw 10** use the team's shared bank, which the room keeps.
+
+**The racing league.** The Paused page shows your best times for the speedboat race, the sky course and the jet ring race, and in a room the best in the room and who set it.
+
+**Sounds and settings.** Footsteps that sound like what you're walking on, splashes, the jumbo's engines (loud aboard, fainter nearby) and the rain. The Paused page has **Settings**: volume (it also covers the spark parts' notes and the disco), view distance, mouse speed and colour-blind map markers (letters on the map's markers as well as colours), all kept in this browser.
+
+**The photo album.** Every photo you take in photo mode (O, then P) is kept small in the album on the Paused page, up to 12. Click one to see it bigger, ✕ to delete it.
+
+**More badges.** Home sweet home, Pet pals, Full throttle, Up up and away, Fun of the fair, Spelunker, Polly's helper and Night fever.
 
 **Pistons and observers.** Three more redstone parts are in the picker:
 
@@ -486,4 +527,6 @@ npm test
 - `h/food.e2e.js` checks Biscuit turning into a biscuit and back, that only Biscuit and Mochi can, that eating it makes it chase and bite you, losing hearts, being chased home to your bed with your hearts back, and in a room a guest seeing the host's mochi, being offered a bite, being chased home, and the server refusing to let anyone eat a pet that isn't food.
 - `h/spread.e2e.js` checks the default spread layout: where each home is, that the treehouse and cottage are rebuilt block for block in their new places, the clear and gentle road, smooth plot edges, the jet tour, the cottage gate, and that a room guest switches to the host's layout and back. The other browser tests use `?layout=classic`.
 - `h/p2p.e2e.js` checks rooms with no server: on a plain static host with a local PeerJS server, the host's browser opens a room, a guest joins it peer to peer and gets the island, edits go both ways, the host's browser turns down an off-meadow edit, the guest sees the host, a wrong code, the room closing when the host leaves, and opening another.
+- `h/games.e2e.js` checks hide and seek and build battles with two players in a room.
+- `h/post.e2e.js` checks, with two players in a room: a letter carried by the pigeon, gifts of coins and a hat, joining a team, planting its flag, the shared team bank (and not taking out more than is in it), and the racing league showing the room's best time.
 - `h/rooms.e2e.js` starts the server and drives three Chromium pages through hosting, joining, snapshots, the meadow rule, a cheating client, admin grant and revoke, late joiners, avatars, leaving and room close. Needs Playwright.

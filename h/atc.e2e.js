@@ -16,7 +16,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     page.on('pageerror', (e) => { console.log((name || 'page') + ' pageerror', e.message); fails++; });
     await page.goto(URL);
     await page.waitForFunction(() => window.__isle && window.__isle.isReady(), null, { timeout: 120000 });
-    if (name) await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name);
+    if (name) { await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name); }
     return page;
   };
   const toast = (p) => p.textContent('#toast');

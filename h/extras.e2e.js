@@ -18,7 +18,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     page.on('pageerror', (e) => { console.log((name || 'page') + ' pageerror', e.message); fails++; });
     await page.goto(URL);
     await page.waitForFunction(() => window.__isle && window.__isle.isReady(), null, { timeout: 240000 });
-    if (name) await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name);
+    if (name) { await page.evaluate(() => window.__isle && window.__isle.more(true)); await page.fill('#nName', name); }
     return page;
   };
   const play = async (p) => { await p.evaluate(() => { if (!document.getElementById('overlay').classList.contains('hidden')) document.getElementById('play').click(); }); await p.waitForFunction(() => document.getElementById('overlay').classList.contains('hidden'), null, { timeout: 10000 }).catch(() => {}); };
@@ -1155,6 +1155,233 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
 
+  {
+  // ----- display, elevator, belts, paint bucket, blueprints, beat block -----
+  const K = await a.evaluate(() => { const I = window.__isle, n = {}; for (const k of ['DISPLAY', 'ELEV', 'BELT', 'PAINT', 'BEAT', 'PETBED', 'RSBLOCK', 'LEVER', 'WIRE', 'STONE', 'RED', 'ORANGE', 'RLAMP', 'RLAMP_ON']) n[k] = I.blockId(k); return n; });
+  check('display, elevator pad, belts, paint bucket, beat block and pet house are in the picker', await a.evaluate((K) => ['DISPLAY', 'ELEV', 'BELT', 'PAINT', 'BEAT', 'PETBED'].every((k) => window.__isle.picker.picks.indexOf(K[k]) >= 0), K));
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  const S = (x, y, z, b) => a.evaluate((q) => window.__isle.setBlock(q[0], q[1], q[2], q[3]), [x, y, z, b]);
+  const G = (x, y, z) => a.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [x, y, z]);
+  const ticks = (n) => a.evaluate((n) => { for (let k = 0; k < n; k++) window.__isle.rs.step(); }, n);
+  // display
+  await S(66, 13, 96, K.RSBLOCK); for (let x = 67; x <= 69; x++) await S(x, 13, 96, K.WIRE); await S(70, 13, 96, K.DISPLAY); await S(64, 13, 96, K.DISPLAY);
+  await ticks(2);
+  check('a display shows the power reaching it: 13 three wires along, F right next to a redstone block', (await a.evaluate(() => window.__isle.g2.disp(70, 13, 96))) === 13 && (await a.evaluate(() => window.__isle.g2.disp(64, 13, 96))) === 0);
+  await S(65, 13, 96, K.DISPLAY); await ticks(2);
+  check('and 15 (F) touching the source', (await a.evaluate(() => window.__isle.g2.disp(65, 13, 96))) === 15);
+  // beat block
+  await S(66, 13, 100, K.BEAT); await S(67, 13, 100, K.RLAMP);
+  const beat = await a.evaluate(() => { const I = window.__isle, r = new Set(); for (let k = 0; k < 6; k++) { I.rs.step(); r.add(I.get(67, 13, 100)); } return [...r]; });
+  check('a beat block pulses power on the beat', beat.length === 2, beat);
+  // paint bucket
+  await S(72, 13, 100, K.RED); await S(73, 13, 100, K.RED); await S(73, 14, 100, K.RED);
+  await a.evaluate(() => window.__isle.g2.paint(72, 13, 100));
+  check('the paint bucket repaints the whole patch the next colour', (await G(72, 13, 100)) === K.ORANGE && (await G(73, 14, 100)) === K.ORANGE);
+  // elevator
+  await S(76, 13, 106, K.ELEV); await S(77, 13, 106, K.RSBLOCK); await S(76, 20, 106, K.STONE);
+  await ticks(2);
+  check('a redstone block powers the elevator pad', await a.evaluate(() => window.__isle.g2.elevOn(76, 13, 106)));
+  await put(a, 76.5, 14, 106.5); await wait(300);
+  await a.waitForFunction(() => { const e = window.__isle.g2.elev(); return e && e.dir === 0; }, null, { timeout: 30000 }).catch(() => {});
+  const ey = await a.evaluate(() => window.__isle.player.y);
+  check('step on it and it carries you up until a ceiling stops you', ey > 16.5 && ey < 18.3, ey);
+  await a.evaluate(() => { const P = window.__isle.player; P.x += 1.2; }); await wait(600);
+  check('walk off the side and you’re free', !(await a.evaluate(() => window.__isle.g2.elev())));
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // belts
+  await S(80, 13, 106, K.BELT + 1); await S(81, 13, 106, K.BELT + 1); await S(82, 13, 106, K.BELT + 1); await S(81, 13, 107, K.RSBLOCK); await S(80, 13, 107, K.RSBLOCK); await S(82, 13, 107, K.RSBLOCK);
+  await ticks(2);
+  await put(a, 80.5, 14, 106.5); await wait(1500);
+  const bx = await a.evaluate(() => window.__isle.player.x);
+  check('a powered conveyor belt carries you along', bx > 81.0, bx);
+  await put(a, 80.5, 13, 80.5); await wait(200);
+  // blueprints
+  await a.evaluate(() => { const I = window.__isle; I.cmd('/pos1 72 13 100'); I.cmd('/pos2 73 14 100'); I.cmd('/copy'); });
+  check('/blueprint turns a copied build into a code', await a.evaluate(() => window.__isle.g2.bp('')) && /^ISLND1:/.test(await a.evaluate(() => window.__isle.g2.bpLast())));
+  const code = await a.evaluate(() => window.__isle.g2.bpLast());
+  await a.evaluate(() => window.__isle.cmd('/pos1 60 13 60')); await a.evaluate(() => window.__isle.cmd('/pos2 60 13 60')); await a.evaluate(() => window.__isle.cmd('/copy'));
+  check('and /blueprint with a code loads it back to paste', await a.evaluate((c) => window.__isle.g2.bp(c), code) && JSON.stringify(await a.evaluate(() => window.__isle.g2.clip())) === JSON.stringify({ w: 2, h: 2, d: 1, n: 4 }), await a.evaluate(() => window.__isle.g2.clip()));
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  }
+  {
+  // ----- hot-air balloon, speedboat race, monorail, cabin crew -----
+  await a.evaluate(() => window.__isle.veh.hbPut(96.5, 104.5)); await wait(500);
+  const hb0 = await a.evaluate(() => window.__isle.veh.hb());
+  await put(a, hb0.x + 0.5, hb0.y + 0.2, hb0.z); await wait(200);
+  check('the hot-air balloon waits on the meadow and you can get in', await a.evaluate(() => window.__isle.veh.hbNear()));
+  await a.evaluate(() => window.__isle.veh.hbBoard());
+  await a.keyboard.down('Space'); await wait(9000); await a.keyboard.up('Space');
+  const hb1 = await a.evaluate(() => window.__isle.veh.hb());
+  check('Space fires the burner and up it goes', hb1.ride && hb1.y > hb0.y + 0.8 && hb1.vy > 0, [hb0.y, hb1.y]);
+  check('you ride along in the basket', Math.abs((await a.evaluate(() => window.__isle.player.y)) - hb1.y) < 1.5);
+  await a.evaluate(() => { const h = window.__isle.veh.hb(); window.__isle.veh.hbPut(h.x, h.z, h.y + 12); }); await wait(500);
+  await a.evaluate(() => window.__isle.veh.hbLeave());
+  check('E high up jumps out and the parachute opens', !(await a.evaluate(() => window.__isle.veh.hb().ride)) && await a.evaluate(() => window.__isle.chute()));
+  await a.evaluate(() => window.__isle.noChute());
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // boat race
+  const buoys = await a.evaluate(() => window.__isle.veh.buoys());
+  const wet = await a.evaluate((bs) => { const I = window.__isle; return bs.every((b) => I.get(Math.floor(b.x), 10, Math.floor(b.z)) === I.blockId('WATER') && I.get(Math.floor(b.x), 11, Math.floor(b.z)) === 0); }, buoys);
+  check('eight buoys sit out in open water round the island', buoys.length === 8 && wet, buoys);
+  check('the race needs a jet ski', !(await a.evaluate(() => window.__isle.veh.boatStart())));
+  // monorail
+  const mono = await a.evaluate(() => window.__isle.veh.mono());
+  check('the monorail has a station at each of the four docks', mono.length === 4, mono);
+  const my = await a.evaluate(() => window.__isle.veh.monoY());
+  const rails = await a.evaluate((y) => { const I = window.__isle; let n = 0; for (let z = 0; z < 320; z++) for (let x = 0; x < 320; x++) { const b = I.get(x, y + 1, z); if (b === I.blockId('RAIL') || b === I.blockId('PRAIL')) n++; } return n; }, my);
+  check('rails run high over the island on stilts', rails > 150, rails);
+  const pads = await a.evaluate((m) => { const I = window.__isle; return m.map((s) => I.get(Math.floor(s.x), s.top - 1, Math.floor(s.z)) === I.blockId('ELEV')); }, mono);
+  check('each station has an elevator pad up from the dock', pads.every(Boolean), pads);
+  // cabin crew
+  check('/crew needs you aboard the jumbo', !(await a.evaluate(() => window.__isle.cmd('/crew'))) || !(await a.evaluate(() => window.__isle.veh.crew())));
+  await a.evaluate(() => window.__isle.jumbo.board()); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/crew'));
+  check('aboard, /crew makes you cabin crew', await a.evaluate(() => window.__isle.veh.crew()));
+  await a.evaluate(() => window.__isle.cmd('/pa Welcome aboard Bird Air'));
+  const ann = await a.evaluate(() => document.getElementById('announce') ? document.getElementById('announce').textContent : '');
+  check('/pa makes a cabin announcement', /Welcome aboard Bird Air/.test(ann), ann);
+  await a.evaluate(() => window.__isle.cmd('/crew'));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(400);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
+  // ----- pet houses, pet friends, baby pets, costumes -----
+  const PB = await a.evaluate(() => window.__isle.blockId('PETBED'));
+  await a.evaluate(() => window.__isle.pets.sendHome());
+  await a.evaluate((b) => window.__isle.setBlock(80, 13, 84, b), PB);
+  await put(a, 80.5, 13, 82.8); await wait(300);
+  check('you can stand by a pet house', !!(await a.evaluate(() => window.__isle.pets2.houseNear())));
+  await a.evaluate(() => window.__isle.pets.adopt('mochi')); await wait(800);
+  await a.evaluate(() => window.__isle.pets2.houseUse()); await wait(1500);
+  const hp = await a.evaluate(() => window.__isle.palace.petPos('mochi'));
+  check('E with your pet: it moves in and naps there', !!(await a.evaluate(() => window.__isle.pets2.house('mochi'))) && hp && Math.hypot(hp.x - 80.5, hp.z - 84.5) < 0.6 && !(await a.evaluate(() => window.__isle.pets.follower())), hp);
+  await put(a, hp.x, 13, hp.z - 1.2); await wait(300);
+  check('and you adopt it back from the house', (await a.evaluate(() => window.__isle.pets.near())) === 'mochi');
+  await a.evaluate((b) => window.__isle.setBlock(80, 13, 84, 0)); await wait(1500);
+  check('break the house and it goes back to its old home', !(await a.evaluate(() => window.__isle.pets2.house('mochi'))));
+  // friends
+  await a.evaluate(() => window.__isle.pets.adopt('mochi')); await a.evaluate(() => window.__isle.pets2.cool());
+  const bh = await a.evaluate(() => window.__isle.palace.petPos('biscuit') || window.__isle.pets.home.biscuit);
+  const xp0 = await a.evaluate(() => window.__isle.petlv.xp('mochi'));
+  await put(a, bh.x + 1, bh.y, bh.z + 0.5); 
+  await a.waitForFunction(() => !!window.__isle.pets2.dance(), null, { timeout: 40000 }).catch(() => {});
+  check('your pet meets another pet and they do a greeting dance', (await a.evaluate(() => window.__isle.pets2.dance())) === 'biscuit');
+  check('and it earns XP for the new friend', (await a.evaluate(() => window.__isle.petlv.xp('mochi'))) > xp0);
+  // baby
+  check('no baby before level 5', !(await a.evaluate(() => window.__isle.pets2.baby())));
+  await a.evaluate(() => window.__isle.petlv.gain(400)); await wait(1500);
+  check('at level 5 your pet has a baby that follows it', (await a.evaluate(() => window.__isle.pets2.baby())) === 'mochi' && !!(await a.evaluate(() => window.__isle.pets2.babyPos())));
+  // costumes
+  const ok = await a.evaluate(() => { const I = window.__isle; return ['witch', 'santa', 'sparkler'].map((st) => { I.setSkin({ petHatStyle: st }); return I.mySkin.petHatStyle === st; }); });
+  await wait(800);
+  check('witch, santa and sparkler costumes for pets', ok.every(Boolean) && (await a.evaluate(() => window.__isle.petAcc())) > 0, ok);
+  await a.evaluate(() => { window.__isle.setSkin({ petHatStyle: 'none' }); window.__isle.pets.sendHome(); });
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
+  // ----- rainbows, aurora, tides and crabs, festival, mystery cave -----
+  await a.evaluate(() => { window.__isle.cmd('/time noon'); window.__isle.cmd('/weather rain'); }); await wait(1200);
+  await a.evaluate(() => window.__isle.cmd('/weather clear')); await wait(1200);
+  check('when the rain stops in the day, a rainbow comes out', await a.evaluate(() => window.__isle.wx.rainbow()));
+  const RB = await a.evaluate(() => window.__isle.wx.RB());
+  const top = await a.evaluate((r) => window.__isle.wx.rbTop(r.cx - 10, r.cz), RB);
+  await a.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.x = q[0]; P.y = q[1] + 0.2; P.z = q[2]; P.vx = P.vy = P.vz = 0; }, [RB.cx - 10, top, RB.cz]);
+  await wait(2500);
+  const ry = await a.evaluate(() => window.__isle.player.y);
+  check('and you can stand on it', Math.abs(ry - top) < 0.8, [ry, top]);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // aurora
+  await a.evaluate(() => { window.__isle.cmd('/season winter'); window.__isle.cmd('/time midnight'); }); await wait(3000);
+  check('winter nights have an aurora', await a.evaluate(() => window.__isle.wx.aurora()));
+  await a.evaluate(() => { window.__isle.cmd('/season auto'); window.__isle.cmd('/time noon'); });
+  // tides
+  await a.evaluate(() => window.__isle.cmd('/tide low')); await wait(1500);
+  check('at low tide the sea drops', (await a.evaluate(() => window.__isle.wx.tide())) < -0.3);
+  const crab = await a.evaluate(() => { const I = window.__isle; return I.wx.crabs(); });
+  await a.evaluate(() => window.__isle.cmd('/tide high')); await wait(800);
+  check('and crabs come out on the beaches (and hide at high tide)', crab >= 0 && (await a.evaluate(() => window.__isle.wx.crabs())) === 0, crab);
+  await a.evaluate(() => window.__isle.cmd('/tide'));
+  // festival
+  await a.evaluate(() => window.__isle.cmd('/festival on')); await wait(800);
+  const F = await a.evaluate(() => window.__isle.wx.FEST());
+  await put(a, F.wx, 13, F.wz + 2); await wait(300);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(1500);
+  const fy = await a.evaluate(() => window.__isle.player.y);
+  check('the weekend festival: E at the Ferris wheel and round you go', await a.evaluate(() => window.__isle.wx.riding()), fy);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('E again to hop off', !(await a.evaluate(() => window.__isle.wx.riding())));
+  const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  await put(a, F.stalls[1].x, 13, F.stalls[1].z + 1.4); await wait(300);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(300);
+  check('hook-a-duck wins you coins', (await a.evaluate(() => window.__isle.shop.coins())) > c0);
+  await a.evaluate(() => window.__isle.cmd('/festival off')); await wait(300);
+  // mystery cave
+  const cv = await a.evaluate(() => window.__isle.wx.cave());
+  check('a mystery cave is dug out under the island this week', !!cv && cv.cells > 20, cv);
+  const air = await a.evaluate((c) => { const I = window.__isle; return I.get(Math.floor(c.end.x), 3, Math.floor(c.end.z)) === 0 && I.get(Math.floor(c.start.x), 3, Math.floor(c.start.z)) === 0; }, cv);
+  check('with a tunnel from the start to the treasure', air);
+  await put(a, cv.surf.x, cv.surf.y, cv.surf.z); await wait(300);
+  check('its portal is on the surface', (await a.evaluate(() => window.__isle.wx.caveNear())).portal);
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(600);
+  check('E takes you down into the cave', (await a.evaluate(() => window.__isle.player.y)) < 6);
+  const c1 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate((c) => { const P = window.__isle.player; P.x = c.end.x; P.y = c.end.y; P.z = c.end.z; }, cv); await wait(300);
+  await a.evaluate(() => window.__isle.wx.caveLoot());
+  check('and the treasure at the end pays out', (await a.evaluate(() => window.__isle.shop.coins())) >= c1 + 30);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
+  // ----- Polly's quests, DJ Bazza's disco, settings, sounds, photo album -----
+  const qs = await a.evaluate(() => window.__isle.k2.quests());
+  check('Polly has three quests today', qs.length === 3 && new Set(qs).size === 3, qs);
+  const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate((qs) => { const I = window.__isle; qs.forEach((q) => I.k2.bump(q, 500)); }, qs);
+  const c1 = await a.evaluate(() => window.__isle.shop.coins());
+  check('finishing them pays 10 each and 15 more for all three', c1 - c0 === 45 && (await a.evaluate(() => window.__isle.k2.bonus())), c1 - c0);
+  check('and the quest list shows them ticked off', (await a.evaluate(() => window.__isle.k2.lines())).every((l) => l.indexOf('✅') === 0));
+  // disco
+  await a.evaluate(() => window.__isle.cmd('/disco on')); await wait(1200);
+  const DS = await a.evaluate(() => window.__isle.k2.D());
+  const G = await a.evaluate(() => window.__isle.campBeds ? 17 : 17);
+  await put(a, DS.x + 2.5, 17, DS.z + DS.n + 0.2); await wait(400);
+  check('the disco is on at the campsite, with DJ Bazza on the decks', (await a.evaluate(() => window.__isle.k2.disco())).obj && await a.evaluate(() => window.__isle.k2.discoNear()));
+  const s0 = (await a.evaluate(() => window.__isle.k2.disco())).song;
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(200);
+  check('E at the decks requests the next song', (await a.evaluate(() => window.__isle.k2.disco())).song !== s0);
+  await put(a, DS.x + 2.5, 17, DS.z + 2.5); await wait(2500);
+  check('and you can dance on the flashing floor', (await a.evaluate(() => window.__isle.k2.disco())).danced);
+  await a.evaluate(() => window.__isle.cmd('/disco auto'));
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // settings
+  await a.evaluate(() => window.__isle.l2.set('view', 120));
+  check('view distance setting changes how far you see', (await a.evaluate(() => window.__isle.l2.viewR())) === 120 && (await a.evaluate(() => window.__isle.l2.fogFar())) < 120);
+  await a.evaluate(() => window.__isle.l2.set('view', 196));
+  await a.evaluate(() => window.__isle.l2.set('sens', 2));
+  check('mouse speed setting', (await a.evaluate(() => window.__isle.l2.settings())).sens === 2);
+  await a.evaluate(() => window.__isle.l2.set('sens', 1));
+  await a.evaluate(() => { window.__isle.l2.set('cb', true); window.__isle.map.toggle(); }); await wait(500);
+  check('colour-blind map markers draw without trouble', await a.evaluate(() => window.__isle.map.open()));
+  await a.evaluate(() => { window.__isle.map.toggle(); window.__isle.l2.set('cb', false); });
+  // sounds
+  await a.keyboard.down('KeyW'); await wait(3500); await a.keyboard.up('KeyW');
+  const sd = await a.evaluate(() => window.__isle.l2.snd());
+  check('footsteps as you walk', sd.init && sd.steps > 0, sd);
+  await a.evaluate(() => window.__isle.cmd('/weather rain')); await wait(2500);
+  check('and the sound of rain', (await a.evaluate(() => window.__isle.l2.snd())).rain > 0.02);
+  await a.evaluate(() => window.__isle.cmd('/weather clear'));
+  await a.evaluate(() => window.__isle.l2.set('vol', 0)); await wait(800);
+  check('volume 0 silences it all', (await a.evaluate(() => window.__isle.l2.snd())).rain === 0);
+  await a.evaluate(() => window.__isle.l2.set('vol', 0.7));
+  // album
+  const n0 = await a.evaluate(() => window.__isle.l2.album());
+  await a.evaluate(() => window.__isle.photo.toggle(true)); await wait(600);
+  await a.evaluate(() => window.__isle.photo.snap()); await wait(2000);
+  await a.evaluate(() => window.__isle.photo.toggle(false)); await wait(300);
+  check('photos you take go in the album', (await a.evaluate(() => window.__isle.l2.album())) === n0 + 1 && (await a.evaluate(() => window.__isle.l2.albumHtml())) === n0 + 1);
+  await a.evaluate(() => window.__isle.more(true)); await wait(300);
+  check('the Paused page has the racing league, photo album and settings', await a.evaluate(() => !!document.querySelector('#leagueList table') && !!document.querySelector('#setVol') && !!document.querySelector('#albumList img')));
+  await a.evaluate(() => window.__isle.more(false));
+  }
   {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
