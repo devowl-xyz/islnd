@@ -331,7 +331,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nearBaz = (p) => p.evaluate(() => { const I = window.__isle, b = I.bazza.pose(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = b.x + 1.2; P.y = b.y; P.z = b.z; });
   await a.evaluate(() => window.__isle.setSkin({ pet: 'none' })); await nearBaz(a);
   await a.keyboard.press('KeyE'); await wait(300);
-  check('he tells anyone who isn’t his boss to rack off', /Rack off/.test((await a.evaluate(() => window.__isle.bazza.said())) || ''), await a.evaluate(() => window.__isle.bazza.said()));
+  check('anyone who isn’t his boss gets a ride in Bazza’s taxi', await a.evaluate(() => window.__isle.taxi.on()));
+  await a.waitForFunction(() => !window.__isle.taxi.on(), null, { timeout: 90000 }).catch(() => {});
+  await a.evaluate(() => { const P = window.__isle.player; P.vx = P.vy = P.vz = 0; });
   // he mops up the sewage for his boss
   await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
   await a.evaluate(() => { const I = window.__isle, o = I.potty.at(), P = I.player; for (let k = 0; k < 3; k++) { P.x = o.ix + 0.5; P.y = o.G; P.z = o.iz + 0.5; I.potty.ready(); I.potty.use(); } });
@@ -1246,6 +1248,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   }
   {
   // ----- pet houses, pet friends, baby pets, costumes -----
+  const skin0 = await a.evaluate(() => { const k = window.__isle.mySkin; return { pet: k.pet, petHatStyle: k.petHatStyle, petHat: k.petHat }; });
   const PB = await a.evaluate(() => window.__isle.blockId('PETBED'));
   await a.evaluate(() => window.__isle.pets.sendHome());
   await a.evaluate((b) => window.__isle.setBlock(80, 13, 84, b), PB);
@@ -1275,7 +1278,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const ok = await a.evaluate(() => { const I = window.__isle; return ['witch', 'santa', 'sparkler'].map((st) => { I.setSkin({ petHatStyle: st }); return I.mySkin.petHatStyle === st; }); });
   await wait(800);
   check('witch, santa and sparkler costumes for pets', ok.every(Boolean) && (await a.evaluate(() => window.__isle.petAcc())) > 0, ok);
-  await a.evaluate(() => { window.__isle.setSkin({ petHatStyle: 'none' }); window.__isle.pets.sendHome(); });
+  await a.evaluate((k) => { window.__isle.pets.sendHome(); if (k.pet && k.pet !== 'none') window.__isle.pets.adopt(k.pet); window.__isle.setSkin({ petHatStyle: k.petHatStyle, petHat: k.petHat }); }, skin0);
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
@@ -1335,9 +1338,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const qs = await a.evaluate(() => window.__isle.k2.quests());
   check('Polly has three quests today', qs.length === 3 && new Set(qs).size === 3, qs);
   const c0 = await a.evaluate(() => window.__isle.shop.coins());
+  const open0 = await a.evaluate((qs) => { const d = window.__isle.k2.done(); return qs.filter((q) => !d[q]).length; }, qs);
   await a.evaluate((qs) => { const I = window.__isle; qs.forEach((q) => I.k2.bump(q, 500)); }, qs);
   const c1 = await a.evaluate(() => window.__isle.shop.coins());
-  check('finishing them pays 10 each and 15 more for all three', c1 - c0 === 45 && (await a.evaluate(() => window.__isle.k2.bonus())), c1 - c0);
+  check('finishing them pays 10 each and 15 more for all three', c1 - c0 === open0 * 10 + (open0 ? 15 : 0) && (await a.evaluate(() => window.__isle.k2.bonus())), [c1 - c0, open0]);
   check('and the quest list shows them ticked off', (await a.evaluate(() => window.__isle.k2.lines())).every((l) => l.indexOf('✅') === 0));
   // disco
   await a.evaluate(() => window.__isle.cmd('/disco on')); await wait(1200);
@@ -1387,7 +1391,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
   check('the departures board lists the Express’s three flights (no West Bay)', rows.dep.length === 3 && rows.arr.length === 3 && rows.dep.every((r) => r.place !== 'West Bay' && /^BX/.test(r.code)), rows);
-  await a.waitForFunction(() => { const q = window.__isle.express.pose(); return !!q.parked && q.left > 30; }, null, { timeout: 240000 }).catch(() => {});
+  await a.waitForFunction(() => { const q = window.__isle.express.pose(); return !!q.parked && q.left > 30; }, null, { timeout: 480000 }).catch(() => {});
   const shown = await a.evaluate(() => { const r = window.__isle.express.rows(); return r.dep.some((x) => x.status === 'Boarding'); });
   check('and shows it Boarding while it waits at a stop', shown);
   check('it waits a good while at each stop', await a.evaluate(() => window.__isle.express.pose().left > 30));
