@@ -594,7 +594,8 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Blueprints</dt><dd>/copy, then /blueprint. Paste a code to load.</dd>
         <dt>Beat block</dt><dd>Pulses spark power on the beat.</dd>
         <dt>Mini Isle</dt><dd>West sea. A small island with a big waterfall.</dd>
-        <dt>Owl Hopper</dt><dd>Owls only. Mini Isle, North Shore, High Sky Palace, Owl Island.</dd>
+        <dt>Island Shuttle</dt><dd>Biplane. North Shore to the Mini Isle. E to board.</dd>
+        <dt>Owl Hopper</dt><dd>Owls only. Mini Isle, Sky Palace, Owl Island. F to fly it.</dd>
         <dt>Owl Island</dt><dd>E by the stork for a sabotage job.</dd>
         <dt>Hot-air balloon</dt><dd>Meadow corner. Space burner, Shift vent.</dd>
         <dt>Speedboat race</dt><dd>On a jet ski: /boatrace. Eight buoys.</dd>
@@ -623,7 +624,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>On the jumbo</dt><dd>WASD walk. E sit. Business is upstairs.</dd>
         <dt>Spark wire</dt><dd>Aim at the strip to hit it.</dd>
         <dt>Fishing</dt><dd>Q on a dock. Reel in when it dips.</dd>
-        <dt>Sky Palace</dt><dd>P. Owl owners and guests.</dd>
+        <dt>Sky Palace</dt><dd>East, high up. Owl Hopper only.</dd>
         <dt>Helicopter</dt><dd>E at North Shore. H rope, J let go, K bridge.</dd>
         <dt>Jet skis</dt><dd>E at the campsite jetty.</dd>
         <dt>Cable car</dt><dd>E at the summit or the cottage.</dd>
@@ -2276,12 +2277,15 @@ function thTick(){
 /* ---------- the Sky Palace: who may go up, the cloud that carries you, and invites ----------
    Owl owners can always go up. In a room they invite other players (and pets) with one click, and send them
    down again with one click; the room (hub.js) keeps the guest list. On your own you can invite pets. */
+/* the old Sky Palace has been taken down (the High Sky Palace replaced it): nothing here does anything now */
+const PAL_GONE=true;
 const PAL_KEY='voxel-isle-palace';
 const palace={guests:new Set(),pets:new Set(),mine:new Set()};
 try{const a=JSON.parse(localStorage.getItem(PAL_KEY)||'[]');if(Array.isArray(a))a.forEach(function(id){if(PAL_PETS.indexOf(id)>=0)palace.mine.add(id);});}catch(e){}
+if(PAL_GONE)palace.mine.clear();
 palace.pets=new Set(palace.mine);
 function palSave(){try{localStorage.setItem(PAL_KEY,JSON.stringify([...palace.mine]));}catch(e){}}
-function inPALZone(x,y,z){const Z=PAL_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
+function inPALZone(x,y,z){if(PAL_GONE)return false;const Z=PAL_ZONE;return x+PR>Z.x0&&x-PR<Z.x1&&z+PR>Z.z0&&z-PR<Z.z1&&y+PH>Z.y0&&y<Z.y1;}
 function palGuest(){return inRoom()&&palace.guests.has(net.you);}
 function palMay(){return isOwlOwner()||palGuest();}
 function palWhere(){return LAYOUT==='classic'?'over the sea west of the treehouse':'north-west of the treehouse';}
@@ -2317,12 +2321,12 @@ function cloudTick(dt){
   if(c.up&&!palMay())startCloud(false);
 }
 function palKey(){
-  if(P.cloud)return false;
+  if(PAL_GONE||P.cloud)return false;
   if(inPALZone(P.x,P.y,P.z))return startCloud(false);
   return startCloud(true);
 }
 function padTick(){
-  if(P.fly||P.cloud)return;
+  if(PAL_GONE||P.fly||P.cloud)return;
   const g=palPad(),t=palPadTop();
   const onG=Math.hypot(P.x-g.x,P.z-g.z)<1.2&&Math.abs(P.y-g.y)<1.6;
   const onT=Math.hypot(P.x-t.x,P.z-t.z)<1.2&&Math.abs(P.y-t.y)<1.2;
@@ -2346,6 +2350,7 @@ function palAct(act,arg){
   return true;
 }
 function onPalace(m){
+  if(PAL_GONE)return;
   const was=palGuest();
   palace.guests=new Set((m.guests||[]).filter(Number.isInteger));
   palace.pets=new Set((m.pets||[]).filter(function(id){return PAL_PETS.indexOf(id)>=0;}));
@@ -2362,10 +2367,11 @@ function onPalace(m){
   else if(m.act==='kickPet'&&PETS[m.pet]&&me)toast(PETS[m.pet].name+' goes back home.');
   renderPets();
 }
-function palFromRoom(m){palace.guests=new Set(((m&&m.guests)||[]).filter(Number.isInteger));palace.pets=new Set(((m&&m.pets)||[]).filter(function(id){return PAL_PETS.indexOf(id)>=0;}));}
+function palFromRoom(m){if(PAL_GONE)return;palace.guests=new Set(((m&&m.guests)||[]).filter(Number.isInteger));palace.pets=new Set(((m&&m.pets)||[]).filter(function(id){return PAL_PETS.indexOf(id)>=0;}));}
 /* the pause card's Sky Palace list: one click to invite, one click to send down */
 function renderPalace(){
   const el=$('palList'),hint=$('palHint');if(!el||!el.appendChild)return;
+  if(PAL_GONE){const sec=$('palSec');if(sec)sec.hidden=true;return;}
   el.innerHTML='';
   const owner=isOwlOwner();
   hint.textContent=owner?'P, or the cloud on the observation deck. Invite players and pets.':
@@ -2403,7 +2409,7 @@ function makeCloud(s){
   return g;
 }
 function palFxTick(dt){
-  if(!ready)return;
+  if(!ready||PAL_GONE)return;
   if(!palFx){
     palFx={ride:makeCloud(1.1),ground:makeCloud(1.25),top:makeCloud(1.25),
       beam:new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,1,18,1,true),new THREE.MeshBasicMaterial({color:0xbfe3ff,transparent:true,opacity:0.12,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending})),
@@ -2540,7 +2546,6 @@ function generate(){
   buildLighthouse();
   buildPotty();
   buildLookout();
-  buildPalace();
   buildCampLake();
   buildCableCar();
   buildLab();
@@ -3695,8 +3700,8 @@ function placeCamera(dt){
     o.updateMatrixWorld(true);jv.set(l[0],l[1]+EYE,l[2]).applyMatrix4(o.matrixWorld);
     cam.x=jv.x;cam.y=jv.y;cam.z=jv.z;camDist=0;return;
   }
-  if((!thirdPerson||spyK>0.5)&&hop.ride&&hop.obj){
-    hop.obj.updateMatrixWorld(true);jv.set(HOP_SEAT[0],HOP_SEAT[1]+EYE,HOP_SEAT[2]).applyMatrix4(hop.obj.matrixWorld);
+  if((!thirdPerson||spyK>0.5)&&hop.ride&&hop.ride.line.m){
+    const hl=hopSeatLocal(),hg=hop.ride.line.m.g;hg.updateMatrixWorld(true);jv.set(hl[0],hl[1]+EYE,hl[2]).applyMatrix4(hg.matrixWorld);
     cam.x=jv.x;cam.y=jv.y;cam.z=jv.z;camDist=0;return;
   }
   if((!thirdPerson||spyK>0.5)&&express.ride&&express.obj){
@@ -4084,7 +4089,7 @@ window.addEventListener('keydown',function(e){
   if(heliCaptive()&&['KeyR','KeyE','KeyF','KeyT','KeyG','KeyP','KeyQ','KeyY','KeyX','KeyB','KeyH','KeyK','KeyC'].indexOf(e.code)>=0){kidnapToast();return;}
   keys.add(e.code);
   if(e.code==='Space'){const n=performance.now();if(n-lastSpace<300&&!onTramp(P.x,P.z))toggleFly();lastSpace=n;}
-  else if(e.code==='KeyF'){if(sub.on)fireTorpedo();else toggleFly();}
+  else if(e.code==='KeyF'){if(sub.on)fireTorpedo();else if(hop.ride&&hop.ride.line===OWLH)hopPilot();else toggleFly();}
   else if(e.code==='KeyU'){if(atl.trident)tridentWave();}
   else if(e.code==='KeyR'){if(jet.seat)leaveJet();if(heli.seat)leaveHeli();respawn();}
   else if(e.code==='KeyO')togglePhoto();
@@ -6344,8 +6349,9 @@ function updateJetHint(){
   else if(playing&&!P.sleep&&vaultExitNear()&&!vaultOpen())h='<b>E</b> 🚪 Open the door';
   else if(playing&&!P.sleep&&express.ride)h=express.ride.pilot?(express.fly?'<b>W</b>/<b>S</b> throttle '+Math.round(express.fly.thr*100)+'%'+(express.fly.thr>1?' ✨ SPARK DUST':'')+' · mouse steers · <b>Space</b>/<b>Shift</b> up and down · ':'')+'<b>E</b> '+(express.fly&&express.fly.ground?'✈️ Climb out of the cockpit':'🪂 Bail out'):'<b>E</b> 🪂 Jump out of Bird Air Express';
   else if(playing&&!P.sleep&&target&&target.b>=B.LEVER&&target.b<=B.BUTTON_ON)h='<b>Right-click</b> '+(target.b<=B.LEVER_ON?'🔴 Flip the lever':'🔴 Press the button');
-  else if(hop.ride){const q=hopPose(nowS());h='🦉 Owl Hopper'+(q&&q.next?' to '+q.next:'')+' · <b>E</b> '+(q&&(q.parked||q.landing)?'get off':'jump out');}
-  else if(hopNear()){const q=hopPose(nowS());h=(isOwlOwner()||infil())?'🦉 <b>E</b> board the Owl Hopper to '+q.next+' · leaves in '+Math.max(0,Math.ceil(q.leaves))+'s':'🦉 The Owl Hopper: owl owners only';}
+  else if(hop.ride&&hop.ride.pilot){const f=OWLH.fly;h='🦉 <b>W</b>/<b>S</b> throttle '+Math.round((f?f.thr:0)*100)+'% · steer where you look · look up to climb · <b>E</b> '+(f&&f.ground&&f.spd<4?'get out':'bail out');}
+  else if(hop.ride){const L=hop.ride.line,q=planePose(L,nowS());h=L.icon+' '+L.name+(q&&q.next?' to '+q.next:'')+' · <b>E</b> '+(q&&(q.parked||q.landing)?'get off':'jump out')+(L===OWLH&&q&&q.parked&&(isOwlOwner()||infil())?' · <b>F</b> take the controls':'');}
+  else if(hopNear()){const L=planeNear(),q=planePose(L,nowS());h=planeMay(L)?L.icon+' <b>E</b> board the '+L.name+' to '+q.next+' · leaves in '+Math.max(0,Math.ceil(q.leaves))+'s':'🦉 The Owl Hopper: owl owners only';}
   else if(hb.ride)h='🎈 <b>Space</b> burner · <b>Shift</b> vent · <b>WASD</b> nudge · <b>E</b> get out';
   else if(storkNear())h=(isOwlOwner()||infil())?'🪶 <b>E</b> send the stork on a job: '+SABOTAGE[stork.next%SABOTAGE.length].name:'🪶 A stork. It ignores you.';
   else if(MINI.tube&&(isOwlOwner()||infil())&&Math.hypot(P.x-MINI.tube.x,P.z-MINI.tube.z)<3&&Math.abs(P.y-MINI.tube.y)<2)h='🦉 Step on the owl tube to go to the lab';
@@ -6960,7 +6966,7 @@ function toggleBoard(){
   if(!P.fly&&!jet.seat&&railNearMe()){cartStart();return;}
   if(hop.ride){hopLeave();return;}
   if(storkNear()){storkTalk();return;}
-  if(hopNear()){hopBoard();return;}
+  {const pl=planeNear();if(pl){hopBoard(pl);return;}}
   if(express.ride){expLeave(null);return;}
   if(iceMe){toast('You’re frozen! You can’t do that until you’re unfrozen.');return;}
   if(secSwitchNear()&&!heli.seat){secPress();return;}
@@ -7952,8 +7958,8 @@ const TP_PLACES={
   volcano:'volcano','volcano island':'volcano',ember:'volcano',
   wreck:'wreck',shipwreck:'wreck',ship:'wreck',pirate:'wreck',pirates:'wreck',
   express:'express','red jet':'express','bird air express':'express',
-  hopper:'hopper','bird air hopper':'hopper','propeller plane':'hopper',mini:'mini','mini isle':'mini','mini island':'mini',
-  'owl island':'owlisle',owlisle:'owlisle',stork:'owlisle','high palace':'skyp','high sky palace':'skyp'
+  hopper:'hopper','owl hopper':'hopper','bird air hopper':'hopper',shuttle:'shuttle','island shuttle':'shuttle',biplane:'shuttle',mini:'mini','mini isle':'mini','mini island':'mini',
+  'owl island':'owlisle',owlisle:'owlisle',stork:'owlisle','high palace':'skyp','high sky palace':'skyp',palace:'skyp','sky palace':'skyp'
 };
 /* the first of these spots with ground just under it and room to stand */
 function standAt(spots,maxDrop){
@@ -7987,10 +7993,11 @@ function tpPlace(w){
   if(id==='potty'){const o=pottyAt();return tpTo(o.dx-0.5,o.G,o.dz+0.5,'the porta-potty behind Biscuit and Mochi’s cottage');}
   if(id==='lighthouse')return tpTo(LH.cx+0.5,LH.G,LH.cz+6.5,'the lighthouse');
   if(id==='express')return expTp();
-  if(id==='hopper')return hopTp();
+  if(id==='hopper')return hopTp(OWLH);
+  if(id==='shuttle')return hopTp(SHUTTLE);
   if(id==='mini')return miniTp();
   if(id==='owlisle'){if(!OWLI.stork)return false;const s=OWLI.stork;return tpTo(s.x,s.y,s.z-2.5,'Owl Island');}
-  if(id==='skyp'){if(!SKYP.on)return false;return tpTo(SKYP.cx+0.5,SKYP.FY,SKYP.cz+9.5,'the High Sky Palace');}
+  if(id==='skyp'){if(!SKYP.on)return false;return tpTo(SKYP.cx+0.5,SKYP.FY,SKYP.cz+9.5,'the Sky Palace');}
   if(id==='volcano')return tpTo(VOL.cx+0.5,SEA+1,VOL.cz-VOL.R+2.5,'Volcano Island');
   if(id==='wreck'){P.fly=false;return tpTo(SHIP.x+0.5,SEA+1,SHIP.z-7.5,'the shipwreck');}
   if(id==='un')return tpTo(UNH.sx1+0.5,FIELD_Y,UNH.sz0-2.5,'the Island Nations');
@@ -8481,12 +8488,12 @@ function toggleMap(v){
 function mapPlaces(){
   const T=TH,C=COT,a=[];
   a.push(['Owls\u2019 treehouse',T.cx,T.cz,'#d9a25a'],['Biscuit & Mochi\u2019s cottage',(C.x0+C.x1)/2,(C.z0+C.z1)/2,'#f3d9b0'],['Clover\u2019s paddock',(PADDOCK.x0+PADDOCK.x1)/2,(PADDOCK.z0+PADDOCK.z1)/2,'#b8834a'],
-    ['Campsite',CAMP.fx,CAMP.fz,'#ff9a3a'],['Cinder\u2019s den',DEN.cx,DEN.cz,'#2f9e7a'],['Goldie\u2019s house',AT.cx,AT.cz,'#ffcc33'],['Sky Palace',PAL.cx,PAL.cz,'#bfe3ff'],['✈ Airport',142,104,'#e8eef6'],['Helipad',(HELI_PAD.x0+HELI_PAD.x1)/2,(HELI_PAD.z0+HELI_PAD.z1)/2+6,'#d23a32'],['Meadow',FX,FZ,'#9fe07a']);
+    ['Campsite',CAMP.fx,CAMP.fz,'#ff9a3a'],['Cinder\u2019s den',DEN.cx,DEN.cz,'#2f9e7a'],['Goldie\u2019s house',AT.cx,AT.cz,'#ffcc33'],['✈ Airport',142,104,'#e8eef6'],['Helipad',(HELI_PAD.x0+HELI_PAD.x1)/2,(HELI_PAD.z0+HELI_PAD.z1)/2+6,'#d23a32'],['Meadow',FX,FZ,'#9fe07a']);
   a.push(['Lighthouse',LH.cx,LH.cz,'#ff6b5a']);
   a.push(['🌐 Island Nations',UNH.cx+1,UNH.sz0,'#5aa8ff']);
   a.push(['🌋 Volcano Island',VOL.cx,VOL.cz,'#ff6a1a']);
   if(MINI.on)a.push(['🏝️ Mini Isle',MINI.cx,MINI.cz,'#7ad37a']);
-  if(SKYP.on)a.push(['🏰 High Sky Palace',SKYP.cx,SKYP.cz,'#d8c8ff']);
+  if(SKYP.on)a.push(['🏰 Sky Palace',SKYP.cx,SKYP.cz,'#d8c8ff']);
   if(OWLI.on)a.push(['🦉 Owl Island',OWLI.cx,OWLI.cz,'#5a5560']);
   if(NSA.strip)a.push(['🛩️ North Shore Airstrip',(NSA.strip.x0+NSA.strip.x1)/2,NSA.strip.z0-4,'#e8eef6']);
   a.push(['☠️ Shipwreck',SHIP.x,SHIP.z,'#c9b37a']);
@@ -9027,7 +9034,7 @@ function renderPets(){
   renderPalace();
 }
 
-window.__isle={cmd:function(t){return runCommand(t);},aimAt:function(){aim();return target?{x:target.x,y:target.y,z:target.z,nx:target.nx,ny:target.ny,nz:target.nz,f:[cam.fx,cam.fy,cam.fz]}:null;},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},shapeOf:function(base){return familyBase(base)+facingDir();},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food,acc){const Q=makePetModel(id,food);if(acc)dressPet(Q,acc);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},lab:{hatch:function(){return{x:LAB.hx,y:LAB.hs,z:LAB.hz,R:LAB.R};},pad:function(){return LAB.pad;},pick:function(){return labState.pick;},mapClick:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();labMapClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},LAB:function(){return LAB;},door:function(){return labFx.u;},inside:function(){return labHere(P.x,P.y+0.5,P.z);},hidden:labHidden,gadgets:function(){return LAB_GADGETS.map(function(g){const p=gadgetPos(g);return{id:g.id,x:p.x,y:p.y,z:p.z};});},use:function(id){return useGadget(LAB_GADGETS.filter(function(g){return g.id===id;})[0]);},state:function(){const n=performance.now();return{boots:n<labState.boots,cloak:n<labState.cloak,gravity:n<labState.gravity,speed:n<labState.speed,shield:n<(labState.shield||0)};}},bm:{B:function(){return BMB;},hatch:function(){return bm.u;},inside:function(){return bmHere(P.x,P.y+0.5,P.z);},onPad:onBMPad,infil:infil,infilOff:function(){infilUntil=0;},calm:function(){labState.boots=labState.cloak=labState.gravity=labState.speed=labState.over=labState.shield=0;}},reactor:{at:reactorPos,near:reactorNear,go:reactorOverdrive,on:function(){return performance.now()<labState.over;},cool:function(){labState.overCool=0;}},sec:{S:function(){return LAB.sec;},switchAt:secSwitchPos,near:secSwitchNear,press:secPress,open:secDoorOpen,inside:function(){return sec.inside;},decoy:function(){return sec.decoy?{x:sec.decoy.x,z:sec.decoy.z}:null;},pick:secPickDecoy},vault:{V:function(){return LAB.vault;},near:vaultMapNear,press:vaultPress,open:vaultOpen,inside:function(){return vault.inside;},god:function(){return performance.now()<vault.god;},use:vaultUse,u:function(){return vault.u;},exitNear:vaultExitNear,fx:function(){return!!vault.fx;}},hollow:{H:function(){return HOL;},inside:function(){return holHere(P.x,P.y+0.5,P.z);},chest:holChestPos,jar:holJarPos,pad:holPadPos,open:holOpenChest,reset:function(){try{localStorage.removeItem('voxel-isle-hollow');}catch(e){}}},atl:{out:function(){atl.in=false;realm.in=false;},diveSpot:atlSubDiveSpot,A:function(){return ATLN;},crack:atlCrack,in:function(){return atl.in;},enter:atlEnter,leave:atlLeave,trident:function(){return atl.trident;},take:takeTrident,wave:tridentWave,reset:function(){atl.trident=false;atl.waveT=0;try{localStorage.removeItem('voxel-isle-trident');}catch(e){}}},torp:{fire:fireTorpedo,n:function(){return torps.length;},scared:function(){return performance.now()<(kraken.scared||0);}},blockId:function(k){return B[k];},tube:{near:tubeNear,trips:function(){return tube.trips;},cool:function(){tube.cool=0;}},owl2:{skyp:function(){return JSON.parse(JSON.stringify(SKYP));},owli:function(){return JSON.parse(JSON.stringify(OWLI));},storkNear:storkNear,stork:storkTalk,storkState:function(){return{away:!!stork.away,runs:stork.runs,next:stork.next,said:stork.said};},storkCool:function(){stork.cool=0;stork.away=0;},fuse:function(){return lhFuse.blown;},stops:function(){const L=hopLegs();return L?L.stops:null;}},hop:{pose:function(t){return hopPose(t===undefined?nowS():t);},near:hopNear,board:hopBoard,leave:hopLeave,ride:function(){return!!hop.ride;},legs:function(){const L=hopLegs();return L?{cycle:L.cycle,air:L.list.map(function(g){return g.air;})}:null;},mini:function(){return JSON.parse(JSON.stringify(MINI));},ns:function(){return JSON.parse(JSON.stringify(NSA));},badger:function(){return!!jet.badger;},badgerShow:function(x,y,z,yaw){const b=makeBadger();b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;scene.add(b.g);return true;},objs:function(){return{plane:!!hop.obj,spray:!!hop.spray&&hop.spray.visible};}},k2:{quests:function(){return questsToday().slice();},lines:questLines,bump:questBump,done:function(){return Object.assign({},quest.done);},bonus:function(){return quest.bonus;},pigeons:function(){return pigeon.list.length;},letterArrive:letterArrive,disco:function(){return{on:discoOn(),song:disco.song,danced:disco.danced,obj:!!disco.obj};},D:function(){return DISCO;},discoNear:discoNearDecks,discoReq:discoRequest,teams:function(){return{state:JSON.parse(JSON.stringify(teams.state)),mine:teams.mine,flags:Object.keys(teams.flags).filter(function(k){return teams.flags[k].visible;})};},league:function(){return JSON.parse(JSON.stringify(league.peers));},leagueHtml:function(){renderLeague();const e=$('leagueList');return e?e.textContent:'';},setBoatBest:function(v){boat.best=v;leagueSend();},hats:function(){return shopSave.hats.slice();},addHat:function(v){if(shopSave.hats.indexOf(v)<0)shopSave.hats.push(v);shopStore();}},l2:{settings:function(){return Object.assign({},settings);},set:setSetting,viewR:function(){return VIEW_R;},fogFar:function(){return FOG_AIR[1];},snd:function(){return{steps:snd.steps,splashes:snd.splashes,init:!!snd.master,eng:snd.engG?snd.engG.gain.value:0,rain:snd.rainG?snd.rainG.gain.value:0};},album:function(){return album.length;},albumAdd:albumAdd,albumHtml:function(){renderAlbum();return $('albumList').querySelectorAll('img').length;}},wx:{rainbow:function(){return rainbowOn();},rbTop:rainbowTop,RB:function(){return RB;},walks:function(){return rainbow.walks;},aurora:function(){return aurora.on&&!!aurora.obj&&aurora.obj.children[0].visible;},tide:function(){return tide.level;},crabs:crabsOut,fest:festOn,festRide:festRide,festLeave:festLeave,riding:function(){return!!fest.ride;},FEST:function(){return FEST;},stall:festStall,cave:function(){return mcave.site?{site:mcave.site,start:mcave.start,end:mcave.end,cells:mcave.cells,surf:mcaveSurface()}:null;},caveIn:mcaveEnter,caveLoot:mcaveLoot,caveNear:function(){return{portal:mcaveNearPortal(),back:mcaveNearBack(),loot:mcaveNearLoot()};}},pets2:{houseNear:petHouseNear,houseUse:petHouseUse,house:function(id){return petHouseOf(id);},dance:function(){return pfr.dance?pfr.dance.with:null;},baby:function(){return pfr.babyId;},babyPos:function(){return pfr.baby?{x:pfr.babyX,y:pfr.babyY,z:pfr.babyZ,vis:pfr.baby.g.visible}:null;},cool:function(){pfr.cool={};}},veh:{hb:function(){return{x:hb.x,y:hb.y,z:hb.z,ride:hb.ride,vy:hb.vy};},hbBoard:hbBoard,hbLeave:hbLeave,hbNear:hbNear,hbPut:function(x,z,y){hb.x=x;hb.z=z;hb.y=y!==undefined?y:Math.max(WATER_Y,groundAt(x,z));},buoys:function(){return boatBuoys();},boat:function(){return boat.on?Object.assign({},boat.on):null;},boatStart:boatStart,boatBest:function(){return boat.best;},mono:function(){return mono.stations.slice();},monoY:function(){return MONO_Y;},trace:monoTrace,pathPts:function(){return mono.path;},info:function(){return{n:mono.path.length,tunnels:mono.tunnels,bridges:mono.bridges,failed:mono.failed||0};},crew:function(){return crew.on;}},g2:{disp:function(x,y,z){return rs.disp.get((y*D+z)*W+x)||0;},elev:function(){return P.elev?Object.assign({},P.elev):null;},elevOn:function(x,y,z){return rs.elevOn.has((y*D+z)*W+x);},beltOn:function(x,y,z){return rs.beltOn.has((y*D+z)*W+x);},paint:function(x,y,z){return paintFill({x:x,y:y,z:z,b:get(x,y,z)});},bp:blueprintCmd,bpLast:function(){return bp.last;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.length}:null;}},games:{hs:function(){return{on:hs.on,seeker:hs.seeker,hiders:hs.hiders.slice(),found:Array.from(hs.found)};},hsStart:hsStart,hsRush:function(){hs.waitUntil=performance.now();},frozen:hsFrozen,bb:function(){const b=bb.on;return b?{theme:b.theme,phase:b.phase,votes:Object.assign({},b.votes),myVote:b.myVote}:null;},bbStart:bbStart,bbRush:function(){if(bb.on){if(bb.on.phase==='build')bb.on.t0-=bb.on.dur*1000;else bb.on.voteT-=30000;}},vote:bbVoteKey,wins:function(){return bb.wins;},dg:function(){return disguise.mode;}},seasons:{now:season,set:seasonCmd,kind:function(){return seasonFx.pts&&seasonFx.pts.visible?seasonFx.kind:null;}},bolt:{strike:lightningStrike,n:function(){return bolts.strikes;},last:function(){return bolts.last;},zap:function(){return rs.zap.size;}},market:{list:function(){return MARKET;},near:marketNear,buy:marketBuy,open:function(){return market.open;},owned:function(){return glowOwned.slice();}},treasure:{spot:function(){const t=treasureSpot();return{x:t.x,y:t.y,z:t.z,day:t.day};},found:function(){return treasure.found;},dig:treasureDig},petlv:{xp:function(id){return petXP[id]||0;},level:petLevel,gain:petGainXP,k:petPowK},prace:{start:petRaceStart,bet:petRaceBet,state:function(){const p=prace.on;return p?{phase:p.phase,bet:p.bet,winner:p.winner,ps:p.racers.map(function(r){return r.p;})}:null;},rush:function(){if(prace.on)prace.on.t0-=6000;},nearEnd:function(){if(prace.on)prace.on.racers.forEach(function(r,k){r.p=1.9+k*0.01;});}},goatLook:{at:function(){return Object.assign({},GOAT_LOOK);},near:lookoutNear,use:lookoutUse,zone:inGoatZone},jj2:{trolleyX:jjTrolleyX,nearTrolley:jjNearTrolley,cargoMay:cargoMay,cargo:function(){return jet.cargo?Object.assign({},jet.cargo):null;},skiByJet:function(){const q=jet.pose,s=skis[0];let best=null,bd=1e9;for(let dz=-10;dz<=10;dz++)for(let dx=-10;dx<=10;dx++){const x=Math.floor(q.x)+dx,z=Math.floor(q.z)+dz;if(get(x,Math.floor(WATER_Y),z)===B.WATER&&get(x,Math.floor(WATER_Y)+1,z)===0){const d2=dx*dx+dz*dz;if(d2<bd&&d2>30){bd=d2;best=[x+0.5,z+0.5];}}}if(!best)return false;s.x=best[0];s.z=best[1];s.rider=null;s.land=false;P.x=s.x;P.z=s.z;P.y=WATER_Y+0.4;return skiBoard(0);},ski:function(){return P.ski;},show:function(){return!!express.show;},licence:function(){return licence;},licAir:function(v){if(v!==undefined)lic.air=v;return lic.air;}},cart:{start:cartStart,leave:cartLeave,on:function(){return cart.on?{a:cart.on.a.slice(),b:cart.on.b?cart.on.b.slice():null,v:cart.on.v,d:cart.on.d}:null;}},machine:buildMachine,ach:{all:function(){return Object.assign({},achs);},give:achieve},more:setMore,jumbo:{board:function(){if(!jet.seat)boardLocal(1);return!!jet.seat;},walk:function(){return jet.walk?Object.assign({},jet.walk,{sit:jet.walk.sit?Object.assign({},jet.walk.sit):null}):null;},put:function(o){if(jet.walk)Object.assign(jet.walk,o);},use:jumboUse,floor:jjFloor,door:jjNearDoor,bar:jjNearBar,obj:function(){return!!jet.obj;}},rs:{step:rsStep,cells:function(){return rs.cells.size;},pow:function(x,y,z){return rs.pow.get((y*D+z)*W+x)||0;},out:function(x,y,z){const i=(y*D+z)*W+x;return rsOut(i,vox[i]);},use:rsUse,tnt:function(){return rs.tnt.size;},booms:function(){return rs.booms;},notes:function(){return rs.notes;},rush:function(){rs.tnt.forEach(function(t,i){rs.tnt.set(i,0);});},pushes:function(){return rs.pushes;},flights:function(){return rs.flights;},railOn:function(x,y,z){return rs.railOn.has((y*D+z)*W+x);},obs:function(x,y,z){const o=rs.obs.get((y*D+z)*W+x);return o?o.pulse:-1;}},spark:{demo:function(x,y,z,dx,dz,n){if(!spark.pts)sparkInit();const t=performance.now()/1000;for(let k=0;k<n;k++){for(let j=0;j<4;j++){sparkEmit(x+dx*k/n,y,z+dz*k/n,t-k/n*SPARK_LIFE);const i=(spark.head+SPARK_N-1)%SPARK_N;spark.vel[i*3]=spark.vel[i*3+1]=spark.vel[i*3+2]=0;}}},life:function(v){SPARK_LIFE=v;},mid:function(){let n=0,x=0,y=0,z=0;for(let i=0;i<SPARK_N;i++)if(spark.al&&spark.al[i]>0&&spark.pos[i*3+1]>-999){x+=spark.pos[i*3];y+=spark.pos[i*3+1];z+=spark.pos[i*3+2];n++;}return n?{x:x/n,y:y/n,z:z/n,n:n}:null;},live:function(){return spark.live||0;},grad:function(u){return sparkGrad(u,[0,0,0]);}},express:{collide:function(){const t=nowS(),q=expPose(t),jp=jet.pose;jet.pose={x:q.x+1,y:q.y,z:q.z,h:0};express.lastJ={x:q.x-1,y:q.y,z:q.z};jetGoneUntil=0;const r=expCollide(q,t,0.016);jet.pose=jp;return r;},down:function(){return!!express.down&&nowS()<express.down.t1;},rows:function(){return expRows(nowS());},why:function(){return express.why;},fly:function(){return express.fly?Object.assign({},express.fly):null;},setThr:function(v){if(express.fly)express.fly.thr=v;},setFly:function(o){if(express.fly)Object.assign(express.fly,o);},drive:expDrive,tp:expTp,crash:function(){const q=expPose(nowS());expCrash(q);},pose:function(t){return expPose(t===undefined?nowS():t);},near:expNear,board:expBoard,ride:function(){return!!express.ride;},stops:function(){return EXP_STOPS.slice();}},duncan:{at:duncanTowerPos,found:function(){return duncan.found;},reset:function(){duncan.found=false;try{localStorage.removeItem('voxel-isle-duncan');}catch(e){}},radio:duncanRadio,said:function(){return duncan.said;},spot:flapperSpot,log:function(){return Object.assign({},spotLog);}},realm:{R:function(){return REALM;},in:function(){return realm.in;},enter:realmEnter,leave:realmLeave,dome:domeDoorPos,door:domeDoor,clam:clamPos,open:clamOpen},sub2:{inner:function(){return!!(sub.obj&&sub.obj.inn);}},disguise:{next:disguiseNext,off:disguiseOff,mode:function(){return performance.now()<disguise.until?disguise.mode:null;}},libg:{use:libUse},lib:{spot:libSpot,pull:libPull,open:libOpen,read:libRead,lectern:libLecternPos,pad:libPadPos,inRoom:function(){return inLibRoom(Math.floor(P.x),Math.floor(P.y+0.5),Math.floor(P.z));}},hotel:{toggle:hotelToggle,pet:function(){return hotel.pet;},rush:function(){hotel.t0-=60000;}},radio:{at:radioPos,toggle:radioToggle,on:function(){return radio.on;},said:function(){return radio.said;},line:radioLine},mafia:{go:mafiaGo,pay:mafiaPay,on:function(){return mafia.on?mafia.on.phase:null;},rush:function(){if(mafia.on)mafia.on.until=0;}},course:{list:function(){return COURSE;},pad:COURSE_PAD,start:courseStart,run:function(){return course.run?{t0:course.run.t0,cp:course.run.cp}:null;},best:function(){return course.best;}},raid:{check:raidCheck,text:function(){return alarms.text;}},news:{add:newsAdd,deliver:newsDeliver,show:showPaper,day:function(){return news.day;},count:function(k){return news.c[k]||0;}},pembLab:{go:pembLabGo,on:function(){return pembLab.on;},said:function(){return pembLab.said;}},kraken:{u:function(){return kraken.u;}},sub:{state:function(){return{on:sub.on,x:sub.x,y:sub.y,z:sub.z};},near:subNear,board:subBoard,leave:subLeave,home:subHome},holBack:{H:function(){return HOLB;},open:holBackOpen,doorNear:holDoorNear,pw:function(){return holPw;},reset:function(){holPw=null;holSoloPw=null;holB.open=0;try{localStorage.removeItem('voxel-isle-hollow-pw');localStorage.removeItem('voxel-isle-hollow-back');}catch(e){}},chest:holBackChestPos},tunnels:{list:function(){return TUNNELS;},near:tunnelNear,ride:tunnelRide},spy:{armed:function(){return spyc.armed;},at:function(){return spyc.at;},monitor:spyMonitorPos},forge:{at:forgePos,near:forgeNear,open:openForge},taxi:{go:taxiStart,on:function(){return!!taxi.on;}},ctf:{state:function(){return{on:ctf.on,carrier:Object.assign({},ctf.carrier),score:Object.assign({},ctf.score),teams:Object.assign({},ctf.teams)};},home:ctfHome,act:ctfAct,me:ctfMe},lava:{at:lavaAt,level:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.LAVA?wl[i]:0;},burning:function(){return burns.size;},queued:function(){return lavaQ.size;}},vol:{V:function(){return VOL;},near:emberNear,talk:emberTalk,erupt:volErupt,erupting:function(){return performance.now()<vol.erupt;},blessed:function(){return performance.now()<vol.bless;},said:function(){return vol.emberSaid;}},ship:{S:function(){return SHIP;},chest:chestPos,near:chestNear,open:openChest,ghost:function(){return ship.ghostOn&&!!ship.ghost&&ship.ghost.g.visible;},ghostNear:ghostNear,ghostAt:function(){const g=ship.ghost.g.position;return{x:g.x,y:g.y,z:g.z};},talk:ghostTalk,reset:function(){try{localStorage.removeItem('voxel-isle-chests');}catch(e){}ship.unlocked=false;}},drones:{infil:function(){infilUntil=performance.now()+180000;},list:function(){return drones.list.map(function(d){return{x:d.x,y:d.y,z:d.z};});},alarm:function(){return drones.alarm;}},un:{H:function(){return UNH;},near:unNear,inside:unInside,propose:unPropose,podium:unPodium,delegates:function(){return un.del.length;}},mail:{at:function(){return mailSpot();},pending:function(){return mail.pending.length;},near:function(){return mailNear();},read:readMail},shop:{coneObj:function(){return!!shop.cone;},headParts:function(){return selfFig&&selfFig.head?selfFig.head.children.length:0;},at:function(){return SHOP;},near:function(){return shopNear();},open:function(){return shop.open;},coins:function(){return shopSave.coins;},give:function(n){addCoins(n);},buy:buyItem,hats:function(){return shopSave.hats.slice();},balloon:function(){return balloonOn();},cone:function(){return performance.now()<shop.coneT;},said:function(){return shop.bub?shop.said:null;}},tramp:{T:function(){return TRAMP;},bounces:function(){return tramp.bounces;},peak:function(){return tramp.peak;},lastV:function(){return tramp.lastV;}},bazza:{pose:function(){return{x:baz.x,y:baz.y,z:baz.z};},near:function(){return bazNear();},serve:bazServe,said:function(){return baz.bub?baz.said:null;},run:function(){return baz.run?{x:baz.run.x,z:baz.run.z,who:baz.run.who,laid:baz.run.laid}:null;},go:function(){baz.force=true;},targets:function(){return bazTargets().map(function(t){return t.name;});},clean:function(){return+potty.clean||0;},home:function(){return bazHome()[0];}},pembShow:function(x,y,z,yaw){const o=makePenguin();o.g.position.set(x,y,z);o.g.rotation.y=yaw||0;scene.add(o.g);return true;},butler:{svc:butlerService,menu:function(){return butler.menu;},zoom:function(){return performance.now()<butler.zoomT;},shield:function(){return performance.now()<butler.shieldT;},away:function(){return!!butler.away;},line:pembLine,pose:function(){return{x:butler.x,y:butler.y,z:butler.z};},near:function(){return butlerNear();},serve:butlerServe,said:function(){return butler.bub?butler.said:null;},hall:function(){return butlerHall();},tea:function(){return performance.now()<butler.cupT;},next:function(){return BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];},ready:function(){butler.serveT=0;butler.helpT=0;butler.greeted=false;}},silly:{zipFake:function(n){zipFake=n|0;},zipBroken:function(){return Object.keys(zipBroken).length;},fuse:function(){return lhFuse.blown;},rushFuse:function(){lhFuse.at=0;},splat:function(){return!!P.splat;},rushPoop:function(){gullFx.under=99;gullFx.cool=0;},gullNear:function(){const g=gullNearest(P.x,P.z);return g?{x:g.f.cx,z:g.f.cz,y:g.f.y,R:g.f.R,d:g.d}:null;},steal:function(){return gullFx.steal?gullFx.steal.phase:null;},rushSteal:function(){gullFx.foodT=99;gullFx.force=true;},seeds:function(){return seeds.list.length;},throwSeeds:throwSeeds,crashes:function(){return crashLog.n;},letter:function(){const e=$('letter');return!!e&&!e.hidden;},board:function(){return crashBoardLine();}},birdShow:function(k,x,y,z,yaw,mode,ph){const b=makeBird(k);b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;if(ph!==undefined)b.ph=ph;b.flapT=0.5;birdWings(b,mode||'fly',0);if(mode==='ground')b.g.position.y+=0.12;scene.add(b.g);return true;},crash:{go:crashJet,gone:function(){return performance.now()<jetGoneUntil;},booms:function(){return booms.length;},beach:eastBeachSpot},potty:{at:pottyAt,box:sewageBox,use:usePotty,near:pottyNear,uses:function(){return potty.uses;},left:sewageLeft,flood:function(){return!!potty.flood;},ready:function(){potty.sitting=0;},inSewage:function(){return inSewage(P.x,P.y,P.z);}},petAcc:function(key){const f=petFx.follow.get(key||'me');return f&&f.P.acc?f.P.acc.length:0;},photo:{toggle:togglePhoto,on:function(){return!!photo;},state:function(){return photo?{yaw:photo.yaw,pitch:photo.pitch,dist:photo.dist,hour:photo.hour,hideMe:photo.hideMe,last:!!photo.last}:null;},snap:photoSnap},react:{go:doReact,fx:function(){return reactFx.length;},typing:function(){return myTyping;}},lighthouse:{LH:LH,beam:function(){return lhFx?{on:lhFx.g.visible,op:lhFx.mat.opacity,a:lhFx.a}:null;}},wild:{pigeons:function(){return birds.pigeons.map(function(q){return{mode:q.mode,x:q.x,y:q.y,z:q.z};});},kinds:function(){return birds.flocks.map(function(f){return f.kind;});},counts:function(){return{birds:wild.shown,pigeons:birds.pigeons.filter(function(q){return q.mode!=='none';}).length,lhGulls:birds.perched.filter(function(q){return q.b.g.visible;}).length+birds.flocks.filter(function(f){return f.fixed;}).reduce(function(n,f){return n+f.list.filter(function(q){return q.b.g.visible;}).length;},0),gulls:birds.flocks.filter(function(f){return f.kind==='gull'&&f.list[0].b.g.visible;}).length,fish:wild.fish.filter(function(f){return f.live;}).length,flies:wild.flies.filter(function(b){return b.live;}).length,glow:wild.glow&&wild.glow.visible?wild.glowP.filter(function(q){return q.live;}).length:0};}},zip:{lines:function(){if(zipDirty)zipBuild();return zipLines.map(function(L){return{a:[L.a.x,L.a.y,L.a.z],b:[L.b.x,L.b.y,L.b.z]};});},near:function(){return zipNear();},riding:function(){return P.zip?Object.assign({},P.zip):null;},grab:function(){return zipGrab(zipNear());}},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:function(){return nearBike();},home:function(){return BIKE_HOME;}},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
+window.__isle={cmd:function(t){return runCommand(t);},aimAt:function(){aim();return target?{x:target.x,y:target.y,z:target.z,nx:target.nx,ny:target.ny,nz:target.nz,f:[cam.fx,cam.fy,cam.fz]}:null;},envNow:function(){return{time:envHour(),weather:env.weather,cycle:env.cycle,L:envL.value,stars:stars?stars.material.opacity:0,rain:!!(rain&&rain.visible),snow:!!(snow&&snow.visible)};},fw:{obj:function(){return fwPts;},active:function(){return fwActive();},rockets:function(){return fwRockets.length;},sparks:function(){return fwP.filter(function(p){return p.t>0;}).slice(0,3).map(function(p){return[p.x,p.y,p.z,p.t];});}},locks:function(){return locks.map(function(o){return Object.assign({},o);});},iced:function(){return iceMe;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.filter(function(b){return b;}).length}:null;},sel:function(){return{a:selBox.a,b:selBox.b};},chute:function(){return!!P.chute;},noChute:function(){P.chute=null;},shapeOf:function(base){return familyBase(base)+facingDir();},signs:function(){return signsList();},signEdit:function(x,y,z){return editSign(x,y,z);},signFx:function(){return signFx.size;},spyK:function(){return spyK;},fov:function(){return camera.fov;},grap:function(){return P.grap?{phase:P.grap.phase,x:P.grap.x,y:P.grap.y,z:P.grap.z,veh:P.grap.veh?P.grap.veh.kind:null}:null;},petShow:function(id,x,y,z,yaw,food,acc){const Q=makePetModel(id,food);if(acc)dressPet(Q,acc);Q.g.position.set(x,y,z);Q.g.rotation.y=yaw||0;scene.add(Q.g);if(Q.saddle)Q.saddle.visible=true;animatePet(Q,0.016,false,false,false,false);return true;},roomy:function(){return!boxHits(P.x,P.y,P.z);},camAt:function(){return{x:cam.x,y:cam.y,z:cam.z,third:thirdPerson};},skiing:function(){return!!P.skis;},rack:function(){return rackNear();},racks:function(){return SKI_RACKS;},openChute:function(){return maybeChute();},cable:{inBox:inCableBox,state:cabState,pos:cabPos,near:cableNear,riding:function(){return P.cable?Object.assign({},P.cable):null;},A:CABLE.A,B:CABLE.B,cycle:cabCycle,on:cableOn},lab:{hatch:function(){return{x:LAB.hx,y:LAB.hs,z:LAB.hz,R:LAB.R};},pad:function(){return LAB.pad;},pick:function(){return labState.pick;},mapClick:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();labMapClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},LAB:function(){return LAB;},door:function(){return labFx.u;},inside:function(){return labHere(P.x,P.y+0.5,P.z);},hidden:labHidden,gadgets:function(){return LAB_GADGETS.map(function(g){const p=gadgetPos(g);return{id:g.id,x:p.x,y:p.y,z:p.z};});},use:function(id){return useGadget(LAB_GADGETS.filter(function(g){return g.id===id;})[0]);},state:function(){const n=performance.now();return{boots:n<labState.boots,cloak:n<labState.cloak,gravity:n<labState.gravity,speed:n<labState.speed,shield:n<(labState.shield||0)};}},bm:{B:function(){return BMB;},hatch:function(){return bm.u;},inside:function(){return bmHere(P.x,P.y+0.5,P.z);},onPad:onBMPad,infil:infil,infilOff:function(){infilUntil=0;},calm:function(){labState.boots=labState.cloak=labState.gravity=labState.speed=labState.over=labState.shield=0;}},reactor:{at:reactorPos,near:reactorNear,go:reactorOverdrive,on:function(){return performance.now()<labState.over;},cool:function(){labState.overCool=0;}},sec:{S:function(){return LAB.sec;},switchAt:secSwitchPos,near:secSwitchNear,press:secPress,open:secDoorOpen,inside:function(){return sec.inside;},decoy:function(){return sec.decoy?{x:sec.decoy.x,z:sec.decoy.z}:null;},pick:secPickDecoy},vault:{V:function(){return LAB.vault;},near:vaultMapNear,press:vaultPress,open:vaultOpen,inside:function(){return vault.inside;},god:function(){return performance.now()<vault.god;},use:vaultUse,u:function(){return vault.u;},exitNear:vaultExitNear,fx:function(){return!!vault.fx;}},hollow:{H:function(){return HOL;},inside:function(){return holHere(P.x,P.y+0.5,P.z);},chest:holChestPos,jar:holJarPos,pad:holPadPos,open:holOpenChest,reset:function(){try{localStorage.removeItem('voxel-isle-hollow');}catch(e){}}},atl:{out:function(){atl.in=false;realm.in=false;},diveSpot:atlSubDiveSpot,A:function(){return ATLN;},crack:atlCrack,in:function(){return atl.in;},enter:atlEnter,leave:atlLeave,trident:function(){return atl.trident;},take:takeTrident,wave:tridentWave,reset:function(){atl.trident=false;atl.waveT=0;try{localStorage.removeItem('voxel-isle-trident');}catch(e){}}},torp:{fire:fireTorpedo,n:function(){return torps.length;},scared:function(){return performance.now()<(kraken.scared||0);}},blockId:function(k){return B[k];},tube:{near:tubeNear,trips:function(){return tube.trips;},cool:function(){tube.cool=0;}},owl2:{skyp:function(){return JSON.parse(JSON.stringify(SKYP));},owli:function(){return JSON.parse(JSON.stringify(OWLI));},storkNear:storkNear,stork:storkTalk,storkState:function(){return{away:!!stork.away,runs:stork.runs,next:stork.next,said:stork.said};},storkCool:function(){stork.cool=0;stork.away=0;},fuse:function(){return lhFuse.blown;},stops:function(){const L=planeLegs(OWLH);return L?L.stops:null;},shuttleStops:function(){const L=planeLegs(SHUTTLE);return L?L.stops:null;}},hop:{line:function(id){return id==='owl'?'owl':'shuttle';},owlPose:function(t){return planePose(OWLH,t===undefined?nowS():t);},owlLegs:function(){const L=planeLegs(OWLH);return L?{cycle:L.cycle,stops:L.stops}:null;},owlBoard:function(){return hopBoard(OWLH);},pilot:hopPilot,fly:function(){return OWLH.fly?Object.assign({},OWLH.fly):null;},setFly:function(o){if(OWLH.fly)Object.assign(OWLH.fly,o);},pilotIng:function(){return!!(hop.ride&&hop.ride.pilot);},pose:function(t){return planePose(SHUTTLE,t===undefined?nowS():t);},near:hopNear,board:function(){return hopBoard(SHUTTLE);},leave:hopLeave,ride:function(){return!!hop.ride;},legs:function(){const L=planeLegs(SHUTTLE);return L?{cycle:L.cycle,air:L.list.map(function(g){return g.air;})}:null;},mini:function(){return JSON.parse(JSON.stringify(MINI));},ns:function(){return JSON.parse(JSON.stringify(NSA));},badger:function(){return!!jet.badger;},badgerShow:function(x,y,z,yaw){const b=makeBadger();b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;scene.add(b.g);return true;},objs:function(){return{plane:!!SHUTTLE.m,owl:!!OWLH.m,spray:!!hop.spray&&hop.spray.visible};}},k2:{quests:function(){return questsToday().slice();},lines:questLines,bump:questBump,done:function(){return Object.assign({},quest.done);},bonus:function(){return quest.bonus;},pigeons:function(){return pigeon.list.length;},letterArrive:letterArrive,disco:function(){return{on:discoOn(),song:disco.song,danced:disco.danced,obj:!!disco.obj};},D:function(){return DISCO;},discoNear:discoNearDecks,discoReq:discoRequest,teams:function(){return{state:JSON.parse(JSON.stringify(teams.state)),mine:teams.mine,flags:Object.keys(teams.flags).filter(function(k){return teams.flags[k].visible;})};},league:function(){return JSON.parse(JSON.stringify(league.peers));},leagueHtml:function(){renderLeague();const e=$('leagueList');return e?e.textContent:'';},setBoatBest:function(v){boat.best=v;leagueSend();},hats:function(){return shopSave.hats.slice();},addHat:function(v){if(shopSave.hats.indexOf(v)<0)shopSave.hats.push(v);shopStore();}},l2:{settings:function(){return Object.assign({},settings);},set:setSetting,viewR:function(){return VIEW_R;},fogFar:function(){return FOG_AIR[1];},snd:function(){return{steps:snd.steps,splashes:snd.splashes,init:!!snd.master,eng:snd.engG?snd.engG.gain.value:0,rain:snd.rainG?snd.rainG.gain.value:0};},album:function(){return album.length;},albumAdd:albumAdd,albumHtml:function(){renderAlbum();return $('albumList').querySelectorAll('img').length;}},wx:{rainbow:function(){return rainbowOn();},rbTop:rainbowTop,RB:function(){return RB;},walks:function(){return rainbow.walks;},aurora:function(){return aurora.on&&!!aurora.obj&&aurora.obj.children[0].visible;},tide:function(){return tide.level;},crabs:crabsOut,fest:festOn,festRide:festRide,festLeave:festLeave,riding:function(){return!!fest.ride;},FEST:function(){return FEST;},stall:festStall,cave:function(){return mcave.site?{site:mcave.site,start:mcave.start,end:mcave.end,cells:mcave.cells,surf:mcaveSurface()}:null;},caveIn:mcaveEnter,caveLoot:mcaveLoot,caveNear:function(){return{portal:mcaveNearPortal(),back:mcaveNearBack(),loot:mcaveNearLoot()};}},pets2:{houseNear:petHouseNear,houseUse:petHouseUse,house:function(id){return petHouseOf(id);},dance:function(){return pfr.dance?pfr.dance.with:null;},baby:function(){return pfr.babyId;},babyPos:function(){return pfr.baby?{x:pfr.babyX,y:pfr.babyY,z:pfr.babyZ,vis:pfr.baby.g.visible}:null;},cool:function(){pfr.cool={};}},veh:{hb:function(){return{x:hb.x,y:hb.y,z:hb.z,ride:hb.ride,vy:hb.vy};},hbBoard:hbBoard,hbLeave:hbLeave,hbNear:hbNear,hbPut:function(x,z,y){hb.x=x;hb.z=z;hb.y=y!==undefined?y:Math.max(WATER_Y,groundAt(x,z));},buoys:function(){return boatBuoys();},boat:function(){return boat.on?Object.assign({},boat.on):null;},boatStart:boatStart,boatBest:function(){return boat.best;},mono:function(){return mono.stations.slice();},monoY:function(){return MONO_Y;},trace:monoTrace,pathPts:function(){return mono.path;},info:function(){return{n:mono.path.length,tunnels:mono.tunnels,bridges:mono.bridges,failed:mono.failed||0};},crew:function(){return crew.on;}},g2:{disp:function(x,y,z){return rs.disp.get((y*D+z)*W+x)||0;},elev:function(){return P.elev?Object.assign({},P.elev):null;},elevOn:function(x,y,z){return rs.elevOn.has((y*D+z)*W+x);},beltOn:function(x,y,z){return rs.beltOn.has((y*D+z)*W+x);},paint:function(x,y,z){return paintFill({x:x,y:y,z:z,b:get(x,y,z)});},bp:blueprintCmd,bpLast:function(){return bp.last;},clip:function(){return clip?{w:clip.w,h:clip.h,d:clip.d,n:clip.data.length}:null;}},games:{hs:function(){return{on:hs.on,seeker:hs.seeker,hiders:hs.hiders.slice(),found:Array.from(hs.found)};},hsStart:hsStart,hsRush:function(){hs.waitUntil=performance.now();},frozen:hsFrozen,bb:function(){const b=bb.on;return b?{theme:b.theme,phase:b.phase,votes:Object.assign({},b.votes),myVote:b.myVote}:null;},bbStart:bbStart,bbRush:function(){if(bb.on){if(bb.on.phase==='build')bb.on.t0-=bb.on.dur*1000;else bb.on.voteT-=30000;}},vote:bbVoteKey,wins:function(){return bb.wins;},dg:function(){return disguise.mode;}},seasons:{now:season,set:seasonCmd,kind:function(){return seasonFx.pts&&seasonFx.pts.visible?seasonFx.kind:null;}},bolt:{strike:lightningStrike,n:function(){return bolts.strikes;},last:function(){return bolts.last;},zap:function(){return rs.zap.size;}},market:{list:function(){return MARKET;},near:marketNear,buy:marketBuy,open:function(){return market.open;},owned:function(){return glowOwned.slice();}},treasure:{spot:function(){const t=treasureSpot();return{x:t.x,y:t.y,z:t.z,day:t.day};},found:function(){return treasure.found;},dig:treasureDig},petlv:{xp:function(id){return petXP[id]||0;},level:petLevel,gain:petGainXP,k:petPowK},prace:{start:petRaceStart,bet:petRaceBet,state:function(){const p=prace.on;return p?{phase:p.phase,bet:p.bet,winner:p.winner,ps:p.racers.map(function(r){return r.p;})}:null;},rush:function(){if(prace.on)prace.on.t0-=6000;},nearEnd:function(){if(prace.on)prace.on.racers.forEach(function(r,k){r.p=1.9+k*0.01;});}},goatLook:{at:function(){return Object.assign({},GOAT_LOOK);},near:lookoutNear,use:lookoutUse,zone:inGoatZone},jj2:{trolleyX:jjTrolleyX,nearTrolley:jjNearTrolley,cargoMay:cargoMay,cargo:function(){return jet.cargo?Object.assign({},jet.cargo):null;},skiByJet:function(){const q=jet.pose,s=skis[0];let best=null,bd=1e9;for(let dz=-10;dz<=10;dz++)for(let dx=-10;dx<=10;dx++){const x=Math.floor(q.x)+dx,z=Math.floor(q.z)+dz;if(get(x,Math.floor(WATER_Y),z)===B.WATER&&get(x,Math.floor(WATER_Y)+1,z)===0){const d2=dx*dx+dz*dz;if(d2<bd&&d2>30){bd=d2;best=[x+0.5,z+0.5];}}}if(!best)return false;s.x=best[0];s.z=best[1];s.rider=null;s.land=false;P.x=s.x;P.z=s.z;P.y=WATER_Y+0.4;return skiBoard(0);},ski:function(){return P.ski;},show:function(){return!!express.show;},licence:function(){return licence;},licAir:function(v){if(v!==undefined)lic.air=v;return lic.air;}},cart:{start:cartStart,leave:cartLeave,on:function(){return cart.on?{a:cart.on.a.slice(),b:cart.on.b?cart.on.b.slice():null,v:cart.on.v,d:cart.on.d}:null;}},machine:buildMachine,ach:{all:function(){return Object.assign({},achs);},give:achieve},more:setMore,jumbo:{board:function(){if(!jet.seat)boardLocal(1);return!!jet.seat;},walk:function(){return jet.walk?Object.assign({},jet.walk,{sit:jet.walk.sit?Object.assign({},jet.walk.sit):null}):null;},put:function(o){if(jet.walk)Object.assign(jet.walk,o);},use:jumboUse,floor:jjFloor,door:jjNearDoor,bar:jjNearBar,obj:function(){return!!jet.obj;}},rs:{step:rsStep,cells:function(){return rs.cells.size;},pow:function(x,y,z){return rs.pow.get((y*D+z)*W+x)||0;},out:function(x,y,z){const i=(y*D+z)*W+x;return rsOut(i,vox[i]);},use:rsUse,tnt:function(){return rs.tnt.size;},booms:function(){return rs.booms;},notes:function(){return rs.notes;},rush:function(){rs.tnt.forEach(function(t,i){rs.tnt.set(i,0);});},pushes:function(){return rs.pushes;},flights:function(){return rs.flights;},railOn:function(x,y,z){return rs.railOn.has((y*D+z)*W+x);},obs:function(x,y,z){const o=rs.obs.get((y*D+z)*W+x);return o?o.pulse:-1;}},spark:{demo:function(x,y,z,dx,dz,n){if(!spark.pts)sparkInit();const t=performance.now()/1000;for(let k=0;k<n;k++){for(let j=0;j<4;j++){sparkEmit(x+dx*k/n,y,z+dz*k/n,t-k/n*SPARK_LIFE);const i=(spark.head+SPARK_N-1)%SPARK_N;spark.vel[i*3]=spark.vel[i*3+1]=spark.vel[i*3+2]=0;}}},life:function(v){SPARK_LIFE=v;},mid:function(){let n=0,x=0,y=0,z=0;for(let i=0;i<SPARK_N;i++)if(spark.al&&spark.al[i]>0&&spark.pos[i*3+1]>-999){x+=spark.pos[i*3];y+=spark.pos[i*3+1];z+=spark.pos[i*3+2];n++;}return n?{x:x/n,y:y/n,z:z/n,n:n}:null;},live:function(){return spark.live||0;},grad:function(u){return sparkGrad(u,[0,0,0]);}},express:{collide:function(){const t=nowS(),q=expPose(t),jp=jet.pose;jet.pose={x:q.x+1,y:q.y,z:q.z,h:0};express.lastJ={x:q.x-1,y:q.y,z:q.z};jetGoneUntil=0;const r=expCollide(q,t,0.016);jet.pose=jp;return r;},down:function(){return!!express.down&&nowS()<express.down.t1;},rows:function(){return expRows(nowS());},why:function(){return express.why;},fly:function(){return express.fly?Object.assign({},express.fly):null;},setThr:function(v){if(express.fly)express.fly.thr=v;},setFly:function(o){if(express.fly)Object.assign(express.fly,o);},drive:expDrive,tp:expTp,crash:function(){const q=expPose(nowS());expCrash(q);},pose:function(t){return expPose(t===undefined?nowS():t);},near:expNear,board:expBoard,ride:function(){return!!express.ride;},stops:function(){return EXP_STOPS.slice();}},duncan:{at:duncanTowerPos,found:function(){return duncan.found;},reset:function(){duncan.found=false;try{localStorage.removeItem('voxel-isle-duncan');}catch(e){}},radio:duncanRadio,said:function(){return duncan.said;},spot:flapperSpot,log:function(){return Object.assign({},spotLog);}},realm:{R:function(){return REALM;},in:function(){return realm.in;},enter:realmEnter,leave:realmLeave,dome:domeDoorPos,door:domeDoor,clam:clamPos,open:clamOpen},sub2:{inner:function(){return!!(sub.obj&&sub.obj.inn);}},disguise:{next:disguiseNext,off:disguiseOff,mode:function(){return performance.now()<disguise.until?disguise.mode:null;}},libg:{use:libUse},lib:{spot:libSpot,pull:libPull,open:libOpen,read:libRead,lectern:libLecternPos,pad:libPadPos,inRoom:function(){return inLibRoom(Math.floor(P.x),Math.floor(P.y+0.5),Math.floor(P.z));}},hotel:{toggle:hotelToggle,pet:function(){return hotel.pet;},rush:function(){hotel.t0-=60000;}},radio:{at:radioPos,toggle:radioToggle,on:function(){return radio.on;},said:function(){return radio.said;},line:radioLine},mafia:{go:mafiaGo,pay:mafiaPay,on:function(){return mafia.on?mafia.on.phase:null;},rush:function(){if(mafia.on)mafia.on.until=0;}},course:{list:function(){return COURSE;},pad:COURSE_PAD,start:courseStart,run:function(){return course.run?{t0:course.run.t0,cp:course.run.cp}:null;},best:function(){return course.best;}},raid:{check:raidCheck,text:function(){return alarms.text;}},news:{add:newsAdd,deliver:newsDeliver,show:showPaper,day:function(){return news.day;},count:function(k){return news.c[k]||0;}},pembLab:{go:pembLabGo,on:function(){return pembLab.on;},said:function(){return pembLab.said;}},kraken:{u:function(){return kraken.u;}},sub:{state:function(){return{on:sub.on,x:sub.x,y:sub.y,z:sub.z};},near:subNear,board:subBoard,leave:subLeave,home:subHome},holBack:{H:function(){return HOLB;},open:holBackOpen,doorNear:holDoorNear,pw:function(){return holPw;},reset:function(){holPw=null;holSoloPw=null;holB.open=0;try{localStorage.removeItem('voxel-isle-hollow-pw');localStorage.removeItem('voxel-isle-hollow-back');}catch(e){}},chest:holBackChestPos},tunnels:{list:function(){return TUNNELS;},near:tunnelNear,ride:tunnelRide},spy:{armed:function(){return spyc.armed;},at:function(){return spyc.at;},monitor:spyMonitorPos},forge:{at:forgePos,near:forgeNear,open:openForge},taxi:{go:taxiStart,on:function(){return!!taxi.on;}},ctf:{state:function(){return{on:ctf.on,carrier:Object.assign({},ctf.carrier),score:Object.assign({},ctf.score),teams:Object.assign({},ctf.teams)};},home:ctfHome,act:ctfAct,me:ctfMe},lava:{at:lavaAt,level:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.LAVA?wl[i]:0;},burning:function(){return burns.size;},queued:function(){return lavaQ.size;}},vol:{V:function(){return VOL;},near:emberNear,talk:emberTalk,erupt:volErupt,erupting:function(){return performance.now()<vol.erupt;},blessed:function(){return performance.now()<vol.bless;},said:function(){return vol.emberSaid;}},ship:{S:function(){return SHIP;},chest:chestPos,near:chestNear,open:openChest,ghost:function(){return ship.ghostOn&&!!ship.ghost&&ship.ghost.g.visible;},ghostNear:ghostNear,ghostAt:function(){const g=ship.ghost.g.position;return{x:g.x,y:g.y,z:g.z};},talk:ghostTalk,reset:function(){try{localStorage.removeItem('voxel-isle-chests');}catch(e){}ship.unlocked=false;}},drones:{infil:function(){infilUntil=performance.now()+180000;},list:function(){return drones.list.map(function(d){return{x:d.x,y:d.y,z:d.z};});},alarm:function(){return drones.alarm;}},un:{H:function(){return UNH;},near:unNear,inside:unInside,propose:unPropose,podium:unPodium,delegates:function(){return un.del.length;}},mail:{at:function(){return mailSpot();},pending:function(){return mail.pending.length;},near:function(){return mailNear();},read:readMail},shop:{coneObj:function(){return!!shop.cone;},headParts:function(){return selfFig&&selfFig.head?selfFig.head.children.length:0;},at:function(){return SHOP;},near:function(){return shopNear();},open:function(){return shop.open;},coins:function(){return shopSave.coins;},give:function(n){addCoins(n);},buy:buyItem,hats:function(){return shopSave.hats.slice();},balloon:function(){return balloonOn();},cone:function(){return performance.now()<shop.coneT;},said:function(){return shop.bub?shop.said:null;}},tramp:{T:function(){return TRAMP;},bounces:function(){return tramp.bounces;},peak:function(){return tramp.peak;},lastV:function(){return tramp.lastV;}},bazza:{pose:function(){return{x:baz.x,y:baz.y,z:baz.z};},near:function(){return bazNear();},serve:bazServe,said:function(){return baz.bub?baz.said:null;},run:function(){return baz.run?{x:baz.run.x,z:baz.run.z,who:baz.run.who,laid:baz.run.laid}:null;},go:function(){baz.force=true;},targets:function(){return bazTargets().map(function(t){return t.name;});},clean:function(){return+potty.clean||0;},home:function(){return bazHome()[0];}},pembShow:function(x,y,z,yaw){const o=makePenguin();o.g.position.set(x,y,z);o.g.rotation.y=yaw||0;scene.add(o.g);return true;},butler:{svc:butlerService,menu:function(){return butler.menu;},zoom:function(){return performance.now()<butler.zoomT;},shield:function(){return performance.now()<butler.shieldT;},away:function(){return!!butler.away;},line:pembLine,pose:function(){return{x:butler.x,y:butler.y,z:butler.z};},near:function(){return butlerNear();},serve:butlerServe,said:function(){return butler.bub?butler.said:null;},hall:function(){return butlerHall();},tea:function(){return performance.now()<butler.cupT;},next:function(){return BUTLER_SERVICES[butler.service%BUTLER_SERVICES.length];},ready:function(){butler.serveT=0;butler.helpT=0;butler.greeted=false;}},silly:{zipFake:function(n){zipFake=n|0;},zipBroken:function(){return Object.keys(zipBroken).length;},fuse:function(){return lhFuse.blown;},rushFuse:function(){lhFuse.at=0;},splat:function(){return!!P.splat;},rushPoop:function(){gullFx.under=99;gullFx.cool=0;},gullNear:function(){const g=gullNearest(P.x,P.z);return g?{x:g.f.cx,z:g.f.cz,y:g.f.y,R:g.f.R,d:g.d}:null;},steal:function(){return gullFx.steal?gullFx.steal.phase:null;},rushSteal:function(){gullFx.foodT=99;gullFx.force=true;},seeds:function(){return seeds.list.length;},throwSeeds:throwSeeds,crashes:function(){return crashLog.n;},letter:function(){const e=$('letter');return!!e&&!e.hidden;},board:function(){return crashBoardLine();}},birdShow:function(k,x,y,z,yaw,mode,ph){const b=makeBird(k);b.g.position.set(x,y,z);b.g.rotation.y=yaw||0;if(ph!==undefined)b.ph=ph;b.flapT=0.5;birdWings(b,mode||'fly',0);if(mode==='ground')b.g.position.y+=0.12;scene.add(b.g);return true;},crash:{go:crashJet,gone:function(){return performance.now()<jetGoneUntil;},booms:function(){return booms.length;},beach:eastBeachSpot},potty:{at:pottyAt,box:sewageBox,use:usePotty,near:pottyNear,uses:function(){return potty.uses;},left:sewageLeft,flood:function(){return!!potty.flood;},ready:function(){potty.sitting=0;},inSewage:function(){return inSewage(P.x,P.y,P.z);}},petAcc:function(key){const f=petFx.follow.get(key||'me');return f&&f.P.acc?f.P.acc.length:0;},photo:{toggle:togglePhoto,on:function(){return!!photo;},state:function(){return photo?{yaw:photo.yaw,pitch:photo.pitch,dist:photo.dist,hour:photo.hour,hideMe:photo.hideMe,last:!!photo.last}:null;},snap:photoSnap},react:{go:doReact,fx:function(){return reactFx.length;},typing:function(){return myTyping;}},lighthouse:{LH:LH,beam:function(){return lhFx?{on:lhFx.g.visible,op:lhFx.mat.opacity,a:lhFx.a}:null;}},wild:{pigeons:function(){return birds.pigeons.map(function(q){return{mode:q.mode,x:q.x,y:q.y,z:q.z};});},kinds:function(){return birds.flocks.map(function(f){return f.kind;});},counts:function(){return{birds:wild.shown,pigeons:birds.pigeons.filter(function(q){return q.mode!=='none';}).length,lhGulls:birds.perched.filter(function(q){return q.b.g.visible;}).length+birds.flocks.filter(function(f){return f.fixed;}).reduce(function(n,f){return n+f.list.filter(function(q){return q.b.g.visible;}).length;},0),gulls:birds.flocks.filter(function(f){return f.kind==='gull'&&f.list[0].b.g.visible;}).length,fish:wild.fish.filter(function(f){return f.live;}).length,flies:wild.flies.filter(function(b){return b.live;}).length,glow:wild.glow&&wild.glow.visible?wild.glowP.filter(function(q){return q.live;}).length:0};}},zip:{lines:function(){if(zipDirty)zipBuild();return zipLines.map(function(L){return{a:[L.a.x,L.a.y,L.a.z],b:[L.b.x,L.b.y,L.b.z]};});},near:function(){return zipNear();},riding:function(){return P.zip?Object.assign({},P.zip):null;},grab:function(){return zipGrab(zipNear());}},bikes:{list:function(){return bikes.map(function(b){return{x:b.x,y:b.y,z:b.z,yaw:b.yaw,rider:b.rider};});},mine:function(){return P.bike;},near:function(){return nearBike();},home:function(){return BIKE_HOME;}},skis:{list:function(){return skis.map(function(q){return{x:q.x,z:q.z,h:q.h,v:q.v,rider:q.rider,land:!!q.land,y:q.y};});},mine:function(){return P.ski;},near:nearSki,home:SKI_HOME,water:skiWater},dummies:function(){return dummies.map(function(d){return{id:d.id,name:d.name,x:d.x,y:d.y,z:d.z};});},chatLines:function(){return[...document.querySelectorAll('#chatlog .line')].map(function(e){return e.textContent;});},heli:{petSpot:heliPetSpot,state:function(){return{x:heli.x,y:heli.y,z:heli.z,h:heli.h,pilot:heli.pilot,seat:heli.seat,rope:heli.rope,down:heli.down,captives:heli.captives.slice(),pets:heli.pets.slice(),dummies:heli.dummies.slice(),skis:heli.skis.slice(),bridge:heli.bridge,cells:heli.cells.slice(),end:!!heli.bridgeEnd};},pad:HELI_PAD,home:HELI_HOME,board:boardHeli,leave:leaveHeli,rope:heliRopeKey,release:heliRelease,bridge:setHeliBridge,captive:heliCaptive,near:nearHeli,world:function(x,y,z){return heliWorld(x,y,z);},put:function(x,y,z,h){heli.x=x;heli.y=y;heli.z=z;if(h!==undefined)heli.h=h;heli.vx=heli.vy=heli.vz=0;}},atc:{pose:callPose,may:atcMay,open:openATC,close:closeATC,on:function(){return atcOn;},route:function(){return atcRoute.slice();},click:function(x,z){const cv=$('mapCanvas'),r=cv.getBoundingClientRect();atcClick({clientX:r.left+x/W*r.width,clientY:r.top+z/D*r.height});},send:atcSend,via:function(){return jet.call&&jet.call.via?jet.call.via.slice():null;},plan:function(){const C=callPlan();return C?{dock:C.dock,tLand:C.tLand,k:C.k.map(function(q){return q.p;})}:null;}},air:{AIR:AIR,lounge:LOUNGE,zone:LOUNGE_ZONE,rows:function(t){return boardRows(t===undefined?nowS():t);},shown:function(){return airFx?airFx.text:null;},board:function(){return airFx?{x:airFx.mesh.position.x,y:airFx.mesh.position.y,z:airFx.mesh.position.z}:null;},inLounge:function(){return inLoungeZone(P.x,P.y,P.z);}},palace:{od:OD,odSector:odSector,PAL:PAL,hall:PAL_HALL,zone:PAL_ZONE,spot:PAL_SPOT,perch:PAL_PERCH,pad:palPad,top:palPadTop,may:palMay,act:palAct,key:palKey,state:function(){return{guests:[...palace.guests],pets:[...palace.pets],mine:[...palace.mine]};},riding:function(){return P.cloud?{up:P.cloud.up}:null;},inZone:function(){return inPALZone(P.x,P.y,P.z);},rush:function(){if(P.cloud)P.cloud.t0-=1e5;},petPos:function(id){const h=petFx.home[id];return h&&h.g.visible?{x:h.g.position.x,y:h.g.position.y,z:h.g.position.z}:null;}},layout:function(){return LAYOUT;},pending:function(){return dirty.size;},shift:SHIFTS,den:{DEN:DEN,inside:denInside,zone:DEN_ZONE},cot:{COT:COT,rooms:COT_ROOMS,zone:COT_ZONE,spot:COT_SPOT},at:{AT:AT,zone:AT_ZONE,inside:atInside},th:{TH:TH,rooms:TH_ROOMS,zone:TH_ZONE,cell:thCell,perch:EMP_PERCH,perchY:empPerchY},simPeek:function(){const a=[];for(const i of simQ){a.push([i%W,Math.floor(i/(W*D)),Math.floor(i/W)%D,vox[i],wl[i]]);if(a.length>15)break;}return[simQ.size,a];},social:{fig:function(){return selfFig?{kind:selfFig.kind||'person',rigY:selfFig.rig?selfFig.rig.scale.y:null,rigRot:selfFig.rig?selfFig.rig.rotation.y:null,y:selfFig.g.position.y}:null;},chat:function(t){$('chatIn').value=t;chatOpen=true;sendChat();},emote:doEmote,emoteNow:function(){return P.emote?EMOTES[P.emote.i]:null;},trick:petTrick,tag:function(){return tagState;},tagStart:tagStart,race:function(){return race?{next:race.next,done:race.done,startS:race.startS,time:race.time}:null;},startRace:raceButton,bubbles:function(){return bubbles.length;},hold:holdJet,release:releaseJet,ringAt:function(i){return RACE[i];}},fish:{cast:fishKey,state:function(){return fishing?{phase:fishing.phase,dock:fishing.dock}:null;},bite:function(){if(fishing){fishing.biteAt=0;}},book:function(){return fishBook;},all:FISH,roll:rollFish},map:{toggle:toggleMap,open:function(){return mapOpen;},places:mapPlaces},power:{T:petPower,G:petSpecial,dash:function(){return!!P.dash;},luck:function(){return luck;},fire:function(){return!!fire2;},ageDash:function(s){if(P.dash)P.dash.t0-=s*1000;},flames:function(){return fireFx?fireFx.p.length:0;},flamePts:function(){return fireFx?fireFx.p.slice(0,2):null;}},owl:{special:owlSpecial,eyes:function(){return!!owlEyes;},frost:function(){return!!frost;},ageSpecial:function(s){const o=owlEyes||frost;if(o)o.t0-=s*1000;},ores:function(){return eyesFx?eyesFx.n:0;},lift2:function(){return nightLift.value;},ageMelts:function(s){melts.forEach(function(m){m.at-=s*1000;});},cool:function(){owlCool=0;},lift:startLift,letGo:function(){letGo(false);},state:function(){return P.lift?{phase:P.lift.phase,t0:P.lift.t0}:null;},age:function(s){if(P.lift)P.lift.t0-=s*1000;}},food:{list:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.x,f.y,f.z,!!f.food]);});return a;},toggle:togglePetFood,mine:function(){return myFood;},near:foodNear,eat:function(mine){return eatFood(foodNear(mine));},hp:function(){return hp;},chases:function(){return[...chases.entries()].map(function(e){return[e[0],e[1].eater];});},ko:function(){return koT;}},paddock:PADDOCK,camp:CAMP,campBeds:CAMP_BEDS,sleep:{in:sleepIn,wake:wake,on:function(){return!!P.sleep;},bed:function(){return myBed;},state:function(){return P.sleep;}},door:{toggle:toggleDoor},act:{place:function(x,y,z){aim();target={x:x,y:y-1,z:z,b:get(x,y-1,z),nx:0,ny:1,nz:0};return placeBlock();},use:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};return placeBlock();},brk:function(x,y,z){target={x:x,y:y,z:z,b:get(x,y,z),nx:0,ny:1,nz:0};breakBlock();}},setSlot:function(i,b){setSlot(i,b);},sel:function(){return sel;},picker:{open:openPicker,close:closePicker,isOpen:function(){return pickerOpen;},picks:PICKS},hotbar:HOTBAR,ride:{can:canMount,mount:mount,dismount:dismount,on:function(){return!!P.ride;},toggle:toggleBoard},pets:{home:PET_HOME,near:petNear,adopt:adoptPet,sendHome:sendPetHome,follower:function(){const f=petFx.follow.get('me');return f?{id:f.id,x:f.x,y:f.y,z:f.z}:null;},homeVisible:function(id){const h=petFx.home[id];return!!(h&&h.g.visible);},followers:function(){const a=[];petFx.follow.forEach(function(f,k){a.push([k,f.id]);});return a;}},view:function(){return{third:thirdPerson,x:cam.x,y:cam.y,z:cam.z};},jet:jet,jetPark:jetPark,docks:DOCKS,dockPark:dockPark,jetStatus:jetStatus,callJet:callJet,callPlan:callPlan,callPose:callPose,dockHere:dockHere,cycle:function(){return JET_CYCLE;},runway:JET_RUNWAY,homeWait:JET_HOME_WAIT,stops:function(){return JET_STOPS;},toggleBoard:toggleBoard,autoPose:autoPose,nowS:nowS,water:function(x,y,z){const i=(y*D+z)*W+x;return vox[i]===B.WATER?wl[i]:0;},simIdle:function(){return simQ.size===0;},selectSlot:function(i){selectSlot(i);},mySkin:mySkin,setSkin:function(k){Object.assign(mySkin,cleanSkin(k,mySkin));skinChanged();},get:get,player:P,net:net,setBlock:setBlock,onField:onField,isReady:function(){return ready;}};
 
 /* ---------- frame loop ---------- */
 const coordsEl=$('coords');
@@ -9321,7 +9328,7 @@ function launchFireworks(arg){
   if(now-fwLast<6000){sysChat('The next show is being set up. Try again in a few seconds.');return false;}
   let x,y,z,where;
   const a=(arg||'').toLowerCase();
-  if(a==='palace'||a==='sky'){x=PAL.cx+0.5;y=PAL.FY+2;z=PAL.cz+0.5;where='over the Sky Palace';}
+  if((a==='palace'||a==='sky')&&SKYP.on){x=SKYP.cx+0.5;y=SKYP.FY+2;z=SKYP.cz+0.5;where='over the Sky Palace';}
   else{const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);x=P.x+fx*30;z=P.z+fz*30;y=groundBelow(x,z,Math.min(H-1,P.y+20));where='in front of you';}
   fwLast=now;
   const seed=Math.floor(Math.random()*1e9);
@@ -11267,7 +11274,7 @@ function pembAppear(text,secs){
 /* ----- his services ----- */
 const BUTLER_SERVICES=['tea','snack','polish','teleport','eggs','mend','weather','fireworks','heli','shoo','daynight'];
 const PEMB_PLACES=[
-  {id:'palace',name:'the Sky Palace',at:function(){return{x:(PAL_HALL.x0+PAL_HALL.x1+1)/2,y:PAL_HALL.y0,z:PAL_HALL.z0+2.5};}},
+  {id:'palace',name:'the Sky Palace',at:function(){return SKYP.on?{x:SKYP.cx+0.5,y:SKYP.FY,z:SKYP.cz+9.5}:{x:FX+0.5,y:FIELD_Y,z:FZ+0.5};}},
   {id:'lighthouse',name:'the lighthouse',at:function(){return{x:LH.cx+0.5,y:LH.L+1,z:LH.cz+1.5};}},
   {id:'shop',name:'the Island Shop',at:function(){return{x:SHOP.x,y:FIELD_Y,z:SHOP.z-2.5};}},
   {id:'beach',name:'East Beach',at:function(){return eastBeachSpot();}},
@@ -16436,6 +16443,19 @@ function buildMiniIsle(){
     const hx=alongX?st.x0:(ddx>0?st.x1+2:st.x0-5),hz=alongX?(ddz>0?st.z1+2:st.z0-5):st.z0;
     buildHut(hx,hz,y);
     MINI.strip={x0:st.x0,x1:st.x1,z0:st.z0,z1:st.z1,y:y+1,hut:{x:hx+2,z:hz+1},name:'the Mini Isle',parkHi:false};
+    /* the owls' own strip, on another side of the island with open sea, with its own boardwalk */
+    const over=function(p,q){return p.x0<=q.x1+4&&p.x1>=q.x0-4&&p.z0<=q.z1+4&&p.z1>=q.z0-4;};
+    let st2=null;
+    for(const o of tries){if(st2)break;if(over(o,st))continue;let ok=true;miniStripCells(o,function(x,z){if(ok&&!miniSeaFree(x,z,8))ok=false;});if(ok)st2=o;}
+    if(st2){
+      buildStrip(st2,y);
+      const ax=st2.x1-st2.x0>st2.z1-st2.z0;let wx,wz,ex=0,ez=0;
+      if(ax){wx=st2.x0+4;ez=C[1]>st2.z1?1:-1;wz=ez>0?st2.z1+1:st2.z0-1;}else{wz=st2.z0+4;ex=C[0]>st2.x1?1:-1;wx=ex>0?st2.x1+1:st2.x0-1;}
+      for(let n=0;n<40;n++){const t=top.get(wx+','+wz);if(t!==undefined&&t>=SEA)break;
+        for(let w=0;w<2;w++){const x=wx+(ez?w:0),z=wz+(ex?w:0);S(x,y,z,B.PLANKS);for(let yy=y+1;yy<=y+3;yy++)S(x,yy,z,0);if(n%4===0)for(let yy=y-1;yy>=1;yy--){const j=(yy*D+z)*W+x;if(solidB(vox[j]))break;vox[j]=B.LOG;wl[j]=0;}}
+        wx+=ex;wz+=ez;}
+      MINI.owlStrip={x0:st2.x0,x1:st2.x1,z0:st2.z0,z1:st2.z1,y:y+1,name:'the Mini Isle',parkHi:false};
+    }
   }
 }
 function buildNorthStrip(){
@@ -16461,9 +16481,20 @@ function buildNorthStrip(){
   buildHut(eastEnd?best.x1-3:best.x0,best.z0-5>=4?best.z0-5:best.z1+2,y);
   NSA.strip={x0:best.x0,x1:best.x1,z0:best.z0,z1:best.z1,y:y+1,eastEnd:eastEnd,name:'North Shore'};
 }
-/* ---------- the Owl Hopper ---------- */
+/* ---------- the Island Shuttle and the Owl Hopper ----------
+   Two planes on their own timetables, sharing the same airstrips:
+   - the Island Shuttle, a modern biplane, carries anyone between North Shore and the Mini Isle;
+   - the Owl Hopper, a twin-turboprop, is for owl owners only (and anyone with the base infiltrator), and
+     flies the Mini Isle, the High Sky Palace and Owl Island in a loop. An owl owner on board can press F to
+     take the controls and fly it anywhere: W and S for the throttle, steer where you look, look up to climb.
+     E to get out (on the ground, or with your parachute in the air); then it goes back to its timetable */
 const HOP_PARK=40,HOP_TURN=4,HOP_ROLL=10,HOP_LAND=9,HOP_SPEED=24,HOP_CRUISE=60;
-const hop={obj:null,ride:null,legs:null,said:null,spray:null,fallsSnd:null};
+const hop={ride:null,said:null,spray:null,fallsSnd:null};
+const LINES=[
+  {id:'shuttle',name:'Island Shuttle',icon:'🛩️',owls:false,make:function(){return makeBiplane();},seat:[0,1.48,-0.45],stops:function(){return[NSA.strip,MINI.strip];},legs:null,m:null,fly:null},
+  {id:'owl',name:'Owl Hopper',icon:'🦉',owls:true,make:function(){return makeTurboprop();},seat:[0.6,1.32,-1.1],pilot:[0,1.32,-5.3],stops:function(){return[MINI.owlStrip||MINI.strip,SKYP.strip,OWLI.strip];},legs:null,m:null,fly:null}
+];
+const SHUTTLE=LINES[0],OWLH=LINES[1];
 /* each strip: the end it lands at (E0), the end it parks at (E1) and the way along (u) */
 function hopEnds(s,parkEast){
   const alongX=s.x1-s.x0>s.z1-s.z0,cx=(s.x0+s.x1+1)/2,cz=(s.z0+s.z1+1)/2;
@@ -16472,9 +16503,9 @@ function hopEnds(s,parkEast){
   else{a={x:cx,z:s.z1-2};b={x:cx,z:s.z0+8};if(parkEast){a={x:cx,z:s.z0+2};b={x:cx,z:s.z1-8};}}
   const L=Math.hypot(b.x-a.x,b.z-a.z);return{E0:a,E1:b,u:{x:(b.x-a.x)/L,z:(b.z-a.z)/L},L:L,y:s.y,name:s.name};
 }
-function hopLegs(){
-  if(hop.legs)return hop.legs;
-  const stops=[MINI.strip,NSA.strip,SKYP.strip,OWLI.strip].filter(Boolean);
+function planeLegs(L){
+  if(L.legs)return L.legs;
+  const stops=L.stops().filter(Boolean);
   if(stops.length<2)return null;
   const E=stops.map(function(s){return hopEnds(s,!!s.parkHi);});
   const mk=function(F,T){
@@ -16485,12 +16516,16 @@ function hopLegs(){
     return{F:F,T:T,bez:bez,air:air,cruise:Math.max(HOP_CRUISE,F.y+10,T.y+10),dur:HOP_PARK+HOP_TURN+HOP_ROLL+air+HOP_LAND};
   };
   const list=E.map(function(F,k){return mk(F,E[(k+1)%E.length]);});
-  hop.legs={list:list,cycle:list.reduce(function(a,g){return a+g.dur;},0),stops:E.map(function(e){return e.name;})};return hop.legs;
+  L.legs={list:list,cycle:list.reduce(function(a,g){return a+g.dur;},0),stops:E.map(function(e){return e.name;})};return L.legs;
 }
-function hopPose(t){
-  const L=hopLegs();if(!L)return null;
-  let u=((t%L.cycle)+L.cycle)%L.cycle,k=0;while(k<L.list.length-1&&u>=L.list[k].dur){u-=L.list[k].dur;k++;}
-  const g=L.list[k],F=g.F,T=g.T,yaw=function(dx,dz){return Math.atan2(-dx,-dz);};
+/* where a plane is on its timetable at time t (or wherever its pilot has flown it) */
+function planePose(L,t){
+  if(L.fly){const f=L.fly;return{x:f.x,y:f.y,z:f.z,h:f.h,p:f.p,ground:f.ground,flown:true,spin:Math.min(1,0.2+f.thr),leg:-2};}
+  const T0=planeLegs(L);if(!T0)return null;
+  /* the shuttle runs half a lap behind, so the two don't arrive together */
+  if(L===SHUTTLE)t+=37;
+  let u=((t%T0.cycle)+T0.cycle)%T0.cycle,k=0;while(k<T0.list.length-1&&u>=T0.list[k].dur){u-=T0.list[k].dur;k++;}
+  const g=T0.list[k],F=g.F,T=g.T,yaw=function(dx,dz){return Math.atan2(-dx,-dz);};
   const sm=function(v){v=Math.max(0,Math.min(1,v));return v*v*(3-2*v);};
   if(u<HOP_PARK)return{x:F.E1.x,y:F.y,z:F.E1.z,h:yaw(F.u.x,F.u.z),p:0,parked:F.name,next:T.name,leaves:HOP_PARK-u,leg:k,ground:true,spin:0.2};
   u-=HOP_PARK;
@@ -16508,7 +16543,186 @@ function hopPose(t){
   const f=1-Math.pow(1-Math.min(1,u/HOP_LAND),2),d=T.L*f;
   return{x:T.E0.x+T.u.x*d,y:T.y,z:T.E0.z+T.u.z*d,h:yaw(T.u.x,T.u.z),p:0,leg:k,ground:true,next:T.name,landing:true,spin:1-f*0.8};
 }
-function makeHopper(){
+function planePlace(L,q){const o=L.m.g;o.position.set(q.x,q.y,q.z);o.rotation.set(q.p,q.h,0);o.updateMatrixWorld(true);}
+function planeMay(L){return!L.owls||isOwlOwner()||infil();}
+/* the plane you're standing by, waiting at a stop */
+function planeNear(){
+  if(hop.ride||jet.seat)return null;
+  for(const L of LINES){const q=planePose(L,nowS());if(q&&q.parked&&!L.fly&&Math.hypot(P.x-q.x,P.z-q.z)<6.5&&Math.abs(P.y-q.y)<3)return L;}
+  return null;
+}
+/* the old names, for the ride you're on (or the shuttle) */
+function hopLine(){return hop.ride?hop.ride.line:SHUTTLE;}
+function hopPose(t){return planePose(hopLine(),t===undefined?nowS():t);}
+function hopNear(){return!!planeNear();}
+function hopBoard(L){
+  L=L||planeNear();if(!L)return false;
+  const q=planePose(L,nowS());if(!q||!q.parked||hop.ride)return false;
+  if(!planeMay(L)){toast('🦉 The Owl Hopper is for Hoot’s, Snowy’s and Slinky’s owners only. The pilot (an owl) shakes its head.');return true;}
+  hop.ride={line:L,from:q.parked,leg:q.leg,pilot:false};P.fly=true;
+  toast(L.icon+' Welcome aboard the '+L.name+' to '+q.next+'! We leave in '+Math.max(0,Math.ceil(q.leaves))+' seconds.'+(L===OWLH?' (F takes the controls.)':''));
+  return true;
+}
+function hopLeave(){
+  const r=hop.ride;if(!r)return false;const L=r.line,q=planePose(L,nowS());hop.ride=null;
+  if(r.pilot){
+    const f=L.fly;L.fly=null;
+    if(f&&f.ground&&f.spd<4){const c=Math.cos(f.h),s=Math.sin(f.h);P.x=f.x+c*2.6;P.z=f.z-s*2.6;P.y=Math.max(f.y,groundAt(P.x,P.z))+0.05;P.fly=false;P.vx=P.vy=P.vz=0;toast('🦉 You climb down. The ground crew fly the Owl Hopper back to its timetable.');}
+    else{P.fly=false;P.vy=0;toast('🪂 You bail out of the Owl Hopper! It flies itself home.');try{maybeChute();}catch(e){}}
+    return true;
+  }
+  if(q&&q.ground&&(q.parked||q.landing)){
+    const c=Math.cos(q.h),s=Math.sin(q.h);P.x=q.x+c*2.6;P.z=q.z-s*2.6;P.y=q.y+0.05;P.fly=false;P.vx=P.vy=P.vz=0;
+    toast(L.icon+' Thanks for flying the '+L.name+'. Mind the propellers!');
+  }else{P.fly=false;P.vy=0;toast('🪂 You jump out of the '+L.name+'!');try{maybeChute();}catch(e){}}
+  return true;
+}
+/* F on board the Owl Hopper: take the controls */
+function hopPilot(){
+  const r=hop.ride;if(!r||r.line!==OWLH||r.pilot)return false;
+  if(!isOwlOwner()&&!infil()){toast('🦉 Only an owl owner can fly the Owl Hopper.');return true;}
+  const q=planePose(OWLH,nowS());
+  OWLH.fly={x:q.x,y:q.y,z:q.z,h:q.h,p:q.p||0,spd:q.ground?0:HOP_SPEED,thr:q.ground?0:0.75,ground:!!q.ground};
+  r.pilot=true;
+  toast('🦉 You take the controls! W/S throttle, steer where you look, look up to climb. E to get out.');
+  return true;
+}
+/* flying it: throttle, a gentle turn towards where you look, climb when you look up, land on anything flat */
+function hopFlyStep(dt){
+  const f=OWLH.fly;if(!f)return;dt=Math.min(dt,0.1);
+  if(keys.has('KeyW')||keys.has('ArrowUp')||mv.z>0.3)f.thr=Math.min(1.2,f.thr+0.6*dt);
+  if(keys.has('KeyS')||keys.has('ArrowDown')||mv.z<-0.3)f.thr=Math.max(0,f.thr-0.6*dt);
+  f.spd+=(f.thr*34-f.spd)*Math.min(1,dt*0.7);
+  const flying=f.spd>14;
+  let dh=angDiff(f.h,P.yaw);const rate=(f.ground?1.2:0.9)*Math.min(1,f.spd/10+0.2);dh=Math.max(-rate*dt,Math.min(rate*dt,dh));f.h+=dh;
+  const want=flying?Math.max(-0.5,Math.min(0.5,P.pitch)):0;f.p+=(want-f.p)*Math.min(1,dt*2);
+  let vy=Math.sin(f.p)*f.spd;if(!f.ground&&!flying)vy-=5;
+  const nx=f.x-Math.sin(f.h)*Math.cos(f.p)*f.spd*dt,nz=f.z-Math.cos(f.h)*Math.cos(f.p)*f.spd*dt;let ny=f.y+vy*dt;
+  const g=Math.max(WATER_Y,groundAt(nx,nz));
+  /* flying into something solid */
+  const solidIn=function(x,y,z){x=Math.floor(x);y=Math.floor(y);z=Math.floor(z);return x>=0&&z>=0&&x<W&&z<D&&y>=0&&y<H&&solidB(get(x,y,z));};
+  const hit=solidIn(nx,ny+1.6,nz)||solidIn(nx-Math.sin(f.h)*5,ny+2,nz-Math.cos(f.h)*5);
+  if(hit&&f.spd>8){hopCrash(nx,ny,nz);return;}
+  if(hit){f.spd=0;f.thr=0;return;}
+  if(ny<=g){
+    if(!f.ground&&(f.p<-0.3||vy<-9)){hopCrash(nx,g,nz);return;}
+    ny=g;f.ground=true;if(f.p<0)f.p=0;
+  }else if(ny>g+0.3)f.ground=false;
+  f.x=Math.max(2,Math.min(W-2,nx));f.z=Math.max(2,Math.min(D-2,nz));f.y=Math.min(H+30,ny);
+}
+function hopCrash(x,y,z){
+  try{jetBoom(x,y+1,z);}catch(e){}
+  OWLH.fly=null;hop.ride=null;
+  P.x=x;P.y=y+4;P.z=z;P.vx=P.vy=P.vz=0;P.fly=false;try{maybeChute();}catch(e){}
+  toast('💥 You crashed the Owl Hopper! You’re thrown clear and your parachute opens. A spare is waiting at the next stop.');
+}
+function hopSeat(){
+  const r=hop.ride;if(!r)return;const L=r.line;if(!L.m)return;
+  const q=planePose(L,nowS());if(!q)return;planePlace(L,q);
+  const l=r.pilot&&L.pilot?L.pilot:L.seat;
+  jv.set(l[0],l[1],l[2]).applyMatrix4(L.m.g.matrixWorld);P.x=jv.x;P.y=jv.y;P.z=jv.z;P.vx=P.vy=P.vz=0;P.fly=true;
+}
+function hopSeatLocal(){const r=hop.ride;if(!r)return null;return r.pilot&&r.line.pilot?r.line.pilot:r.line.seat;}
+function hopTp(L){
+  L=L||SHUTTLE;const q=planePose(L,nowS());if(!q){sysChat('The '+L.name+' isn’t flying today.');return false;}
+  if(q.parked){const c=Math.cos(q.h),s=Math.sin(q.h);return tpTo(q.x+c*3,q.y,q.z-s*3,'the '+L.name);}
+  if(!planeMay(L)){sysChat('The '+L.name+' is for owl owners only.');return false;}
+  hop.ride={line:L,from:null,leg:q.leg,pilot:false};P.fly=true;sysChat('Teleported aboard the '+L.name+', on its way to '+q.next+'.');return true;
+}
+function miniTp(){if(!MINI.strip){sysChat('There’s no Mini Isle on this map.');return false;}const s=MINI.strip;return tpTo(s.hut.x+0.5,s.y,s.hut.z+3.5,'the Mini Isle');}
+function hopTick(dt){
+  if(!ready)return;
+  if(OWLH.fly&&hop.ride&&hop.ride.pilot)hopFlyStep(dt);
+  LINES.forEach(function(L){
+    const q=planePose(L,nowS());if(!q)return;
+    if(!L.m)L.m=L.make();
+    planePlace(L,q);
+    L.m.g.visible=Math.hypot(cam.x-q.x,cam.z-q.z)<260;
+    L.m.label.visible=!!q.parked&&!(hop.ride&&hop.ride.line===L);
+    L.m.props.forEach(function(p){p.rotation.z+=dt*30*(q.spin||0);});
+  });
+  if(hop.ride){
+    const L=hop.ride.line,q=planePose(L,nowS());
+    mode=hop.ride.pilot?'Flying the Owl Hopper':'On the '+L.name;
+    if(q&&q.parked&&hop.ride.leg!==q.leg&&hop.said!==L.id+q.leg+':'+q.parked){hop.said=L.id+q.leg+':'+q.parked;showAnnounce('🛬 Welcome to '+q.parked,'E to get off the '+L.name+'.');if(q.parked===MINI.strip.name)achieve('hopper');}
+    if(q&&!q.parked)hop.ride.leg=-1;
+  }
+  /* the waterfall's spray and roar */
+  const F=MINI.falls;
+  if(F&&MINI.on){
+    if(!hop.spray){const n=80,geo=new THREE.BufferGeometry(),pos=new Float32Array(n*3);geo.setAttribute('position',new THREE.BufferAttribute(pos,3));hop.spray=new THREE.Points(geo,new THREE.PointsMaterial({color:0xe8f8ff,size:0.25,transparent:true,opacity:0.8,depthWrite:false}));hop.spray.frustumCulled=false;scene.add(hop.spray);hop.sprayV=new Float32Array(n*4);}
+    const near=Math.hypot(cam.x-F.x,cam.z-F.z)<90;hop.spray.visible=near;
+    if(near){const p=hop.spray.geometry.attributes.position.array,v=hop.sprayV,n=p.length/3;
+      for(let i=0;i<n;i++){v[i*4+3]-=dt;if(v[i*4+3]<=0){p[i*3]=F.x+(Math.random()-0.5)*0.8;p[i*3+1]=F.y+1;p[i*3+2]=F.z+(Math.random()-0.5)*0.8;v[i*4]=(Math.random()-0.5)*2.4;v[i*4+1]=1.5+Math.random()*2.5;v[i*4+2]=(Math.random()-0.5)*2.4;v[i*4+3]=0.6+Math.random()*0.8;}
+        v[i*4+1]-=6*dt;p[i*3]+=v[i*4]*dt;p[i*3+1]+=v[i*4+1]*dt;p[i*3+2]+=v[i*4+2]*dt;}
+      hop.spray.geometry.attributes.position.needsUpdate=true;}
+    if(snd.master&&soundOn()){
+      if(!hop.fallsSnd){try{const ac=rsAC(),src=ac.createBufferSource();src.buffer=snd.noise;src.loop=true;const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=700;const g2=ac.createGain();g2.gain.value=0;src.connect(f);f.connect(g2);g2.connect(snd.master);src.start();hop.fallsSnd=g2;}catch(e){}}
+      if(hop.fallsSnd)hop.fallsSnd.gain.value=Math.max(0,1-Math.hypot(P.x-F.x,P.y-F.y,P.z-F.z)/30)*0.2;
+    }
+  }
+}
+function makeTurboprop(){
+  /* a twin-turboprop airliner, nose towards -z: a smooth round fuselage, a tapered high wing with two engines,
+     six-bladed propellers, a T-tail, wheel fairings, Bird Air's white and teal, and seats inside */
+  const g=new THREE.Group();g.rotation.order='YXZ';
+  const ph=function(c,o){return new THREE.MeshPhongMaterial(Object.assign({color:c,shininess:60,specular:0x333333,emissive:new THREE.Color(c).multiplyScalar(0.12)},o||{}));};
+  const white=ph(0xf5f7fa,{side:THREE.DoubleSide}),teal=ph(0x16b3a6),navy=ph(0x163352),dark=ph(0x1d2228,{shininess:20}),glass=ph(0x1a2633,{shininess:120,specular:0x99bbdd}),grey=ph(0xaeb6bf),cabin=new THREE.MeshLambertMaterial({color:0xe9ecf0,side:THREE.BackSide});
+  const add=function(geo,mat,x,y,z){const o=new THREE.Mesh(geo,mat);o.position.set(x||0,y||0,z||0);g.add(o);return o;};
+  const CY=2.0,R=1.2;
+  /* the fuselage: a lathe from the rounded nose to the tapering tail cone */
+  const prof=[[0,-8.6],[0.32,-8.45],[0.62,-8.0],[0.86,-7.35],[1.04,-6.6],[1.15,-5.8],[R,-5.0],[R,4.2],[1.16,5.2],[1.02,6.3],[0.8,7.4],[0.55,8.4],[0.32,9.2],[0.12,9.7],[0,9.8]];
+  const fus=new THREE.LatheGeometry(prof.map(function(p){return new THREE.Vector2(p[0],p[1]);}),36).rotateX(Math.PI/2);
+  /* lift the tail cone a little, like the real thing */
+  const pa=fus.attributes.position;for(let i=0;i<pa.count;i++){const z=pa.getZ(i);if(z>4.2)pa.setY(i,pa.getY(i)+(z-4.2)*(z-4.2)*0.035);}
+  fus.computeVertexNormals();
+  add(fus,white,0,CY,0);
+  add(new THREE.CylinderGeometry(R-0.05,R-0.05,9.6,28,1,true).rotateX(Math.PI/2),cabin,0,CY,-0.4);
+  /* livery: a navy belly cheat line and a teal stripe, both sides */
+  const band=function(r,a0,a1,z0,z1,mat){const o=add(new THREE.CylinderGeometry(r,r,z1-z0,36,1,true,a0,a1-a0).rotateX(Math.PI/2),mat,0,CY,(z0+z1)/2);return o;};
+  [Math.PI*0.5,Math.PI*1.5].forEach(function(c){band(R+0.012,c-0.62,c-0.5,-5.2,4.6,teal);band(R+0.012,c-0.48,c-0.42,-5.2,4.6,navy);});
+  /* cabin windows */
+  for(let k=0;k<9;k++)[-1,1].forEach(function(sd){const w=add(new THREE.BoxGeometry(0.05,0.34,0.26),glass,sd*(R-0.005),CY+0.32,-4+k*0.95);w.scale.set(1,1,1);});
+  /* the cockpit: a wrap-round windscreen */
+  [[-0.42,0.42],[0.42,-0.42]].forEach(function(p){const w=add(new THREE.BoxGeometry(0.62,0.3,0.06),glass,p[0],CY+0.66,-6.72);w.rotation.set(-0.85,p[1],0);});
+  [-1,1].forEach(function(sd){const w=add(new THREE.BoxGeometry(0.06,0.3,0.55),glass,sd*0.98,CY+0.56,-6.15);w.rotation.y=sd*0.32;w.rotation.z=sd*-0.3;});
+  /* the door, front left */
+  add(new THREE.BoxGeometry(0.04,1.35,0.72),grey,-R-0.005,CY-0.15,-4.6);
+  /* the wing: tapered, on top of the fuselage */
+  const ws=new THREE.Shape();ws.moveTo(0,-1.35);ws.lineTo(9.6,-0.55);ws.lineTo(9.75,0.45);ws.lineTo(0,1.15);ws.lineTo(-9.75,0.45);ws.lineTo(-9.6,-0.55);ws.closePath();
+  const wg=new THREE.ExtrudeGeometry(ws,{depth:0.24,bevelEnabled:true,bevelThickness:0.06,bevelSize:0.06,bevelSegments:2}).rotateX(Math.PI/2);
+  add(wg,white,0,CY+R+0.3,-0.4);
+  add(new THREE.BoxGeometry(2.0,0.4,2.6),white,0,CY+R+0.06,-0.4);
+  [-1,1].forEach(function(sd){add(new THREE.BoxGeometry(0.5,0.07,0.95),teal,sd*9.5,CY+R+0.38,-0.45);});
+  /* the engines: nacelles hung under the wing, spinners and six blades */
+  const props=[];
+  [-3.7,3.7].forEach(function(x){
+    const np=[[0,-3.2],[0.3,-3.1],[0.48,-2.8],[0.55,-2.3],[0.55,0.2],[0.42,1.2],[0.22,2.0],[0,2.3]];
+    add(new THREE.LatheGeometry(np.map(function(p){return new THREE.Vector2(p[0],p[1]);}),20).rotateX(Math.PI/2),white,x,CY+R-0.05,-1.2);
+    add(new THREE.BoxGeometry(0.12,0.2,1.2),navy,x,CY+R-0.1-0.55,-2.6);
+    const sp=add(new THREE.ConeGeometry(0.3,0.75,18).rotateX(-Math.PI/2),dark,x,CY+R-0.05,-4.7);
+    const pr=new THREE.Group();pr.position.set(x,CY+R-0.05,-4.45);g.add(pr);
+    for(let b=0;b<6;b++){const arm=new THREE.Group();arm.rotation.z=b*Math.PI/3;const bl=new THREE.Mesh(new THREE.BoxGeometry(0.2,1.55,0.04),dark);bl.position.y=0.85;bl.rotation.y=0.35;arm.add(bl);const tip=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.14,0.045),ph(0xf2c230));tip.position.y=1.58;tip.rotation.y=0.35;arm.add(tip);pr.add(arm);}
+    props.push(pr);
+  });
+  /* the T-tail: a swept fin with a fillet, and the tailplane on top */
+  const fs=new THREE.Shape();fs.moveTo(0,0);fs.lineTo(3.6,0);fs.lineTo(3.9,3.3);fs.lineTo(2.3,3.3);fs.closePath();
+  add(new THREE.ExtrudeGeometry(fs,{depth:0.22,bevelEnabled:true,bevelThickness:0.04,bevelSize:0.04,bevelSegments:1}).rotateY(-Math.PI/2),teal,0.11,CY+0.75,5.4);
+  const fl=new THREE.Shape();fl.moveTo(0,0);fl.lineTo(2.6,0);fl.lineTo(2.6,0.75);fl.closePath();
+  add(new THREE.ExtrudeGeometry(fl,{depth:0.16,bevelEnabled:false}).rotateY(-Math.PI/2),white,0.08,CY+0.8,3.1);
+  const ts=new THREE.Shape();ts.moveTo(0,-0.75);ts.lineTo(3.3,-0.2);ts.lineTo(3.3,0.45);ts.lineTo(0,0.85);ts.lineTo(-3.3,0.45);ts.lineTo(-3.3,-0.2);ts.closePath();
+  add(new THREE.ExtrudeGeometry(ts,{depth:0.15,bevelEnabled:false}).rotateX(Math.PI/2),white,0,CY+4.12,8.55);
+  add(new THREE.SphereGeometry(0.22,12,8),navy,0,CY+4.05,8.7).scale.set(1,0.8,2.2);
+  /* wheel fairings either side of the belly, and the gear */
+  [-1,1].forEach(function(sd){const sp=add(new THREE.SphereGeometry(0.5,16,10),white,sd*1.05,CY-0.95,0.6);sp.scale.set(0.8,0.75,3.2);});
+  [[0,-6.2,0.32],[-1.1,0.6,0.42],[1.1,0.6,0.42]].forEach(function(w){add(new THREE.CylinderGeometry(0.05,0.05,0.9,6),grey,w[0],0.85,w[1]);add(new THREE.CylinderGeometry(w[2],w[2],0.26,16).rotateZ(Math.PI/2),dark,w[0],w[2],w[1]);});
+  /* inside: a floor and rows of seats */
+  add(new THREE.BoxGeometry(2.1,0.08,10.4),ph(0x6c7680),0,1.27,-0.4);
+  for(let r=0;r<6;r++)[-0.6,0.6].forEach(function(x){add(new THREE.BoxGeometry(0.58,0.42,0.52),navy,x,1.52,-3.6+r*1.25);add(new THREE.BoxGeometry(0.58,0.68,0.12),navy,x,1.95,-3.35+r*1.25);add(new THREE.BoxGeometry(0.5,0.16,0.08),teal,x,2.32,-3.35+r*1.25);});
+  const lb=makeLabel('🦉 Owl Hopper');lb.position.set(0,7.2,0);lb.scale.set(2.8,0.7,1);g.add(lb);
+  scene.add(g);return{g:g,props:props,label:lb};
+}
+function makeBiplane(){
   /* the Owl Hopper: a modern biplane, nose towards -z. White with an orange stripe, charcoal wings with orange
      tips, a big slanted strut, a blue bubble canopy, an orange spinner, a two-bladed prop and spatted wheels */
   const g=new THREE.Group();g.rotation.order='YXZ';
@@ -16529,7 +16743,7 @@ function makeHopper(){
   add(new THREE.SphereGeometry(0.07,8,6),white,0,CY,-5.2);
   const pr=new THREE.Group();pr.position.set(0,CY,-4.95);g.add(pr);
   [0,Math.PI].forEach(function(r){const arm=new THREE.Group();arm.rotation.z=r;const bl=new THREE.Mesh(new THREE.BoxGeometry(0.26,1.9,0.06),slate);bl.position.y=1.0;bl.rotation.y=0.3;arm.add(bl);pr.add(arm);});
-  hop.props=[pr];
+  const props=[pr];
   /* the bubble canopy */
   const cv=add(new THREE.SphereGeometry(0.85,24,14,0,Math.PI*2,0,Math.PI/2),glass,0,CY+0.62,-0.6);cv.scale.set(0.95,0.85,1.7);
   /* the wings: charcoal, tapered, with orange tips; the top wing well ahead of the bottom one */
@@ -16564,69 +16778,8 @@ function makeHopper(){
   /* inside: the floor and the seat under the canopy */
   add(new THREE.BoxGeometry(1.4,0.08,3.6),ph(0x5c6670),0,CY-0.82,-1.0);
   add(new THREE.BoxGeometry(0.7,0.42,0.6),orange,0,CY-0.6,-0.2);add(new THREE.BoxGeometry(0.7,0.8,0.14),orange,0,CY-0.2,0.15);
-  const lb=makeLabel('🦉 Owl Hopper');lb.position.set(0,6.4,0);lb.scale.set(2.6,0.65,1);g.add(lb);hop.label=lb;
-  scene.add(g);return g;
-}
-/* the seat: second row on the right, inside the cabin */
-const HOP_SEAT=[0,1.48,-0.45];
-function hopPlace(q){
-  const o=hop.obj;o.position.set(q.x,q.y,q.z);o.rotation.set(q.p,q.h,0);o.updateMatrixWorld(true);
-}
-function hopNear(){const q=hopPose(nowS());return!!q&&!!q.parked&&!hop.ride&&!jet.seat&&Math.hypot(P.x-q.x,P.z-q.z)<6.5&&Math.abs(P.y-q.y)<3;}
-function hopBoard(){
-  const q=hopPose(nowS());if(!q||!q.parked||hop.ride)return false;
-  if(!isOwlOwner()&&!infil()){toast('🦉 The Owl Hopper is for Hoot’s, Snowy’s and Slinky’s owners only. The pilot (an owl) shakes its head.');return true;}
-  hop.ride={from:q.parked,leg:q.leg};P.fly=true;
-  toast('🦉 Welcome aboard the Owl Hopper to '+q.next+'! We leave in '+Math.max(0,Math.ceil(q.leaves))+' seconds.');
-  return true;
-}
-function hopLeave(){
-  const q=hopPose(nowS()),r=hop.ride;if(!r)return false;hop.ride=null;
-  if(q&&q.ground&&(q.parked||q.landing)){
-    /* step down beside the door, on the runway */
-    const c=Math.cos(q.h),s=Math.sin(q.h);P.x=q.x+c*2.6;P.z=q.z-s*2.6;P.y=q.y+0.05;P.fly=false;P.vx=P.vy=P.vz=0;
-    toast('🛩️ Thanks for flying the Hopper. Mind the propellers!');
-  }else{P.fly=false;P.vy=0;toast('🪂 You jump out of the Hopper!');try{maybeChute();}catch(e){}}
-  return true;
-}
-function hopSeat(){
-  if(!hop.ride||!hop.obj)return;
-  const q=hopPose(nowS());if(!q)return;hopPlace(q);
-  jv.set(HOP_SEAT[0],HOP_SEAT[1],HOP_SEAT[2]).applyMatrix4(hop.obj.matrixWorld);P.x=jv.x;P.y=jv.y;P.z=jv.z;P.vx=P.vy=P.vz=0;P.fly=true;
-}
-function hopTp(){
-  const q=hopPose(nowS());if(!q){sysChat('The Hopper isn’t flying today.');return false;}
-  if(q.parked){const c=Math.cos(q.h),s=Math.sin(q.h);return tpTo(q.x+c*3,q.y,q.z-s*3,'the Owl Hopper');}
-  hop.ride={from:null,leg:q.leg};P.fly=true;sysChat('Teleported aboard the Owl Hopper, on its way to '+q.next+'.');return true;
-}
-function miniTp(){if(!MINI.strip){sysChat('There’s no Mini Isle on this map.');return false;}const s=MINI.strip;return tpTo(s.hut.x+0.5,s.y,s.hut.z+3.5,'the Mini Isle');}
-function hopTick(dt){
-  if(!ready)return;
-  const q=hopPose(nowS());if(!q)return;
-  if(!hop.obj)hop.obj=makeHopper();
-  hopPlace(q);
-  hop.obj.visible=Math.hypot(cam.x-q.x,cam.z-q.z)<260;
-  hop.label.visible=!!q.parked&&!hop.ride;
-  hop.props.forEach(function(p){p.rotation.z+=dt*30*(q.spin||0);});
-  if(hop.ride){
-    mode='On the Owl Hopper';
-    if(q.parked&&hop.ride.leg!==q.leg&&hop.said!==q.leg+':'+q.parked){hop.said=q.leg+':'+q.parked;showAnnounce('🛬 Welcome to '+q.parked,'E to get off the Hopper.');if(q.parked===MINI.strip.name)achieve('hopper');}
-    if(!q.parked)hop.ride.leg=-1;
-  }
-  /* the waterfall's spray and roar */
-  const F=MINI.falls;
-  if(F&&MINI.on){
-    if(!hop.spray){const n=80,geo=new THREE.BufferGeometry(),pos=new Float32Array(n*3);geo.setAttribute('position',new THREE.BufferAttribute(pos,3));hop.spray=new THREE.Points(geo,new THREE.PointsMaterial({color:0xe8f8ff,size:0.25,transparent:true,opacity:0.8,depthWrite:false}));hop.spray.frustumCulled=false;scene.add(hop.spray);hop.sprayV=new Float32Array(n*4);}
-    const near=Math.hypot(cam.x-F.x,cam.z-F.z)<90;hop.spray.visible=near;
-    if(near){const p=hop.spray.geometry.attributes.position.array,v=hop.sprayV,n=p.length/3;
-      for(let i=0;i<n;i++){v[i*4+3]-=dt;if(v[i*4+3]<=0){p[i*3]=F.x+(Math.random()-0.5)*0.8;p[i*3+1]=F.y+1;p[i*3+2]=F.z+(Math.random()-0.5)*0.8;v[i*4]=(Math.random()-0.5)*2.4;v[i*4+1]=1.5+Math.random()*2.5;v[i*4+2]=(Math.random()-0.5)*2.4;v[i*4+3]=0.6+Math.random()*0.8;}
-        v[i*4+1]-=6*dt;p[i*3]+=v[i*4]*dt;p[i*3+1]+=v[i*4+1]*dt;p[i*3+2]+=v[i*4+2]*dt;}
-      hop.spray.geometry.attributes.position.needsUpdate=true;}
-    if(snd.master&&soundOn()){
-      if(!hop.fallsSnd){try{const ac=rsAC(),src=ac.createBufferSource();src.buffer=snd.noise;src.loop=true;const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=700;const g2=ac.createGain();g2.gain.value=0;src.connect(f);f.connect(g2);g2.connect(snd.master);src.start();hop.fallsSnd=g2;}catch(e){}}
-      if(hop.fallsSnd)hop.fallsSnd.gain.value=Math.max(0,1-Math.hypot(P.x-F.x,P.y-F.y,P.z-F.z)/30)*0.2;
-    }
-  }
+  const lb=makeLabel('🛩️ Island Shuttle');lb.position.set(0,6.4,0);lb.scale.set(2.6,0.65,1);g.add(lb);
+  scene.add(g);return{g:g,props:props,label:lb};
 }
 /* ---------- Bodger the badger ----------
    He pushes the jumbo's snack trolley, in a little Bird Air cap */
@@ -16781,7 +16934,7 @@ function buildHighPalace(){
   const st={x0:cx+R-2,x1:cx+R+46,z0:cz-3,z1:cz+3};
   buildStrip(st,FY-1,null,true);
   for(let x=st.x0;x<=st.x1;x+=3){S(x,FY-2,st.z0,B.GREY);S(x,FY-2,st.z1,B.GREY);}
-  SKYP.strip={x0:st.x0,x1:st.x1,z0:st.z0,z1:st.z1,y:FY,name:'the High Sky Palace',parkHi:false};
+  SKYP.strip={x0:st.x0,x1:st.x1,z0:st.z0,z1:st.z1,y:FY,name:'the Sky Palace',parkHi:false};
 }
 /* ---------- Owl Island ----------
    Out in the south-east sea: a bleak little island of black rock and gravel with dead trees, a ruined tower and
