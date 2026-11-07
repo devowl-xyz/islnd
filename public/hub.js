@@ -414,7 +414,7 @@ function handle(peer, msg) {
       r.peers.set(peer.id, peer);
       rooms.set(code, r);
       peer.room = r;
-      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null, teams: teamState(r) });
+      send(peer.ws, { t: 'hosted', code, you: peer.id, peers: peerList(r), now: Date.now(), jet: r.jet, layout: r.layout, palace: palaceState(r), heli: heliState(r), dummies: dummyList(r), env: r.env, locks: r.locks, skis: skiState(r), signs: signList(r), bikes: bikeState(r), potty: r.potty, ctf: ctfState(r), hollowPw: r.hollowPw || null, teams: teamState(r), bottles: r.bottles || [] });
       return;
     }
     case 'seed': {
@@ -527,6 +527,28 @@ function handle(peer, msg) {
       const n = kind === 'coins' ? Math.floor(Number(msg.n)) : 0;
       if (kind === 'coins' && !(n > 0 && n <= 100000)) return;
       send(target.ws, { t: 'gift', from: peer.id, name: peer.name, kind, n, v: kind === 'hat' ? String(msg.v || '').slice(0, 12) : (kind === 'glow' ? Math.floor(Number(msg.v)) || 0 : undefined) });
+      return;
+    }
+    // messages in bottles: kept by the room until someone finds them
+    case 'bottle': {
+      if (!room) return;
+      const now = Date.now();
+      if (now - (peer.bottleT || 0) < 6000) return;
+      peer.bottleT = now;
+      const text = String(msg.text || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 240);
+      if (!text) return;
+      room.bottles = room.bottles || [];
+      room.bottleSeq = (room.bottleSeq || 0) + 1;
+      room.bottles.push({ id: 'b' + room.bottleSeq, from: peer.name, by: peer.id, text });
+      while (room.bottles.length > 30) room.bottles.shift();
+      broadcast(room, { t: 'bottles', list: room.bottles.map((b) => ({ id: b.id, from: b.from, text: b.text })) });
+      return;
+    }
+    case 'bottleTake': {
+      if (!room || !room.bottles) return;
+      const n = room.bottles.length;
+      room.bottles = room.bottles.filter((b) => b.id !== msg.id);
+      if (room.bottles.length !== n) broadcast(room, { t: 'bottles', list: room.bottles.map((b) => ({ id: b.id, from: b.from, text: b.text })) });
       return;
     }
     case 'team': {

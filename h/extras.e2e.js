@@ -1525,6 +1525,25 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- messages in bottles -----
+  check('there are beaches for bottles to wash up on', (await a.evaluate(() => window.__isle.bottle.spots())) > 10);
+  check('a bottle from one of the islanders washes up each day', (await a.evaluate(() => window.__isle.bottle.list())).length >= 1);
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  check('/bottle needs you by the sea', !(await a.evaluate(() => window.__isle.cmd('/bottle hello'))));
+  const sp = (await a.evaluate(() => window.__isle.bottle.list()))[0];
+  await put(a, sp.x, sp.y, sp.z); await wait(500);
+  const n0 = (await a.evaluate(() => window.__isle.bottle.list())).length;
+  check('by the sea, /bottle throws your message out in a bottle', await a.evaluate(() => window.__isle.cmd('/bottle Ahoy from the beach!')) && (await a.evaluate(() => window.__isle.bottle.flying())) === 1);
+  await a.evaluate(() => window.__isle.bottle.rush()); await wait(1500);
+  const l1 = await a.evaluate(() => window.__isle.bottle.list());
+  check('and an islander’s reply washes up a little later', l1.length === n0 + 1 && /Ahoy from the beach/.test(l1[l1.length - 1].text), l1.map((b) => b.text));
+  await put(a, sp.x + 0.6, sp.y, sp.z); await wait(500);
+  check('E by a bottle on the sand uncorks it', (await a.evaluate(() => window.__isle.bottle.near())) !== null && await a.evaluate(() => window.__isle.bottle.read()));
+  check('and you read the note', await a.evaluate(() => { const el = document.getElementById('letter'); return !!el && !el.hidden && /MESSAGE IN A BOTTLE/.test(el.textContent); }) && (await a.evaluate(() => window.__isle.bottle.list())).length === n0);
+  await a.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); });
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());

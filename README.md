@@ -291,7 +291,7 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 
 **Hide and seek and build battles.** In a room, the host can start **Hide and seek** (under Games, or /hide). One player is picked to seek and counts to 15, frozen, while everyone else gets the disguise kit and hides. The seeker tags hiders by getting close; find everyone within four minutes to win. **Build battle** (/battle) gives everyone a theme and three minutes to build it, then 30 seconds to vote with **1** to **9** for the best build that isn't yours. Most votes wins. On your own it's just the theme and the clock. Circuits are shared too: everyone in a room sees everyone's pistons, doors and flying machines move, because every screen runs the same circuit from the same lever and button presses.
 
-**Badges and the map.** The Paused page has a list of badges (28 now), such as Crashed the Express, Found Axel, Business class, Pilot licence, Kaboom and Treasure hunter, each ticked when you've earned it. The island map (M) is in the ISLND style: black labels, square markers, where every pet lives, the red Express and the submarine, the shop, Gruff's lookout, the night market after dark, and the treasure X.
+**Badges and the map.** The Paused page has a list of badges (29 now), such as Crashed the Express, Found Axel, Business class, Pilot licence, Kaboom and Treasure hunter, each ticked when you've earned it. The island map (M) is in the ISLND style: black labels, square markers, where every pet lives, the red Express and the submarine, the shop, Gruff's lookout, the night market after dark, and the treasure X.
 
 **More spark parts.** Six new things in the picker:
 
@@ -333,6 +333,8 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 **The photo album.** Every photo you take in photo mode (O, then P) is kept small in the album on the Paused page, up to 12. Click one to see it bigger, ✕ to delete it.
 
 **More badges.** Home sweet home, Pet pals, Full throttle, Up up and away, Fun of the fair, Spelunker, Polly's helper and Night fever.
+
+**Messages in bottles.** Stand by the sea and type **/bottle** and a message: you cork it in a green glass bottle and throw it out, and it splashes down and bobs away over the waves. In a room it washes up on a beach somewhere for someone else to find (the room keeps them until someone does). On your own, an islander finds it and their reply washes up a few minutes later. Every day a bottle from one of the islanders (Pemberton, Bazza, the Captain, Flapper, Polly, Ember, the stork…) washes up on a beach too. Bottles lie glinting on the sand: walk up and press **E** to uncork one and read the note. Whoever finds a bottle first gets it. Reading one earns the Message in a bottle badge.
 
 **Rusty the fox.** A slim red fox with a white chest and muzzle, black socks, big black-tipped ears, amber eyes and a huge bushy tail with a white tip. He lives on the Mini Isle, a few steps up the beach from the Island Shuttle's airstrip; walk up and press **E** to adopt him. He trots along beside you with his tail swishing. **T** is Rusty's pounce: a long, low leap forward that carries you with him (further as he levels up).
 
@@ -553,5 +555,5 @@ npm test
 - `h/spread.e2e.js` checks the default spread layout: where each home is, that the treehouse and cottage are rebuilt block for block in their new places, the clear and gentle road, smooth plot edges, the jet tour, the cottage gate, and that a room guest switches to the host's layout and back. The other browser tests use `?layout=classic`.
 - `h/p2p.e2e.js` checks rooms with no server: on a plain static host with a local PeerJS server, the host's browser opens a room, a guest joins it peer to peer and gets the island, edits go both ways, the host's browser turns down an off-meadow edit, the guest sees the host, a wrong code, the room closing when the host leaves, and opening another.
 - `h/games.e2e.js` checks hide and seek and build battles with two players in a room.
-- `h/post.e2e.js` checks, with two players in a room: a letter carried by the pigeon, gifts of coins and a hat, joining a team, planting its flag, the shared team bank (and not taking out more than is in it), and the racing league showing the room's best time.
+- `h/post.e2e.js` checks, with two players in a room: a letter carried by the pigeon, a message in a bottle washing up for the other player and vanishing for everyone once read, gifts of coins and a hat, joining a team, planting its flag, the shared team bank (and not taking out more than is in it), and the racing league showing the room's best time.
 - `h/rooms.e2e.js` starts the server and drives three Chromium pages through hosting, joining, snapshots, the meadow rule, a cheating client, admin grant and revoke, late joiners, avatars, leaving and room close. Needs Playwright.

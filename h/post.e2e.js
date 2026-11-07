@@ -30,6 +30,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('/letter sends a pigeon off with your letter', await guest.evaluate(() => window.__isle.cmd('/letter Hana Meet me at the lighthouse!')));
   await host.waitForFunction(() => /lighthouse/.test(document.getElementById('announce').textContent), null, { timeout: 30000 }).catch(() => {});
   check('a pigeon flies it to them and they read it', /Meet me at the lighthouse/.test(await host.evaluate(() => document.getElementById('announce').textContent)));
+  // messages in bottles
+  const shore = await host.evaluate(() => { const I = window.__isle; for (let z = 40; z < 320; z += 3) for (let x = 40; x < 320; x += 3) if (I.get(x, 10, z) === 4 && I.get(x, 11, z) === 0 && (I.get(x + 1, 10, z) === 12 || I.get(x - 1, 10, z) === 12 || I.get(x, 10, z + 1) === 12 || I.get(x, 10, z - 1) === 12)) return { x: x + 0.5, y: 11, z: z + 0.5 }; return null; });
+  await host.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q.x; P.y = q.y; P.z = q.z; }, shore); await wait(500);
+  check('in a room, /bottle throws your message out to sea', await host.evaluate(() => window.__isle.cmd('/bottle Ahoy, Gus!')));
+  await guest.waitForFunction(() => window.__isle.bottle.list().some((b) => /Ahoy, Gus/.test(b.text)), null, { timeout: 20000 }).catch(() => {});
+  const gb = await guest.evaluate(() => window.__isle.bottle.list().find((b) => /Ahoy, Gus/.test(b.text)) || null);
+  check('and it washes up on a beach for others to find', !!gb && gb.from === 'Hana', gb);
+  if (gb) {
+    await guest.evaluate((q) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = q.x + 0.6; P.y = q.y; P.z = q.z; }, gb); await wait(600);
+    await guest.evaluate(() => window.__isle.bottle.read());
+    await host.waitForFunction(() => !window.__isle.bottle.list().some((b) => /Ahoy, Gus/.test(b.text)), null, { timeout: 20000 }).catch(() => {});
+    check('whoever finds it first reads it, and it’s gone for everyone', /Ahoy, Gus/.test(await guest.evaluate(() => window.__isle.bottle.said() || '')) && !(await host.evaluate(() => window.__isle.bottle.list().some((b) => /Ahoy, Gus/.test(b.text)))));
+    await guest.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); });
+  }
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
   const hc = await host.evaluate(() => window.__isle.shop.coins()), gc = await guest.evaluate(() => window.__isle.shop.coins());
