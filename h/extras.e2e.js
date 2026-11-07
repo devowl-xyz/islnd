@@ -1387,6 +1387,33 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.more(false));
   }
   {
+  // ----- Atlantis by base infiltrator and by submarine -----
+  await a.evaluate(() => { window.__isle.bm.infilOff(); window.__isle.atl.out(); });
+  const spot = await a.evaluate(() => { const I = window.__isle, A = I.atl.A(); for (let z = A.z0 + 2; z < A.z1 - 1; z++) for (let x = A.x0 + 2; x < A.x1 - 2; x++) if (I.get(x, 6, z) === I.blockId('WATER') && I.get(x, 7, z) === I.blockId('WATER') && I.get(x, 5, z) === I.blockId('WATER')) return { x: x + 0.5, y: 5.2, z: z + 0.5 }; return null; });
+  await a.evaluate((q) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = q.x; P.y = q.y; P.z = q.z; }, spot);
+  await a.evaluate(() => window.__isle.atl.out());
+  check('Atlantis’s waters are walled off to ordinary swimmers', !(await a.evaluate(() => window.__isle.roomy())));
+  await a.evaluate(() => window.__isle.drones.infil()); await wait(1200);
+  check('but with the base infiltrator on you swim straight in', await a.evaluate(() => window.__isle.roomy()) && await a.evaluate(() => window.__isle.atl.in()));
+  await a.evaluate(() => { window.__isle.bm.infilOff(); window.__isle.player.fly = false; });
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  await a.evaluate(() => window.__isle.atl.out());
+  // by submarine: into the realm, then dive on to the sunken temple
+  const sb = await a.evaluate(() => window.__isle.sub.state());
+  await put(a, sb.x, sb.y - 1.3, sb.z); await wait(200);
+  await a.evaluate(() => window.__isle.sub.board()); await a.evaluate(() => window.__isle.realm.enter()); await wait(500);
+  const t = await a.evaluate(() => { const R = window.__isle.realm.R(); return R.temple; });
+  await a.evaluate((t) => { const P = window.__isle.player; P.x = t.x + 2.5; P.z = t.z - 1.5; P.y = 4.5; }, t); await wait(1500);
+  check('in the Sunken Realm, diving the sub on to the temple takes it down into Atlantis', await a.evaluate(() => window.__isle.atl.in()) && (await a.evaluate(() => window.__isle.sub.state())).on, await a.evaluate(() => ({ s: window.__isle.sub.state(), p: [window.__isle.player.x, window.__isle.player.y, window.__isle.player.z], r: window.__isle.realm.in() })));
+  const g = await a.evaluate(() => window.__isle.atl.A().gate);
+  await a.evaluate((g) => { const P = window.__isle.player; P.x = g.x + 6; P.z = g.z; P.y = 5; }, g); await wait(800);
+  check('and you can sail the sub round the lost city', await a.evaluate(() => window.__isle.roomy()) && await a.evaluate(() => window.__isle.atl.in()));
+  await a.evaluate((g) => { const P = window.__isle.player; P.x = g.x - 3; P.z = g.z; P.y = 5; }, g); await wait(1200);
+  check('the bubble column floats you, sub and all, back up to the realm', !(await a.evaluate(() => window.__isle.atl.in())) && await a.evaluate(() => window.__isle.realm.in()) && (await a.evaluate(() => window.__isle.sub.state())).on, await a.evaluate(() => ({ s: window.__isle.sub.state(), p: [window.__isle.player.x, window.__isle.player.y, window.__isle.player.z], r: window.__isle.realm.in(), a: window.__isle.atl.in() })));
+  await a.evaluate(() => { window.__isle.realm.leave(); window.__isle.sub.leave(); window.__isle.atl.out(); });
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());

@@ -124,7 +124,7 @@ The lab is packed with gadgets (walk up to one and press **E**):
 - a weather machine
 - a coin printer (50 coins every 10 minutes)
 - a helicopter recall that parks the helicopter on the lab's pad
-- a base infiltrator: for 3 minutes no base keeps you out (the treehouse, cottage, den, Goldie's house, the lounge, the Sky Palace and Biscuit & Mochi's bunker), and Pemberton won't launch you
+- a base infiltrator: for 3 minutes no base keeps you out (the treehouse, cottage, den, Goldie's house, the lounge, the Sky Palace, Biscuit & Mochi's bunker, the Sunken Realm and Atlantis), and Pemberton won't launch you
 
 There's also a giant live map on the back wall and a cloning vat with a floating Hoot. Pemberton can teleport you there too.
 
@@ -219,7 +219,13 @@ Nobody can swim in: a strange current pushes them back. The only way in is to sa
 - columns along the main street
 - a great palace with a gold and cyan roof, where the King's throne stands on a gold dais
 
-Take the King's trident from the throne (**E**) and from then on **U** makes a great wave. The wave rolls out in a ring, surges you forward, flings nearby jet skis about, pops jellyfish, scares off seagulls and sends the kraken diving. A bubble column by the city gate floats you back up to the Sunken Realm. Like the realm, nobody can swim in any other way, and nobody shows on the map down there.
+Take the King's trident from the throne (**E**) and from then on **U** makes a great wave. The wave rolls out in a ring, surges you forward, flings nearby jet skis about, pops jellyfish, scares off seagulls and sends the kraken diving. A bubble column by the city gate floats you back up to the Sunken Realm. Nobody shows on the map down there.
+
+There are two other ways in:
+- **By submarine:** in the Sunken Realm, dive the sub down on to the sunken temple (a sign over it says where) and the sub sinks right through into Atlantis with you still inside. Sail it round the lost city, and the bubble column floats you, sub and all, back up to the realm.
+- **With the base infiltrator:** the walls round the Sunken Realm and Atlantis (off the island's north coast) ignore you while it's on, so you can swim or sail straight in from the sea.
+
+Anyone else trying to swim in is kept out.
 
 **Bubble torpedoes.** In the submarine, **F** fires a bubble torpedo out of the nose. It pops any jellyfish it hits (they float back after a while), and one fired anywhere near the kraken sends it diving for the deep for a couple of minutes.
 
