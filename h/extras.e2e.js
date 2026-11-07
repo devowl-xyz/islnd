@@ -1444,6 +1444,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('with a boardwalk from the North Shore jet dock', walk[0] >= walk[1] - 1 && walk[1] > 0, walk);
   // ride it: skip ahead to when it waits at North Shore
   const skip = (name) => a.evaluate((nm) => { const I = window.__isle, L = I.hop.legs(), t0 = I.nowS(); for (let d = 0; d < L.cycle + 5; d += 0.5) { const q = I.hop.pose(t0 + d); if (q.parked === nm && q.leaves > 20) { I.net.tOff += d * 1000; return true; } } return false; }, name);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   check('the Hopper waits at North Shore', await skip('North Shore'));
   const q1 = await a.evaluate(() => window.__isle.hop.pose());
   await put(a, q1.x + Math.cos(q1.h) * 2.6, q1.y, q1.z - Math.sin(q1.h) * 2.6); await wait(300);
@@ -1459,6 +1460,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const off = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z, fly: P.fly }; });
   check('E gets you off on to the runway', !(await a.evaluate(() => window.__isle.hop.ride())) && Math.abs(off.y - M.strip.y) < 1 && off.x >= M.strip.x0 - 1 && off.x <= M.strip.x1 + 1, off);
   check('the Mini Isle is on the map and /tp mini goes there', (await a.evaluate(() => window.__isle.map.places().some((p) => /Mini Isle/.test(p[0])))) && await a.evaluate(() => window.__isle.cmd('/tp mini')));
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // the owls' side of it: the High Sky Palace, Owl Island and the stork
+  const SK = await a.evaluate(() => window.__isle.owl2.skyp()), OW = await a.evaluate(() => window.__isle.owl2.owli());
+  check('a bigger High Sky Palace floats higher and further east, with a sky dock off its side', SK.on && SK.FY > 70 && SK.cx > 200 && (await a.evaluate((s) => window.__isle.get((s.x0 + s.x1) >> 1, s.y - 1, (s.z0 + s.z1) >> 1), SK.strip)) !== 0, SK);
+  check('and there’s a bleak Owl Island out in the south-east sea with its own airstrip', OW.on && !!OW.strip && !!OW.stork);
+  check('the Owl Hopper flies Mini Isle, North Shore, the High Sky Palace, Owl Island and round again', JSON.stringify(await a.evaluate(() => window.__isle.owl2.stops())) === JSON.stringify(['the Mini Isle', 'North Shore', 'the High Sky Palace', 'Owl Island']));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  await skip('North Shore');
+  const q3 = await a.evaluate(() => window.__isle.hop.pose());
+  await put(a, q3.x + Math.cos(q3.h) * 2.6, q3.y, q3.z - Math.sin(q3.h) * 2.6); await wait(300);
+  await a.evaluate(() => window.__isle.hop.board());
+  check('it’s owls only: anyone else is turned away', !(await a.evaluate(() => window.__isle.hop.ride())));
+  // the stork
+  await a.evaluate(() => window.__isle.owl2.storkCool());
+  await put(a, OW.stork.x, OW.stork.y, OW.stork.z - 1.6); await wait(300);
+  check('the stork ignores anyone who isn’t an owl owner', await a.evaluate(() => window.__isle.owl2.storkNear()) && await a.evaluate(() => { window.__isle.owl2.stork(); return window.__isle.owl2.storkState().runs === 0; }));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await a.evaluate(() => window.__isle.owl2.stork());
+  check('an owl owner sends it off on a sabotage job (egg bombing first)', (await a.evaluate(() => window.__isle.owl2.storkState())).away && (await a.evaluate(() => window.__isle.owl2.storkState())).runs === 1);
+  await a.evaluate(() => { const I = window.__isle; I.owl2.storkCool(); I.owl2.stork(); I.owl2.storkCool(); I.owl2.stork(); }); await wait(1500);
+  check('then a sewage surprise and a lighthouse blackout', (await a.evaluate(() => window.__isle.potty.left())) > 0 && await a.evaluate(() => window.__isle.owl2.fuse()));
+  await a.evaluate(() => window.__isle.cmd('/weather clear')); await wait(1500);
+  check('the lighthouse stays dark even with clear skies', await a.evaluate(() => window.__isle.owl2.fuse()));
   await put(a, 80.5, 13, 80.5); await wait(300);
   // Bodger
   check('Bodger the badger pushes the jumbo’s snack trolley', await a.evaluate(() => window.__isle.hop.badger()));
