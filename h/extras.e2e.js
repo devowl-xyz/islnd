@@ -1206,7 +1206,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 92.5); await wait(300);
   }
   {
-  // ----- hot-air balloon, speedboat race, monorail, cabin crew -----
+  // ----- hot-air balloon, speedboat race, railway, cabin crew -----
   await a.evaluate(() => window.__isle.veh.hbPut(96.5, 104.5)); await wait(500);
   const hb0 = await a.evaluate(() => window.__isle.veh.hb());
   await put(a, hb0.x + 0.5, hb0.y + 0.2, hb0.z); await wait(200);
@@ -1228,12 +1228,21 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('the race needs a jet ski', !(await a.evaluate(() => window.__isle.veh.boatStart())));
   // monorail
   const mono = await a.evaluate(() => window.__isle.veh.mono());
-  check('the monorail has a station at each of the four docks', mono.length === 4, mono);
-  const my = await a.evaluate(() => window.__isle.veh.monoY());
-  const rails = await a.evaluate((y) => { const I = window.__isle; let n = 0; for (let z = 0; z < 320; z++) for (let x = 0; x < 320; x++) { const b = I.get(x, y + 1, z); if (b === I.blockId('RAIL') || b === I.blockId('PRAIL')) n++; } return n; }, my);
-  check('rails run high over the island on stilts', rails > 150, rails);
-  const pads = await a.evaluate((m) => { const I = window.__isle; return m.map((s) => I.get(Math.floor(s.x), s.top - 1, Math.floor(s.z)) === I.blockId('ELEV')); }, mono);
-  check('each station has an elevator pad up from the dock', pads.every(Boolean), pads);
+  check('the railway has a station at each of the four docks', mono.length === 4, mono);
+  const tr = await a.evaluate(() => window.__isle.veh.trace());
+  check('the railway runs on the ground in one unbroken loop through all four stations', tr && tr.closed && tr.len > 300 && tr.stations === 4, tr);
+  const low = await a.evaluate(() => { const I = window.__isle, p = I.veh.pathPts(); return Math.max(...p.map((q) => q[1])); });
+  check('never up on stilts: it hugs the land, tunnels and bridges low over water', low < 30, low);
+  const plat = await a.evaluate((m) => { const I = window.__isle; return m.map((s) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some((o) => I.get(Math.floor(s.x) + o[0], s.y - 1, Math.floor(s.z) + o[1]) === I.blockId('PLANKS'))); }, mono);
+  check('each station has a plank platform by the track', plat.every(Boolean), plat);
+  const s0 = mono[0];
+  await put(a, s0.x, s0.y, s0.z); await wait(300);
+  await a.evaluate(() => window.__isle.cart.start());
+  await a.keyboard.down('KeyW'); await wait(6000); await a.keyboard.up('KeyW'); await wait(6000);
+  const cp = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, z: P.z, on: !!window.__isle.cart.on() }; });
+  check('a minecart at a station rolls off along the line', cp.on && Math.hypot(cp.x - s0.x, cp.z - s0.z) > 3, cp);
+  await a.evaluate(() => window.__isle.cart.leave());
+  await put(a, 80.5, 13, 80.5); await wait(300);
   // cabin crew
   check('/crew needs you aboard the jumbo', !(await a.evaluate(() => window.__isle.cmd('/crew'))) || !(await a.evaluate(() => window.__isle.veh.crew())));
   await a.evaluate(() => window.__isle.jumbo.board()); await wait(300);

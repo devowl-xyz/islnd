@@ -308,7 +308,7 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 
 **The speedboat race.** On a jet ski, **/boatrace** (or **Speedboat race** under Games): eight buoys ring the island and you go through them in order, following the green beam. Finishing pays 10 coins and your best lap is kept.
 
-**The monorail.** A railway on white stilts runs high over the island between the four jet docks. At each dock an elevator in a glass shaft takes you up to the platform; **E** by the track for a minecart, and powered rails along the way keep it rolling.
+**The railway.** A railway on the ground links the four jet docks in a loop, with a little station and plank platform at each. It finds its own way round the island: it keeps clear of the meadow and everything that's built, follows the lie of the land a block at a time on a gravel bed, tunnels through the hills (with lamps in the roof) and crosses water on low plank bridges. **E** by the track for a minecart; powered rails along the way, and on every climb, keep it rolling.
 
 **Cabin crew.** On the jumbo, **/crew** makes you cabin crew: **E** at the trolley hands out snacks (and earns tips), **/pa** makes a cabin announcement everyone sees, and **/demo** runs the safety demonstration.
 
