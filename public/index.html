@@ -594,6 +594,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Blueprints</dt><dd>/copy, then /blueprint. Paste a code to load.</dd>
         <dt>Beat block</dt><dd>Pulses spark power on the beat.</dd>
         <dt>Mini Isle</dt><dd>West sea. A small island with a big waterfall.</dd>
+        <dt>Rusty the fox</dt><dd>On the Mini Isle. T to pounce.</dd>
         <dt>Island Shuttle</dt><dd>Biplane. North Shore to the Mini Isle. E to board.</dd>
         <dt>Owl Hopper</dt><dd>Owls only. Mini Isle, Sky Palace, Owl Island. F to fly it.</dd>
         <dt>Owl Island</dt><dd>E by the stork for a sabotage job.</dd>
@@ -3565,6 +3566,7 @@ function update(dt){
     const sp=Math.hypot(P.vx,P.vz);if(sp>16){P.vx*=16/sp;P.vz*=16/sp;}
   }
   else if(P.skis&&!fl&&!swim&&!P.ride&&!dash)skiSlide(dt,ix,iz);
+  else if(P.pounce&&performance.now()<P.pounce&&!fl){/* Rusty's pounce carries you along until you land */if(!P.onGround)P.pounceAir=true;else if(P.pounceAir)P.pounce=0;}
   else{P.vx+=(wx*speed+flow.x*CUR-P.vx)*k;P.vz+=(wz*speed+flow.z*CUR-P.vz)*k;}
   if(fl||dash){
     const up=(jump?1:0)-(sprintKey?1:0);
@@ -4252,7 +4254,7 @@ const SKIN_STYLES={
   headWrap:['front','all'],
   rodStyle:['pillars','swirl','tendrils','legs'],
   effect:['none','embers','wind','bubbles','sparkles','smoke'],
-  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel'],
+  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox'],
   petHatStyle:['none','top','party','crown','bow','beanie','witch','santa','sparkler'],petCollarStyle:['none','plain','bell','bandana','robe'],petSaddleStyle:['none','plain','fancy']
 };
 const STYLE_NAMES={witch:'Witch hat',santa:'Santa hat',sparkler:'Sparkler',robe:'Bathrobe',flame:'Flame hat',dragon:'Dragon helm',short:'Short',long:'Long',none:'None',eyes:'Eyes',smile:'Smile',visor:'Visor',cap:'Cap',beanie:'Beanie',crown:'Crown',
@@ -6487,7 +6489,7 @@ function heliLoad(){
     if(s&&[s.x,s.y,s.z,s.h].every(isFinite)){heli.x=s.x;heli.y=s.y;heli.z=s.z;heli.h=s.h;}
     if(s&&s.bridge&&[s.bridge.x,s.bridge.y,s.bridge.z,s.bridge.h].every(isFinite))heli.bridge=s.bridge;
     /* (this runs before the pet list further down exists, so the names are spelled out here) */
-    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel'].indexOf(id)>=0;}):[];
+    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox'].indexOf(id)>=0;}):[];
     heli.skis=s&&Array.isArray(s.skis)?s.skis.filter(function(k,i,a){return Number.isInteger(k)&&k>=0&&k<5&&a.indexOf(k)===i;}):[];
   }catch(e){heli.pets=[];heli.skis=[];}
   heli.pilot=null;heli.seat=false;heli.rope=0;heli.down=false;heli.captives=[];heli.dummies=[];heli.remote=null;heli.vx=heli.vy=heli.vz=0;
@@ -7097,12 +7099,14 @@ const PETS={
   horse:{name:'Clover',kind:'horse',col:'#9a5b2e',move:'ground',off:[1.7,0,2.4],scale:1.15},
   slinky:{name:'Slinky',kind:'snake',col:'#3f9a3a',move:'ground',off:[-1.1,0,0.9],scale:1.3},
   goat:{name:'Gruff',kind:'goat',col:'#eeeae0',move:'ground',off:[1.0,0,1.0],scale:1.2},
-  axel:{name:'Axel',kind:'axolotl',col:'#f6a6c0',move:'float',off:[-0.9,1.25,0.4],scale:1.6}
+  axel:{name:'Axel',kind:'axolotl',col:'#f6a6c0',move:'float',off:[-0.9,1.25,0.4],scale:1.6},
+  fox:{name:'Rusty',kind:'fox',col:'#e8742a',move:'ground',off:[-1.0,0,1.0],scale:1.25}
 };
 const PET_IDS=Object.keys(PETS);
 function petHint(id){
   if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace.';
   if(id==='goat')return'On the highest southern peak.';
+  if(id==='fox')return'On the Mini Isle, by the shuttle’s airstrip.';
   if(id==='axel')return'Somewhere under the sea…';
   if(id==='slinky')return'Under the treehouse roots.';
   if(id==='hoot'||id==='snowy')return'On the treehouse roof.';
@@ -7312,6 +7316,37 @@ function makePetModel(id,food){
     });
     const beard=cone(head,0.028,0.11,fur2,0,-0.125,-0.15,Math.PI+0.15);void beard;
     const tail=piv(body,0,0.64,0.32);P.tail=tail;sph(tail,1,0.035,0.055,0.03,fur,0,0.03,0.015).rotation.x=-0.5;
+  }else if(d.kind==='fox'){
+    /* Rusty: a slim red fox with a white chest and muzzle, black socks, big black-tipped ears, amber eyes and a
+       huge bushy tail with a white tip */
+    const fur=lam(0xe8742a),fur2=lam(0xd2611c),cream=lam(0xfaf3e6),sock=lam(0x2a2220),nose=lam(0x1a1414),iris=lam(0xd89a1a),pink=lam(0x3a2420);
+    sph(body,1,0.13,0.13,0.26,fur,0,0.36,0);
+    sph(body,1,0.1,0.11,0.12,cream,0,0.33,-0.16);
+    sph(body,1,0.12,0.1,0.12,fur2,0,0.4,0.15);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function(c){
+      const l=piv(body,c[0]*0.075,0.3,c[1]*0.16);
+      cyl(l,0.035,0.16,fur,0,0,0,0.03);
+      cyl(l,0.028,0.13,sock,0,-0.15,0,0.026);
+      sph(l,1,0.03,0.018,0.042,sock,0,-0.285,-0.012);
+      P.legs.push([l,c[0]*c[1]]);
+    });
+    sph(body,1,0.075,0.09,0.08,cream,0,0.47,-0.22);
+    const head=piv(body,0,0.54,-0.26);P.head=head;
+    sph(head,1,0.095,0.085,0.09,fur,0,0,0);
+    [-1,1].forEach(function(sd){sph(head,1,0.05,0.05,0.05,cream,sd*0.055,-0.03,-0.04);});
+    const snout=new THREE.ConeGeometry(0.05,0.15,12);snout.rotateX(-Math.PI/2);geos.push(snout);const sm=new THREE.Mesh(snout,fur);sm.position.set(0,-0.02,-0.14);sm.scale.y=0.8;head.add(sm);
+    const chin=new THREE.ConeGeometry(0.035,0.12,10);chin.rotateX(-Math.PI/2);geos.push(chin);const cm=new THREE.Mesh(chin,cream);cm.position.set(0,-0.045,-0.13);head.add(cm);
+    sph(head,0.018,1.3,1,1,nose,0,-0.015,-0.215);
+    [-1,1].forEach(function(sd){
+      eye(head,sd*0.045,0.025,-0.07,0.02,iris,true);
+      const ear=cone(head,0.045,0.12,fur,sd*0.055,0.1,0.005,0,sd*-0.25);ear.scale.z=0.45;
+      const tip=cone(head,0.02,0.05,sock,sd*0.071,0.15,0.005,0,sd*-0.25);tip.scale.z=0.45;
+      const inner=cone(head,0.025,0.07,pink,sd*0.055,0.095,-0.012,0,sd*-0.25);inner.scale.z=0.25;
+    });
+    const tail=piv(body,0,0.4,0.25);P.tail=tail;
+    const t1=sph(tail,1,0.07,0.07,0.17,fur,0,0.02,0.13);t1.rotation.x=-0.5;
+    const t2=sph(tail,1,0.085,0.085,0.12,fur2,0,0.08,0.25);t2.rotation.x=-0.6;
+    sph(tail,1,0.06,0.06,0.07,cream,0,0.12,0.34);
   }else if(d.kind==='axolotl'){
     /* a pink axolotl: a wide smiley head with three feathery gills on each side, little legs and a long finned tail */
     const pk=lam(0xf6a6c0),pk2=lam(0xf28aa8),gill=lam(0xe0507a),eyeM=lam(0x1d1d22),fin=lam(0xf8c0d0,{transparent:true,opacity:0.85,side:THREE.DoubleSide});
@@ -7443,6 +7478,12 @@ function animatePet(P,dt,moving,flying,home,wet){
     P.tail.rotation.x=Math.sin(t*(moving?16:3))*0.4;
     P.head.rotation.x=moving?0:(Math.sin(t*0.5)>0.6?0.5:Math.sin(t*0.9)*0.1);
     P.body.position.y=wet?-0.2:0;
+  }else if(d.kind==='fox'){
+    const sw=moving?Math.sin(t*15)*0.6:0;
+    P.legs.forEach(function(l){l[0].rotation.x=sw*l[1];});
+    P.tail.rotation.y=Math.sin(t*(moving?9:1.6))*(moving?0.25:0.4);P.tail.rotation.x=moving?-0.15:0.1;
+    P.head.rotation.y=moving?0:Math.sin(t*0.7)*0.35;P.head.rotation.x=moving?0.08:(Math.sin(t*0.5)>0.7?-0.25:0);
+    P.body.position.y=(moving?Math.abs(Math.sin(t*15))*0.02:0)+(wet?-0.15:0);
   }else if(d.kind==='axolotl'){
     P.wings.forEach(function(w,k){w[0].rotation.x=Math.sin(t*3+k)*0.25;});
     P.tail.rotation.y=Math.sin(t*(moving?10:3))*0.45;
@@ -8819,6 +8860,7 @@ function petPowerInner(){
   if(mySkin.pet==='goldie'){if(P.dash){P.dash=null;toast('Goldie\u2019s bubble pops.');return true;}return startDash();}
   if(mySkin.pet==='cinder'){if(P.lift){if(P.lift.phase==='up')letGo(false);return true;}return startDragon();}
   if(mySkin.pet==='goat')return goatLeap();
+  if(mySkin.pet==='fox')return foxPounce();
   if(mySkin.pet==='axel'){hp=HP_MAX;renderHearts();toast('🦎 Axel wiggles its gills at you. Axolotls can regrow anything: your hearts are full.');return true;}
   if(isOwlOwner()){if(P.lift){if(P.lift.phase==='up')letGo(false);return true;}return startLift();}
   if(canFood())return togglePetFood();
@@ -13978,6 +14020,14 @@ function realmTick(dt){
 /* the realm's sea is out of bounds unless the sea itself took you there */
 function realmBlocked(x,y,z){return!realm.in&&!infil()&&inRealmZone(x,y,z);}
 
+/* ---------- Rusty the fox ----------
+   A red fox who lives on the Mini Isle. T is Rusty's pounce: a long, low leap forward */
+function foxPounce(){
+  if(!P.onGround&&!P.fly){toast('🦊 Rusty needs solid ground to pounce from.');return false;}
+  const k=1+0.08*(petLevel('fox')-1),fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw);
+  P.fly=false;P.vy=9*k;P.vx=fx*16*k;P.vz=fz*16*k;P.pounce=performance.now()+3000;P.pounceAir=false;
+  toast('🦊 Pounce! Rusty leaps and you go with him.');return true;
+}
 /* ---------- Gruff the mountain goat ----------
    A shaggy white goat with curly horns and a beard, on the highest peak in the south. T makes Gruff leap:
    a huge bounding jump (great for climbing). */
@@ -16424,6 +16474,8 @@ function buildMiniIsle(){
     const lg=at(9,3);MINI.ledge={x:lg[0]+0.5,y:g0+1,z:lg[1]+0.5};
     MINI.stream=k-12;
   }
+  /* where along a strip's edge the land is nearest, for its boardwalk */
+  const miniBest=function(a,b,at,dx,dz){let best=a,bn=1e9;for(let v=a;v<=b;v++){let q=at(v),n=0;while(n<60){const t=top.get(q[0]+','+q[1]);if(t!==undefined&&t>=SEA)break;q=[q[0]+dx,q[1]+dz];n++;}if(n<bn){bn=n;best=v;}}return best;};
   /* the airstrip: on stilts over open sea on whichever side has room, with a boardwalk to the beach */
   let st=null;
   const tries=[];
@@ -16435,14 +16487,15 @@ function buildMiniIsle(){
     const alongX=st.x1-st.x0>st.z1-st.z0;
     /* the boardwalk leaves the strip four blocks in from the end nearer the island's middle line, heading for land */
     let bx,bz,ddx,ddz;
-    if(alongX){bx=st.x0+4;ddz=C[1]>st.z1?1:-1;ddx=0;bz=ddz>0?st.z1+1:st.z0-1;}
-    else{bz=st.z0+4;ddx=C[0]>st.x1?1:-1;ddz=0;bx=ddx>0?st.x1+1:st.x0-1;}
-    for(let n=0;n<40;n++){const t=top.get(bx+','+bz);if(t!==undefined&&t>=SEA)break;
+    if(alongX){ddz=C[1]>st.z1?1:-1;ddx=0;bz=ddz>0?st.z1+1:st.z0-1;bx=miniBest(st.x0+3,st.x1-3,function(v){return[v,bz];},0,ddz);}
+    else{ddx=C[0]>st.x1?1:-1;ddz=0;bx=ddx>0?st.x1+1:st.x0-1;bz=miniBest(st.z0+3,st.z1-3,function(v){return[bx,v];},ddx,0);}
+    for(let n=0;n<60;n++){const t=top.get(bx+','+bz);if(t!==undefined&&t>=SEA)break;
       for(let w=0;w<2;w++){const x=bx+(ddz?w:0),z=bz+(ddx?w:0);S(x,y,z,B.PLANKS);for(let yy=y+1;yy<=y+3;yy++)S(x,yy,z,0);if(n%4===0)for(let yy=y-1;yy>=1;yy--){const j=(yy*D+z)*W+x;if(solidB(vox[j]))break;vox[j]=B.LOG;wl[j]=0;}}
       bx+=ddx;bz+=ddz;}
     const hx=alongX?st.x0:(ddx>0?st.x1+2:st.x0-5),hz=alongX?(ddz>0?st.z1+2:st.z0-5):st.z0;
     buildHut(hx,hz,y);
     MINI.strip={x0:st.x0,x1:st.x1,z0:st.z0,z1:st.z1,y:y+1,hut:{x:hx+2,z:hz+1},name:'the Mini Isle',parkHi:false};
+    {let fx=bx+ddx*3,fz=bz+ddz*3;for(let k=0;k<6;k++){const t=top.get(fx+','+fz);if(t!==undefined&&t>SEA&&!vox[((t+1)*D+fz)*W+fx])break;fx+=ddx;fz+=ddz;}const t=top.get(fx+','+fz);PET_HOME.fox={x:fx+0.5,y:(t!==undefined?t+1:y+1),z:fz+0.5,yaw:Math.atan2(ddx,ddz)};}
     /* the owls' own strip, on another side of the island with open sea, with its own boardwalk */
     const over=function(p,q){return p.x0<=q.x1+4&&p.x1>=q.x0-4&&p.z0<=q.z1+4&&p.z1>=q.z0-4;};
     let st2=null;
@@ -16450,8 +16503,8 @@ function buildMiniIsle(){
     if(st2){
       buildStrip(st2,y);
       const ax=st2.x1-st2.x0>st2.z1-st2.z0;let wx,wz,ex=0,ez=0;
-      if(ax){wx=st2.x0+4;ez=C[1]>st2.z1?1:-1;wz=ez>0?st2.z1+1:st2.z0-1;}else{wz=st2.z0+4;ex=C[0]>st2.x1?1:-1;wx=ex>0?st2.x1+1:st2.x0-1;}
-      for(let n=0;n<40;n++){const t=top.get(wx+','+wz);if(t!==undefined&&t>=SEA)break;
+      if(ax){ez=C[1]>st2.z1?1:-1;wz=ez>0?st2.z1+1:st2.z0-1;wx=miniBest(st2.x0+3,st2.x1-3,function(v){return[v,wz];},0,ez);}else{ex=C[0]>st2.x1?1:-1;wx=ex>0?st2.x1+1:st2.x0-1;wz=miniBest(st2.z0+3,st2.z1-3,function(v){return[wx,v];},ex,0);}
+      for(let n=0;n<60;n++){const t=top.get(wx+','+wz);if(t!==undefined&&t>=SEA)break;
         for(let w=0;w<2;w++){const x=wx+(ez?w:0),z=wz+(ex?w:0);S(x,y,z,B.PLANKS);for(let yy=y+1;yy<=y+3;yy++)S(x,yy,z,0);if(n%4===0)for(let yy=y-1;yy>=1;yy--){const j=(yy*D+z)*W+x;if(solidB(vox[j]))break;vox[j]=B.LOG;wl[j]=0;}}
         wx+=ex;wz+=ez;}
       MINI.owlStrip={x0:st2.x0,x1:st2.x1,z0:st2.z0,z1:st2.z1,y:y+1,name:'the Mini Isle',parkHi:false};

@@ -334,6 +334,8 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 
 **More badges.** Home sweet home, Pet pals, Full throttle, Up up and away, Fun of the fair, Spelunker, Polly's helper and Night fever.
 
+**Rusty the fox.** A slim red fox with a white chest and muzzle, black socks, big black-tipped ears, amber eyes and a huge bushy tail with a white tip. He lives on the Mini Isle, a few steps up the beach from the Island Shuttle's airstrip; walk up and press **E** to adopt him. He trots along beside you with his tail swishing. **T** is Rusty's pounce: a long, low leap forward that carries you with him (further as he levels up).
+
 **The Mini Isle and the Owl Hopper.** Out in the western sea, past the lighthouse, there's a copy of the whole island about 70 blocks across: the same coastline and mountains shrunk down, with sandy beaches, snowy tops and little trees. On its highest ground stands a craggy rock with the **Great Falls** pouring off its seaward face: a curtain of water five blocks wide and well over ten high, falling into a plunge pool with ledges either side, and a river from the pool down to the sea that tumbles over every step. There's spray at the bottom and you can hear the roar. Behind the curtain is a hidden cave: the owls' way into their lab (see the secret lab). The Mini Isle has its own airstrip on stilts, with a hut and a boardwalk to the beach.
 
 Two planes use the airstrips, on their own timetables, waiting 40 seconds at each stop:

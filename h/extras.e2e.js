@@ -1509,6 +1509,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('Bodger the badger pushes the jumbo’s snack trolley', await a.evaluate(() => window.__isle.hop.badger()));
   }
   {
+  // ----- Rusty the fox -----
+  const fh = await a.evaluate(() => window.__isle.pets.home.fox);
+  check('Rusty the fox lives on the Mini Isle', !!fh && (await a.evaluate((h) => window.__isle.get(Math.floor(h.x), Math.floor(h.y) - 1, Math.floor(h.z)), fh)) !== 0, fh);
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = h.x + 1.2; P.y = h.y; P.z = h.z; }, fh); await wait(1500);
+  check('you can walk up to him', (await a.evaluate(() => window.__isle.pets.near())) === 'fox', await a.evaluate(() => window.__isle.pets.near()));
+  await a.evaluate(() => window.__isle.pets.adopt('fox')); await wait(1500);
+  check('and adopt him: he follows you', (await a.evaluate(() => window.__isle.pets.follower() && window.__isle.pets.follower().id)) === 'fox');
+  await put(a, 80.5, 13, 92.5, Math.PI); await wait(800);
+  const p0 = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, z: P.z }; });
+  await a.evaluate(() => window.__isle.power.T()); await wait(8000);
+  const p1 = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, z: P.z }; });
+  check('T is Rusty’s pounce: a long leap forward', Math.hypot(p1.x - p0.x, p1.z - p0.z) > 4, [p0, p1]);
+  await a.evaluate(() => window.__isle.pets.sendHome());
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
