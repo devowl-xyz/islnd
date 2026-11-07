@@ -1414,6 +1414,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- the Mini Isle, its waterfall, the airstrips and the Bird Air Hopper; Bodger on the trolley -----
+  const M = await a.evaluate(() => window.__isle.hop.mini()), NS = await a.evaluate(() => window.__isle.hop.ns());
+  const land = await a.evaluate((m) => { const I = window.__isle; let n = 0; for (let z = m.cz - 22; z <= m.cz + 22; z++) for (let x = m.cx - 22; x <= m.cx + 22; x++) { const b = I.get(x, 11, z); if (b && b !== I.blockId('WATER')) n++; } return n; }, M);
+  check('a Mini Isle, a tiny copy of the island, sits out in the sea', M.on && land > 200, [M.cx, M.cz, land]);
+  const fall = await a.evaluate((f) => { const I = window.__isle; let n = 0; for (let y = f.y; y <= f.y + f.h; y++) if (I.get(Math.floor(f.x), y, Math.floor(f.z)) === I.blockId('WATER')) n++; return n; }, M.falls);
+  check('with a waterfall tumbling off its highest peak', !!M.falls && M.falls.h >= 3 && fall >= M.falls.h, [M.falls, fall]);
+  check('and a runway on stilts beside it', !!M.strip && (await a.evaluate((s) => window.__isle.get(s.x0 + 3, 11, s.z0 + 10), M.strip)) !== 0);
+  check('the North Shore airstrip is out in the sea off the north coast', !!NS.strip && (await a.evaluate((s) => window.__isle.get(s.x0 + 10, 11, s.z0 + 3), NS.strip)) !== 0);
+  const dk = await a.evaluate(() => window.__isle.docks.find((d) => d.id === 'north'));
+  const walk = await a.evaluate((q) => { const I = window.__isle, s = q[0], d = q[1]; const x = s.eastEnd ? s.x1 - 3 : s.x0 + 3; let ok = 0; for (let z = s.z1 + 1; z < d.z0; z++) if (I.get(x, 11, z) === I.blockId('PLANKS')) ok++; return [ok, d.z0 - s.z1 - 1]; }, [NS.strip, dk]);
+  check('with a boardwalk from the North Shore jet dock', walk[0] >= walk[1] - 1 && walk[1] > 0, walk);
+  // ride it: skip ahead to when it waits at North Shore
+  const skip = (name) => a.evaluate((nm) => { const I = window.__isle, L = I.hop.legs(), t0 = I.nowS(); for (let d = 0; d < L.cycle + 5; d += 0.5) { const q = I.hop.pose(t0 + d); if (q.parked === nm && q.leaves > 20) { I.net.tOff += d * 1000; return true; } } return false; }, name);
+  check('the Hopper waits at North Shore', await skip('North Shore'));
+  const q1 = await a.evaluate(() => window.__isle.hop.pose());
+  await put(a, q1.x + Math.cos(q1.h) * 2.6, q1.y, q1.z - Math.sin(q1.h) * 2.6); await wait(300);
+  check('E by it to board', await a.evaluate(() => window.__isle.hop.near()) && await a.evaluate(() => window.__isle.hop.board()) && await a.evaluate(() => window.__isle.hop.ride()));
+  await wait(800);
+  const inside = await a.evaluate(() => { const I = window.__isle, q = I.hop.pose(), P = I.player; return Math.hypot(P.x - q.x, P.z - q.z) < 2 && P.y > q.y; });
+  check('you sit inside the cabin', inside);
+  await skip('the Mini Isle'); await wait(1500);
+  const q2 = await a.evaluate(() => window.__isle.hop.pose());
+  check('it flies you to the Mini Isle', q2.parked === 'the Mini Isle' && await a.evaluate(() => window.__isle.hop.ride()) && Math.abs((await a.evaluate(() => window.__isle.player.x)) - q2.x) < 3);
+  check('and says welcome when it lands', /Mini Isle/.test(await a.evaluate(() => document.getElementById('announce').textContent)));
+  await a.evaluate(() => window.__isle.toggleBoard()); await wait(800);
+  const off = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z, fly: P.fly }; });
+  check('E gets you off on to the runway', !(await a.evaluate(() => window.__isle.hop.ride())) && Math.abs(off.y - M.strip.y) < 1 && off.x >= M.strip.x0 - 1 && off.x <= M.strip.x1 + 1, off);
+  check('the Mini Isle is on the map and /tp mini goes there', (await a.evaluate(() => window.__isle.map.places().some((p) => /Mini Isle/.test(p[0])))) && await a.evaluate(() => window.__isle.cmd('/tp mini')));
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  // Bodger
+  check('Bodger the badger pushes the jumbo’s snack trolley', await a.evaluate(() => window.__isle.hop.badger()));
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
