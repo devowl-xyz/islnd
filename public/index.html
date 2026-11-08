@@ -634,7 +634,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Parachute</dt><dd>Space while falling.</dd>
         <dt>Commands</dt><dd>/help lists them all.</dd>
         <dt>Emotes</dt><dd>X, then 1–5. 6–0 for reactions.</dd>
-        <dt>Secret lab</dt><dd>Owl owners. Behind the Mini Isle’s waterfall.</dd>
+        <dt>Secret lab</dt><dd>Owl owners. Under the Mini Isle: through the waterfall.</dd>
         <dt>Atlantis</dt><dd>Break the temple floor, dive the sub on it, or use the infiltrator. U for a wave.</dd>
         <dt>Torpedoes</dt><dd>F in the submarine.</dd>
         <dt>Redstone</dt><dd>Right click levers and buttons.</dd>
@@ -2550,9 +2550,6 @@ function generate(){
   buildLookout();
   buildCampLake();
   buildCableCar();
-  buildLab();
-  buildSecret();
-  buildVault();
   buildHollow();
   buildBMB();
   buildUN();
@@ -2566,6 +2563,10 @@ function generate(){
   buildAtlantis();
   buildMysteryCave();
   buildMiniIsle();
+  buildLab();
+  buildSecret();
+  buildVault();
+  buildMiniFalls();
   buildNorthStrip();
   buildHighPalace();
   buildOwlIsle();
@@ -6446,6 +6447,10 @@ const LAB={x0:241,x1:265,z0:256,z1:278,y0:1,y1:13,ix0:243,ix1:263,iz0:258,iz1:27
   anx:{x0:219,x1:240,z0:257,z1:273,ix0:221,ix1:238,iz0:259,iz1:271,iy0:2,iy1:9,cx:230},cor:{x0:239,x1:242,z0:263,z1:265,y0:2,y1:5},pad:{x:249.3,z:271},
   sec:{ix0:209,ix1:217,iz0:260,iz1:270,iy0:2,iy1:6,dx0:218,dx1:220,dz0:263,dz1:264},
   vault:{ix0:248,ix1:258,iz0:280,iz1:289,iy0:2,iy1:8,dx0:252,dx1:254,dz0:277,dz1:279}};
+/* the lab now lies under the Mini Isle, its hatch in the grotto behind the Great Falls: every number above moves
+   by the same amount (hub.js moves its copy the same way) */
+const LAB_SHIFT=[-192,-49];
+(function shiftLab(o){for(const k in o){const v=o[k];if(v&&typeof v==='object'){shiftLab(v);continue;}if(typeof v!=='number')continue;if(/^(x|ix|cx|hx|bx|dx)/.test(k))o[k]=v+LAB_SHIFT[0];else if(/^(z|iz|cz|hz|dz)/.test(k))o[k]=v+LAB_SHIFT[1];}})(LAB);
 /* the lighthouse on its islet west of the island (built with the terrain; see buildLighthouse) */
 const LH={cx:60,cz:170,G:12,L:32};
 /* Biscuit & Mochi's bunker, dug into the rock under the lighthouse; the hatch and shaft are in the tower's floor */
@@ -11962,6 +11967,17 @@ function inLabZone(x,y,z){
 function labHere(x,y,z){const X=Math.floor(x),Y=Math.floor(y),Z=Math.floor(z);return inLabInside(X,Y,Z)||labDoorCell(X,Y,Z);}
 function buildLab(){
   const o=LAB,a=o.anx,c=o.cor,S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=0;};
+  if(MINI.on&&MINI.top&&MINI.hs!==undefined){
+    /* under the Mini Isle: the ground is raised so it covers the whole lab, and the hatch opens in the grotto floor */
+    o.hs=MINI.hs;
+    const x0=Math.min(o.bx0,o.anx.x0)-3,x1=o.x1+3,z0=o.z0-3,z1=Math.max(o.z1,o.vault.iz1+1)+3;
+    for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
+      const k=x+','+z,t=MINI.top.has(k)?MINI.top.get(k):SEA-1,want=o.y1+4;
+      if(t>=want)continue;
+      for(let y=Math.max(1,t+1);y<=want;y++)S(x,y,z,y===want?B.GRASS:(y>want-3?B.DIRT:B.STONE));
+      MINI.top.set(k,want);
+    }
+  }else{
   /* the hatch sits in a flat grassy clearing at the height of the ground round it */
   let sum=0,n=0;
   for(let dz=-9;dz<=9;dz++)for(let dx=-9;dx<=9;dx++)if(Math.hypot(dx,dz)<o.R+3){sum+=origHt[(Math.floor(o.hz)+dz)*W+Math.floor(o.hx)+dx];n++;}
@@ -11975,6 +11991,8 @@ function buildLab(){
     for(let y=o.y1+1;y<t;y++)S(x,y,z,y===t-1?top:(y>t-4&&top===B.GRASS?B.DIRT:B.STONE));
     for(let y=t;y<t+24;y++){const b=vox[(y*D+z)*W+x];if(b===B.LOG||b===B.LEAVES||solidB(b)||b===B.WATER)S(x,y,z,0);}
   }
+  }
+  const hs=o.hs;
   /* the shells: dark basalt, a grey floor with lit edges */
   const shell=function(x0,x1,z0,z1,ix0,ix1,iz0,iz1,iy0,iy1,floor,edge){
     for(let y=iy0-1;y<=iy1+1;y++)for(let z=z0;z<=z1;z++)for(let x=x0;x<=x1;x++){
@@ -12023,7 +12041,8 @@ function makeIris(){
   const g=new THREE.Group(),N=10,R=LAB.R+0.3,blades=[];
   /* the blades wear the grass's own texture from the block atlas, lit like the ground round them */
   const tc=document.createElement('canvas');tc.width=tc.height=IN;const tx=tc.getContext('2d');
-  if(tx&&tx.drawImage){try{tx.drawImage(atlas,PAD,PAD,IN,IN,0,0,IN,IN);}catch(e){}}
+  /* in the grotto behind the falls they wear the basalt of the grotto floor instead */
+  {const t=MINI.grotto?BT[B.BASALT][1]:0;if(tx&&tx.drawImage){try{tx.drawImage(atlas,(t%ATL)*CELL+PAD,Math.floor(t/ATL)*CELL+PAD,IN,IN,0,0,IN,IN);}catch(e){}}}
   const gt=new THREE.CanvasTexture(tc);gt.wrapS=gt.wrapT=THREE.RepeatWrapping;gt.magFilter=THREE.NearestFilter;gt.offset.set(0.5,0.5);
   const mat=new THREE.MeshBasicMaterial({map:gt,vertexColors:true,side:THREE.DoubleSide});envPatch(mat,true);
   for(let k=0;k<N;k++){
@@ -13595,7 +13614,7 @@ function libPull(k){
   if(k===LIB_RIGHT){lib.open=performance.now()+12000;toast('📕 You pull “Owl Secrets”… *click*. The whole bookshelf swings away from the wall!');return'open';}
   toast('📗 You pull out “'+LIB_BOOKS[k][0]+'”. It’s just a book. You put it back.');return LIB_BOOKS[k][0];
 }
-const LIB_SECRETS=['The Hidden Hollow is under the campfire. You have to jump in.','The lab’s map is loose. Owl owners only.','The owls don’t use their hatch any more. They walk behind a waterfall.','Level 2’s west wall has a loose panel, high up above the consoles.','Bazza is terrified of the Egg Annihilator.','Pemberton’s first name is Reginald. Don’t tell him we told you.','Captain Barnacle’s hoard only opens at night.','The kraken only comes out in storms.','Wear the dragon helm and the lava can’t touch you.'];
+const LIB_SECRETS=['The Hidden Hollow is under the campfire. You have to jump in.','The lab’s map is loose. Owl owners only.','The owls’ lab is under the Mini Isle. Its door is behind a waterfall.','Level 2’s west wall has a loose panel, high up above the consoles.','Bazza is terrified of the Egg Annihilator.','Pemberton’s first name is Reginald. Don’t tell him we told you.','Captain Barnacle’s hoard only opens at night.','The kraken only comes out in storms.','Wear the dragon helm and the lava can’t touch you.'];
 function libRead(){
   const now=new Date().toDateString();let sv=null;try{sv=localStorage.getItem('voxel-isle-library');}catch(e){}
   const t=LIB_SECRETS[Math.floor(Math.random()*LIB_SECRETS.length)];
@@ -16411,74 +16430,10 @@ function buildMiniIsle(){
     top.set(mx+','+mz,t);
     if(t>SEA+1&&t<SEA+10&&ihash(mx,mz,1201)>0.9){S(mx,t+1,mz,B.LOG);S(mx,t+2,mz,B.LEAVES);[[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){if(ihash(mx+o[0],mz+o[1],1202)>0.3)S(mx+o[0],t+2,mz+o[1],B.LEAVES);});S(mx,t+3,mz,B.LEAVES);}
   }
-  /* the Great Falls: a craggy rock massif on the highest ground, a wide curtain of water pouring off its seaward
-     face into a plunge pool, and a river from the pool down to the sea. Behind the curtain there's a hidden cave
-     with the owls' tube to their lab */
-  const landAt=function(x,z){const t=top.get(x+','+z);return t!==undefined&&t>SEA;};
-  let pk=null,pt=-1;
-  top.forEach(function(t,k){const q=k.split(',').map(Number);if(Math.hypot(q[0]-C[0],q[1]-C[1])>20)return;if(t>pt){pt=t;pk=q;}});
-  let dir=null;
-  if(pk){
-    let bestLen=1e9;
-    for(let d=0;d<4;d++){
-      const dx=DV[d][0],dz=DV[d][1];let ok=true;
-      for(let k=1;k<=13&&ok;k++)for(let w=-3;w<=3&&ok;w++)if(!landAt(pk[0]+dx*k-dz*w,pk[1]+dz*k+dx*w))ok=false;
-      if(!ok)continue;
-      let k=14;while(k<60&&landAt(pk[0]+dx*k,pk[1]+dz*k))k++;
-      if(k<bestLen){bestLen=k;dir=d;}
-    }
-  }
-  if(pk&&dir!==null){
-    const dx=DV[dir][0],dz=DV[dir][1],at=function(k,w){return[pk[0]+dx*k-dz*w,pk[1]+dz*k+dx*w];};
-    /* the ground in front of the falls, flattened for the pool and the ledges either side */
-    let g0=0;for(let k=7;k<=12;k++)for(let w=-4;w<=4;w++){const q=at(k,w);g0=Math.max(g0,top.get(q[0]+','+q[1]));}
-    g0=Math.max(SEA+2,Math.min(g0,pt));
-    const spire=Math.max(pt,g0)+16,lip=spire-3;
-    /* the massif */
-    for(let k=-7;k<=6;k++)for(let w=-7;w<=7;w++){
-      const r=Math.hypot(k,w);if(r>7.2)continue;
-      const q=at(k,w),h0=top.has(q[0]+','+q[1])?top.get(q[0]+','+q[1]):SEA-1;
-      let h=Math.max(h0,spire-Math.round(Math.max(0,r-2.5)*1.6+ihash(q[0],q[1],1211)*2.2));
-      if(k>=0&&Math.abs(w)<=3)h=Math.max(h,lip+(Math.abs(w)===3?1:0));
-      for(let y=1;y<=h;y++)S(q[0],y,q[1],y===h&&r>5?B.GRASS:(ihash(q[0],y*7+q[1],1213)>0.72?B.GRANITE:B.STONE));
-      top.set(q[0]+','+q[1],h);
-    }
-    /* level ground in front: ledges at g0, the pool sunk one below */
-    for(let k=7;k<=12;k++)for(let w=-4;w<=4;w++){
-      const q=at(k,w),pool=Math.abs(w)<=2&&k<=11;
-      for(let y=1;y<=g0;y++)S(q[0],y,q[1],y===g0?(pool?B.WATER:B.STONE):(y===g0-1&&pool?B.WATER:B.STONE));
-      if(pool)S(q[0],g0-2,q[1],B.GRAVEL);
-      for(let y=g0+1;y<=g0+6;y++)S(q[0],y,q[1],0);
-      top.set(q[0]+','+q[1],g0);
-    }
-    /* the cave behind the curtain, cut into the rock, with a lamp and the owls' tube at the back */
-    for(let k=3;k<=6;k++)for(let w=-2;w<=2;w++){const q=at(k,w);S(q[0],g0,q[1],B.BASALT);for(let y=g0+1;y<=g0+4;y++)S(q[0],y,q[1],0);}
-    {const q=at(3,0);S(q[0],g0+5,q[1],B.LAMP);const l=at(3,-2),r=at(3,2);S(l[0],g0+1,l[1],B.CRYSTAL);S(r[0],g0+1,r[1],B.CRYSTAL);}
-    /* the curtain: five wide, from the lip of the rock all the way down into the pool, fed by a spring on top */
-    for(let w=-2;w<=2;w++){
-      const q=at(7,w);for(let y=g0;y<=lip;y++)S(q[0],y,q[1],B.WATER);
-      for(let k=3;k<=6;k++){const c=at(k,w);if(top.get(c[0]+','+c[1])>=lip){for(let y=lip;y<=top.get(c[0]+','+c[1]);y++)S(c[0],y,c[1],y===lip?B.WATER:0);}}
-    }
-    /* the river: out of the pool and down to the sea, three wide, tumbling over every step */
-    let k=12,lastY=g0;
-    for(;k<120;k++){
-      let any=false;
-      for(let w=-1;w<=1;w++){
-        const q=at(k,w),t=top.has(q[0]+','+q[1])?top.get(q[0]+','+q[1]):SEA;
-        if(t>SEA)any=true;
-        const y=Math.min(lastY,Math.max(SEA,t));
-        for(let yy=y;yy<=Math.max(y,t);yy++)S(q[0],yy,q[1],yy===y?B.WATER:0);
-        if(y<lastY)for(let yy=y;yy<=lastY;yy++)S(q[0],yy,q[1],B.WATER);
-        if(w===0)lastY=Math.min(lastY,y);
-      }
-      if(!any)break;
-    }
-    MINI.peak={x:pk[0]+0.5,y:spire+1,z:pk[1]+0.5};
-    const cf=at(7,0);MINI.falls={x:cf[0]+0.5,y:g0,z:cf[1]+0.5,h:lip-g0,dir:dir};
-    const tb=at(4,0),cv=at(6,0);MINI.tube={x:tb[0]+0.5,y:g0+1,z:tb[1]+0.5};MINI.cave={x:cv[0]+0.5,y:g0+1,z:cv[1]+0.5};
-    const lg=at(9,3);MINI.ledge={x:lg[0]+0.5,y:g0+1,z:lg[1]+0.5};
-    MINI.stream=k-12;
-  }
+  /* the Great Falls are built over the lab's hatch once the lab is in (buildMiniFalls); here we just note how
+     high the grotto's floor will be: a little above the highest ground round the hatch */
+  MINI.top=top;MINI.C=C;
+  {let m=SEA+6;for(let dz=-13;dz<=13;dz++)for(let dx=-13;dx<=13;dx++){const t=top.get((Math.floor(LAB.hx)+dx)+','+(Math.floor(LAB.hz)+dz));if(t!==undefined&&Math.hypot(dx,dz)<=13)m=Math.max(m,t+1);}MINI.hs=Math.min(m,40);}
   /* where along a strip's edge the land is nearest, for its boardwalk */
   const miniBest=function(a,b,at,dx,dz){let best=a,bn=1e9;for(let v=a;v<=b;v++){let q=at(v),n=0;while(n<60){const t=top.get(q[0]+','+q[1]);if(t!==undefined&&t>=SEA)break;q=[q[0]+dx,q[1]+dz];n++;}if(n<bn){bn=n;best=v;}}return best;};
   /* the airstrip: on stilts over open sea on whichever side has room, with a boardwalk to the beach */
@@ -16866,6 +16821,83 @@ function makeBadger(){
   return{g:g,head:head};
 }
 
+/* ---------- the Great Falls over the owls' lab ----------
+   A great rock stands over the lab's hatch. A curtain of water fifteen blocks wide pours off its seaward face into a
+   plunge pool, with stone ledges either side and a river down to the sea. Behind the curtain is a domed grotto with
+   lamps round its walls, and the lab's iris hatch in its floor: owl owners walk along a ledge and through the edge of
+   the falls, the iris spirals open, and down they drop into the hangar. The spring pad fires them back up */
+function buildMiniFalls(){
+  if(!MINI.on||!MINI.top||MINI.hs===undefined)return;
+  const top=MINI.top,hs=MINI.hs,hx=LAB.hx,hz=LAB.hz,R=LAB.R;
+  const S=function(x,y,z,b){if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return;const i=(y*D+z)*W+x;vox[i]=b;wl[i]=b===B.WATER?WMAX:0;};
+  const landAt=function(x,z){const t=top.get(x+','+z);return t!==undefined&&t>SEA;};
+  /* face the falls towards the nearest shore that still has room for the pool */
+  let dir=0,best=-1e9;
+  for(let d=0;d<4;d++){
+    const dx=DV[d][0],dz=DV[d][1];let land=0;for(let k=11;k<=18;k++)if(landAt(Math.floor(hx+dx*k),Math.floor(hz+dz*k)))land++;
+    let k=19;while(k<80&&landAt(Math.floor(hx+dx*k),Math.floor(hz+dz*k)))k++;
+    const score=land*100-k;if(score>best){best=score;dir=d;}
+  }
+  const dx=DV[dir][0],dz=DV[dir][1],at=function(k,w){return[Math.floor(hx+dx*k-dz*w),Math.floor(hz+dz*k+dx*w)];};
+  const spire=Math.min(H-6,hs+20),lip=spire-4;
+  /* the rock */
+  for(let k=-14;k<=14;k++)for(let w=-14;w<=14;w++){
+    const r=Math.hypot(k,w);if(r>14.2)continue;if(k>=10&&Math.abs(w)<=11)continue;
+    const q=at(k,w),key=q[0]+','+q[1],h0=top.has(key)?top.get(key):SEA-1;
+    let h=spire-Math.round(Math.max(0,r-5)*1.3+ihash(q[0],q[1],1221)*2);
+    if(k>=5&&Math.abs(w)<=9)h=Math.max(h,lip+(Math.abs(w)>=8?1:0));
+    h=Math.max(h,h0);
+    for(let y=Math.max(1,h0+1);y<=h;y++)S(q[0],y,q[1],y===h&&r>11?B.GRASS:(ihash(q[0],y*7+q[1],1223)>0.72?B.GRANITE:B.STONE));
+    top.set(key,h);
+  }
+  /* level ground in front: ledges either side of a plunge pool */
+  for(let k=10;k<=18;k++)for(let w=-11;w<=11;w++){
+    const q=at(k,w),pool=Math.abs(w)<=7&&k<=16;
+    for(let y=1;y<hs;y++)S(q[0],y,q[1],y===hs-1&&pool?B.WATER:(y===hs-2&&pool?B.GRAVEL:B.STONE));
+    for(let y=hs;y<=hs+12;y++)S(q[0],y,q[1],0);
+    top.set(q[0]+','+q[1],hs-1);
+  }
+  /* the grotto: a dome behind the curtain, its mouth open to the falls, lamps round the walls */
+  for(let k=-11;k<=10;k++)for(let w=-11;w<=11;w++){
+    const r=Math.hypot(k,w),q=at(k,w),mouth=k>=5&&k<10&&Math.abs(w)<=7;
+    if(r<=9.5||mouth){
+      const ht=mouth&&r>9.5?hs+5:hs+6-Math.floor(Math.pow(Math.min(1,r/9.5),2)*3);
+      for(let y=hs;y<=ht;y++)S(q[0],y,q[1],0);
+      if(Math.hypot(q[0]+0.5-hx,q[1]+0.5-hz)>=R)S(q[0],hs-1,q[1],(Math.round(r)%3===0&&r<9)?B.LAMP:B.BASALT);
+    }
+  }
+  for(let a=0;a<8;a++){const an=a/8*Math.PI*2;if(Math.cos(an)>0.55)continue;const q=at(Math.round(Math.cos(an)*10.4),Math.round(Math.sin(an)*10.4));S(q[0],hs+3,q[1],a%2?B.CRYSTAL:B.LAMP);}
+  /* the curtain, fed by a channel along the top of the rock */
+  for(let w=-7;w<=7;w++){
+    const q=at(10,w);for(let y=hs-1;y<=lip;y++)S(q[0],y,q[1],B.WATER);
+    for(let k=5;k<=9;k++){const c=at(k,w);S(c[0],lip,c[1],B.WATER);for(let y=lip+1;y<=spire+2;y++)S(c[0],y,c[1],0);}
+  }
+  /* the shaft down to the hangar, cut back through the rock */
+  for(let y=LAB.y1;y<hs;y++)for(let z=Math.floor(hz-R-2);z<=hz+R+2;z++)for(let x=Math.floor(hx-R-2);x<=hx+R+2;x++){
+    const d=Math.hypot(x+0.5-hx,z+0.5-hz);
+    if(d<R)S(x,y,z,0);else if(d<R+1&&y<hs-1)S(x,y,z,B.BASALT);
+  }
+  /* the river: out of the pool and down to the sea, three wide */
+  let k=17,lastY=hs-1;
+  for(;k<120;k++){
+    let any=false;
+    for(let w=-1;w<=1;w++){
+      const q=at(k,w),t=top.has(q[0]+','+q[1])?top.get(q[0]+','+q[1]):SEA;
+      if(t>SEA)any=true;
+      const y=Math.min(lastY,Math.max(SEA,t));
+      for(let yy=y;yy<=Math.max(y,t);yy++)S(q[0],yy,q[1],yy===y?B.WATER:0);
+      if(y<lastY)for(let yy=y;yy<=lastY;yy++)S(q[0],yy,q[1],B.WATER);
+      if(w===0)lastY=Math.min(lastY,y);
+    }
+    if(!any)break;
+  }
+  const cf=at(10,0),lg=at(12,9);
+  MINI.falls={x:cf[0]+0.5,y:hs,z:cf[1]+0.5,h:lip-hs,dir:dir};
+  MINI.grotto={x:hx,y:hs,z:hz};
+  MINI.ledge={x:lg[0]+0.5,y:hs,z:lg[1]+0.5};
+  MINI.peak={x:hx,y:spire+1,z:hz};
+  MINI.stream=k-17;
+}
 /* ---------- the owl tube ----------
    The way into the owls' lab is hidden behind the Mini Isle's waterfall: walk along the ledge and through the
    falling water into the cave, and step on the tube at the back. Owl owners (and anyone with the base
