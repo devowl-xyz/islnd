@@ -1758,6 +1758,24 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('Digit5'); await wait(200);
   }
   {
+  // ----- the rope -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 10 }); });
+  check('a rope is crafted from wood at the crafting table', await a.evaluate(() => window.__isle.gear.craft('rope')) && (await a.evaluate(() => window.__isle.gear.state())).held === 'rope');
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => { window.__isle.player.yaw = 0; window.__isle.cmd('/spawn Rocky'); }); await wait(800);
+  await a.keyboard.press('Digit0'); await wait(200);
+  if ((await a.evaluate(() => window.__isle.gear.state())).inHand !== 'rope') { await a.keyboard.press('Digit0'); await wait(200); }
+  check('hold the rope and right click a dummy to tie it on', await a.evaluate(() => window.__isle.rope.use()) && (await a.evaluate(() => window.__isle.rope.list())).length === 1);
+  await a.evaluate(() => { const P = window.__isle.player; P.x += 12; }); await wait(1500);
+  const dd = await a.evaluate(() => { const d = window.__isle.gear.dummyHp().find((q) => q.name === 'Rocky'), P = window.__isle.player; return Math.hypot(d.x - P.x, d.z - P.z); });
+  check('walk away and it’s pulled along behind you', dd <= 4.2, dd);
+  await a.evaluate(() => { window.__isle.player.yaw += Math.PI / 2; });
+  check('right click again (with nobody in front) to untie', await a.evaluate(() => window.__isle.rope.use()) && (await a.evaluate(() => window.__isle.rope.list())).length === 0);
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  await a.keyboard.press('Digit5'); await wait(200);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());

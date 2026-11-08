@@ -95,6 +95,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and a spark sword (5 hearts) knocks them out in one go', await guest.evaluate(() => window.__isle.death.on() && /Hana got you with a spark sword/.test(window.__isle.death.cause())), await guest.evaluate(() => [window.__isle.food.hp(), window.__isle.death.cause()]));
   await guest.evaluate(() => window.__isle.death.respawn()); await wait(300);
   await host.keyboard.press('Digit5'); await wait(200);
+  // the rope: pull someone along, they can untie themselves; /tie yourself to someone
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4 }); I.gear.craft('rope'); });
+  if ((await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'rope') { await host.keyboard.press('Digit0'); await wait(200); }
+  if ((await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'rope') { await host.keyboard.press('Digit0'); await wait(200); }
+  await guest.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 92.5; });
+  await host.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 94.5; P.yaw = 0; });
+  await host.waitForFunction(() => [...window.__isle.net.peers.values()].some((p) => p.cur && Math.hypot(p.cur.x - 82.5, p.cur.z - 92.5) < 0.5), null, { timeout: 20000 }).catch(() => {});
+  check('hold a rope and right click someone to tie them to you', await host.evaluate(() => window.__isle.rope.use()));
+  await guest.waitForFunction(() => window.__isle.rope.tied(), null, { timeout: 20000 }).catch(() => {});
+  check('they’re tied on (and everyone sees the rope)', await guest.evaluate(() => window.__isle.rope.tied()) && (await host.evaluate(() => window.__isle.rope.list())).length === 1);
+  await host.evaluate(() => { const P = window.__isle.player; P.x = 70.5; P.z = 94.5; });
+  await guest.waitForFunction(() => Math.hypot(window.__isle.player.x - 70.5, window.__isle.player.z - 94.5) < 4.5, null, { timeout: 30000 }).catch(() => {});
+  check('walk off and they’re pulled along behind you', await guest.evaluate(() => Math.hypot(window.__isle.player.x - 70.5, window.__isle.player.z - 94.5) < 4.5), await guest.evaluate(() => [window.__isle.player.x, window.__isle.player.z]));
+  await guest.evaluate(() => window.__isle.toggleBoard());
+  await host.waitForFunction(() => window.__isle.rope.list().length === 0, null, { timeout: 20000 }).catch(() => {});
+  check('they can press E to untie themselves', !(await guest.evaluate(() => window.__isle.rope.tied())) && (await host.evaluate(() => window.__isle.rope.list())).length === 0);
+  check('/tie Hana ties yourself to her instead', await guest.evaluate(() => window.__isle.cmd('/tie Hana')));
+  await guest.waitForFunction(() => window.__isle.rope.tied(), null, { timeout: 20000 }).catch(() => {});
+  await host.evaluate(() => { const P = window.__isle.player; P.x = 70.5; P.z = 104.5; });
+  await guest.waitForFunction(() => Math.hypot(window.__isle.player.x - 70.5, window.__isle.player.z - 104.5) < 4.5, null, { timeout: 30000 }).catch(() => {});
+  check('and she pulls you along', await guest.evaluate(() => Math.hypot(window.__isle.player.x - 70.5, window.__isle.player.z - 104.5) < 4.5));
+  check('/untie gets you free', await guest.evaluate(() => window.__isle.cmd('/untie')));
+  await host.keyboard.press('Digit5'); await wait(200);
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
   const hc = await host.evaluate(() => window.__isle.shop.coins()), gc = await guest.evaluate(() => window.__isle.shop.coins());

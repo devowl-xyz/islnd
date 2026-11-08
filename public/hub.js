@@ -341,6 +341,7 @@ function leave(peer) {
   if (room.skis && room.skis.some((q) => q.rider === peer.id)) { room.skis.forEach((q) => { if (q.rider === peer.id) q.rider = null; }); skisNews(room); }
   if (room.bikes && room.bikes.some((b) => b.rider === peer.id)) { room.bikes.forEach((b) => { if (b.rider === peer.id) b.rider = null; }); bikesNews(room); }
   if (room.ctf && (room.ctf.carrier.red === peer.id || room.ctf.carrier.blue === peer.id)) { ['red', 'blue'].forEach((f) => { if (room.ctf.carrier[f] === peer.id) room.ctf.carrier[f] = null; }); ctfNews(room, { act: 'left', by: peer.id }); }
+  if (room.ropes && room.ropes.some((r) => r.a === peer.id || r.b === peer.id)) { room.ropes = room.ropes.filter((r) => r.a !== peer.id && r.b !== peer.id); broadcast(room, { t: 'ropes', list: room.ropes }); }
   if (room.locks && room.locks.some((o) => o.owner === peer.id)) { room.locks = room.locks.filter((o) => o.owner !== peer.id); locksNews(room, { act: 'left' }); }
   if (room.heli) {
     const h = room.heli, k = h.captives.indexOf(peer.id);
@@ -533,6 +534,20 @@ function handle(peer, msg) {
       const n = kind === 'coins' ? Math.floor(Number(msg.n)) : 0;
       if (kind === 'coins' && !(n > 0 && n <= 100000)) return;
       send(target.ws, { t: 'gift', from: peer.id, name: peer.name, kind, n, v: kind === 'hat' ? String(msg.v || '').slice(0, 12) : (kind === 'glow' ? Math.floor(Number(msg.v)) || 0 : undefined) });
+      return;
+    }
+    // ropes: tie two players together (one pulls the other). Either end can untie; tying needs them close by
+    case 'tie': {
+      if (!room) return;
+      const A = room.peers.get(msg.a), B = room.peers.get(msg.b);
+      if (!A || !B || A === B || (peer !== A && peer !== B)) return;
+      room.ropes = (room.ropes || []).filter((r) => !((r.a === A.id && r.b === B.id) || (r.a === B.id && r.b === A.id)));
+      if (msg.on) {
+        if (!A.pos || !B.pos || Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z) > 9) return;
+        if (room.ropes.length >= 32) return;
+        room.ropes.push({ a: A.id, b: B.id });
+      }
+      broadcast(room, { t: 'ropes', list: room.ropes });
       return;
     }
     // a sword hit: only on someone close by, and not too often
