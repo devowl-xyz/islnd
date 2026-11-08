@@ -1593,6 +1593,32 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- Coco the chimpanzee -----
+  const chh = await a.evaluate(() => window.__isle.pets.home.chimp);
+  check('Coco the chimp lives in the Mini Isle’s woods', !!chh && (await a.evaluate((h) => window.__isle.get(Math.floor(h.x), Math.floor(h.y) - 1, Math.floor(h.z)), chh)) !== 0, chh);
+  await a.evaluate((h) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = h.x + 1.2; P.y = h.y; P.z = h.z; }, chh); await wait(1500);
+  check('you can walk up to her', (await a.evaluate(() => window.__isle.pets.near())) === 'chimp', await a.evaluate(() => window.__isle.pets.near()));
+  await a.evaluate(() => window.__isle.pets.adopt('chimp')); await wait(1500);
+  check('and adopt her: she follows you', (await a.evaluate(() => window.__isle.pets.follower() && window.__isle.pets.follower().id)) === 'chimp');
+  // a tall wall on the meadow; T, then walk into it
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 21; y++) for (let x = 78; x <= 82; x++) I.setBlock(x, y, 89, 3); });
+  await put(a, 80.5, 13, 91.5, 0); await wait(800);
+  await a.keyboard.down('KeyW'); await wait(2500); await a.keyboard.up('KeyW');
+  const y0 = await a.evaluate(() => window.__isle.player.y);
+  check('without Coco’s climb a wall stops you', y0 < 15, y0);
+  await put(a, 80.5, 13, 91.5, 0); await wait(500);
+  await a.evaluate(() => window.__isle.power.T());
+  let peak = 0;
+  await a.keyboard.down('KeyW');
+  for (let i = 0; i < 40; i++) { await wait(400); const s = await a.evaluate(() => ({ y: window.__isle.player.y })); if (s.y > peak) peak = s.y; if (peak > 22) break; }
+  await a.keyboard.up('KeyW');
+  check('T is Coco’s climb: you walk straight up the wall and over the top', peak > 21.5, peak);
+  if (await a.evaluate(() => !!window.__isle.player.climb)) await a.evaluate(() => window.__isle.power.T());
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 21; y++) for (let x = 78; x <= 82; x++) I.setBlock(x, y, 89, 0); });
+  await a.evaluate(() => window.__isle.pets.sendHome());
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());

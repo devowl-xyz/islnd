@@ -214,7 +214,7 @@ const SKIN_STYLES = {
   headWrap: ['front', 'all'],
   rodStyle: ['pillars', 'swirl', 'tendrils', 'legs'],
   effect: ['none', 'embers', 'wind', 'bubbles', 'sparkles', 'smoke'],
-  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky', 'goat', 'axel', 'fox'],
+  pet: ['none', 'hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky', 'goat', 'axel', 'fox', 'chimp'],
   petHatStyle: ['none', 'top', 'party', 'crown', 'bow', 'beanie', 'witch', 'santa', 'sparkler'], petCollarStyle: ['none', 'plain', 'bell', 'bandana', 'robe'], petSaddleStyle: ['none', 'plain', 'fancy']
 };
 const HEX6 = /^#[0-9a-f]{6}$/i, PX256 = /^[0-9a-f]{256}$/;
@@ -248,7 +248,7 @@ function heliState(room) { const h = room.heli; return { x: h.x, y: h.y, z: h.z,
 /* test dummies: spawned by the host and admins with /spawn, everyone sees the same ones */
 const DUMMY_MAX = 12;
 function dummyList(room) { return room.dummies.map((d) => ({ id: d.id, name: d.name, x: d.x, y: d.y, z: d.z, yaw: d.yaw })); }
-const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky', 'goat', 'axel', 'fox'];
+const HELI_PETS = ['hoot', 'snowy', 'goldie', 'biscuit', 'mochi', 'cinder', 'horse', 'slinky', 'goat', 'axel', 'fox', 'chimp'];
 function heliNews(room, extra) { broadcast(room, Object.assign({ t: 'heli' }, heliState(room), extra)); }
 function send(ws, msg) {
   if (ws.readyState === 1) ws.send(JSON.stringify(msg));

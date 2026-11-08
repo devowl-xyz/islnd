@@ -602,6 +602,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Slinky</dt><dd>Big black snake with wings. Flies beside you.</dd>
         <dt>Your house</dt><dd>Owners can break any block of their home.</dd>
         <dt>Rusty the fox</dt><dd>On the Mini Isle. T to pounce.</dd>
+        <dt>Coco the chimp</dt><dd>Mini Isle woods. T, then walk up walls.</dd>
         <dt>Island Shuttle</dt><dd>Biplane. North Shore to the Mini Isle. E to board.</dd>
         <dt>Owl Hopper</dt><dd>Owls only. Mini Isle, Sky Palace, Owl Island. F to fly it.</dd>
         <dt>Owl Island</dt><dd>E by the stork for a sabotage job.</dd>
@@ -3614,6 +3615,12 @@ function update(dt){
     /* on horseback you hop up two-block steps too */
     else if(P.ride&&!boxHits(ax,P.y+2.05,az))P.vy=11.6;
   }
+  /* Coco's climb: walking into a wall takes you straight up it */
+  if(P.climb){
+    P.climb-=dt;
+    if(P.climb<=0){P.climb=0;toast('🐒 Coco’s tired of climbing.');}
+    else if(hitH&&!fl&&!swim&&il>0.1&&!P.ride){P.vy=Math.max(P.vy,5.5);P.climbing=performance.now()+150;}
+  }
   lastHitH=hitH;
   moveAxis('y',P.vy*dt);
   if(P.lift&&P.lift.phase==='glide'&&(P.onGround||swim)){const n=PETS[mySkin.pet]?PETS[mySkin.pet].name:'The owl';const dr=P.lift.kind==='dragon';P.lift=null;toast(dr?'Cinder lands with a thump.':n+' sets you down.');}
@@ -3622,6 +3629,7 @@ function update(dt){
   thTick();
   mode=P.dash&&dash?'Swimming with Goldie':P.lift?(P.lift.kind==='dragon'?(P.lift.phase==='up'?'Flying on Cinder':'Cinder is landing'):PETS[mySkin.pet].name+(P.lift.phase==='up'?' is carrying you':' is letting you down')):P.fly?'Flying':(P.ride?(swim?'Clover is swimming':(sprintKey&&il>0?'Galloping':'Riding Clover')):(swim?'Swimming':(sprintKey&&il>0?'Sprinting':'Walking')));
   if(P.chute)mode='Parachuting';
+  else if(P.climbing&&performance.now()<P.climbing)mode='Climbing with Coco';
   else if(P.bike!==null)mode='Cycling';
   else if(P.sliding)mode='Sliding';
   else if(P.skis&&!fl&&!swim)mode='Skiing';
@@ -4271,7 +4279,7 @@ const SKIN_STYLES={
   headWrap:['front','all'],
   rodStyle:['pillars','swirl','tendrils','legs'],
   effect:['none','embers','wind','bubbles','sparkles','smoke'],
-  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox'],
+  pet:['none','hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox','chimp'],
   petHatStyle:['none','top','party','crown','bow','beanie','witch','santa','sparkler'],petCollarStyle:['none','plain','bell','bandana','robe'],petSaddleStyle:['none','plain','fancy']
 };
 const STYLE_NAMES={witch:'Witch hat',santa:'Santa hat',sparkler:'Sparkler',robe:'Bathrobe',flame:'Flame hat',dragon:'Dragon helm',short:'Short',long:'Long',none:'None',eyes:'Eyes',smile:'Smile',visor:'Visor',cap:'Cap',beanie:'Beanie',crown:'Crown',
@@ -6515,7 +6523,7 @@ function heliLoad(){
     if(s&&[s.x,s.y,s.z,s.h].every(isFinite)){heli.x=s.x;heli.y=s.y;heli.z=s.z;heli.h=s.h;}
     if(s&&s.bridge&&[s.bridge.x,s.bridge.y,s.bridge.z,s.bridge.h].every(isFinite))heli.bridge=s.bridge;
     /* (this runs before the pet list further down exists, so the names are spelled out here) */
-    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox'].indexOf(id)>=0;}):[];
+    heli.pets=s&&Array.isArray(s.pets)?s.pets.filter(function(id){return['hoot','snowy','goldie','biscuit','mochi','cinder','horse','slinky','goat','axel','fox','chimp'].indexOf(id)>=0;}):[];
     heli.skis=s&&Array.isArray(s.skis)?s.skis.filter(function(k,i,a){return Number.isInteger(k)&&k>=0&&k<5&&a.indexOf(k)===i;}):[];
   }catch(e){heli.pets=[];heli.skis=[];}
   heli.pilot=null;heli.seat=false;heli.rope=0;heli.down=false;heli.captives=[];heli.dummies=[];heli.remote=null;heli.vx=heli.vy=heli.vz=0;
@@ -7127,13 +7135,15 @@ const PETS={
   slinky:{name:'Slinky',kind:'snake',col:'#1c1c22',move:'air',off:[-1.4,1.6,0.9],scale:2.2},
   goat:{name:'Gruff',kind:'goat',col:'#eeeae0',move:'ground',off:[1.0,0,1.0],scale:1.2},
   axel:{name:'Axel',kind:'axolotl',col:'#f6a6c0',move:'float',off:[-0.9,1.25,0.4],scale:1.6},
-  fox:{name:'Rusty',kind:'fox',col:'#e8742a',move:'ground',off:[-1.0,0,1.0],scale:1.25}
+  fox:{name:'Rusty',kind:'fox',col:'#e8742a',move:'ground',off:[-1.0,0,1.0],scale:1.25},
+  chimp:{name:'Coco',kind:'chimp',col:'#3a2a22',move:'ground',off:[1.1,0,1.0],scale:1.35}
 };
 const PET_IDS=Object.keys(PETS);
 function petHint(id){
   if(palace.pets.has(id)&&PAL_SPOT[id])return'Visiting the Sky Palace.';
   if(id==='goat')return'On the highest southern peak.';
   if(id==='fox')return'On the Mini Isle, by the shuttle’s airstrip.';
+  if(id==='chimp')return'In the Mini Isle’s woods, under an oak by the path.';
   if(id==='axel')return'Somewhere under the sea…';
   if(id==='slinky')return'Under the treehouse roots.';
   if(id==='hoot'||id==='snowy')return'On the treehouse roof.';
@@ -7374,6 +7384,37 @@ function makePetModel(id,food){
     const t1=sph(tail,1,0.07,0.07,0.17,fur,0,0.02,0.13);t1.rotation.x=-0.5;
     const t2=sph(tail,1,0.085,0.085,0.12,fur2,0,0.08,0.25);t2.rotation.x=-0.6;
     sph(tail,1,0.06,0.06,0.07,cream,0,0.12,0.34);
+  }else if(d.kind==='chimp'){
+    /* Coco: a chimpanzee, knuckle-walking on long arms, with dark brown fur, a pale face, big ears, a heavy brow,
+       a pushed-out muzzle and brown eyes */
+    const fur=lam(0x2e221c),fur2=lam(0x3d2e25),skin=lam(0xd2a882),skin2=lam(0xb98c68),nose=lam(0x3a2620),iris=lam(0x6a3c1c);
+    P.arms=[];
+    const torso=sph(body,1,0.15,0.2,0.14,fur,0,0.42,0.02);torso.rotation.x=-0.35;
+    sph(body,1,0.1,0.13,0.07,fur2,0,0.4,-0.09).rotation.x=-0.35;
+    sph(body,1,0.13,0.1,0.12,fur,0,0.28,0.09);
+    [-1,1].forEach(function(sd){
+      const l=piv(body,sd*0.085,0.27,0.11);
+      cyl(l,0.05,0.16,fur,0,0,0,0.04);
+      sph(l,1,0.045,0.03,0.07,skin2,0,-0.2,-0.03);
+      P.legs.push([l,sd]);
+      const a=piv(body,sd*0.16,0.55,-0.06);
+      cyl(a,0.045,0.27,fur,0,0,0,0.04);
+      cyl(a,0.04,0.24,fur,0,-0.26,0,0.035);
+      sph(a,1,0.04,0.035,0.05,skin2,0,-0.52,-0.01);
+      P.arms.push([a,sd]);
+    });
+    const head=piv(body,0,0.68,-0.1);P.head=head;
+    sph(head,1,0.11,0.105,0.1,fur,0,0,0);
+    sph(head,1,0.085,0.08,0.05,skin,0,-0.01,-0.065);
+    sph(head,1,0.09,0.025,0.045,fur,0,0.035,-0.085);
+    sph(head,1,0.068,0.05,0.06,skin,0,-0.048,-0.1);
+    sph(head,1,0.05,0.012,0.02,nose,0,-0.075,-0.15);
+    [-1,1].forEach(function(sd){
+      sph(head,0.009,1,0.7,1,nose,sd*0.016,-0.03,-0.155);
+      eye(head,sd*0.035,0.008,-0.105,0.016,iris,false);
+      sph(head,1,0.04,0.05,0.016,skin,sd*0.112,0.005,-0.01);
+      sph(head,1,0.025,0.032,0.01,skin2,sd*0.118,0.005,-0.016);
+    });
   }else if(d.kind==='axolotl'){
     /* a pink axolotl: a wide smiley head with three feathery gills on each side, little legs and a long finned tail */
     const pk=lam(0xf6a6c0),pk2=lam(0xf28aa8),gill=lam(0xe0507a),eyeM=lam(0x1d1d22),fin=lam(0xf8c0d0,{transparent:true,opacity:0.85,side:THREE.DoubleSide});
@@ -7521,6 +7562,12 @@ function animatePet(P,dt,moving,flying,home,wet){
     P.tail.rotation.y=Math.sin(t*(moving?9:1.6))*(moving?0.25:0.4);P.tail.rotation.x=moving?-0.15:0.1;
     P.head.rotation.y=moving?0:Math.sin(t*0.7)*0.35;P.head.rotation.x=moving?0.08:(Math.sin(t*0.5)>0.7?-0.25:0);
     P.body.position.y=(moving?Math.abs(Math.sin(t*15))*0.02:0)+(wet?-0.15:0);
+  }else if(d.kind==='chimp'){
+    const sw=moving?Math.sin(t*9)*0.55:0;
+    P.legs.forEach(function(l){l[0].rotation.x=sw*l[1];});
+    P.arms.forEach(function(a){a[0].rotation.x=moving?-sw*a[1]:Math.sin(t*1.3+a[1])*0.06;a[0].rotation.z=a[1]*0.08;});
+    P.head.rotation.y=moving?0:Math.sin(t*0.6)*0.45;P.head.rotation.z=moving?0:(Math.sin(t*0.37)>0.75?0.25:0);
+    P.body.position.y=(moving?Math.abs(Math.sin(t*9))*0.03:Math.sin(t*1.5)*0.005)+(wet?-0.15:0);
   }else if(d.kind==='axolotl'){
     P.wings.forEach(function(w,k){w[0].rotation.x=Math.sin(t*3+k)*0.25;});
     P.tail.rotation.y=Math.sin(t*(moving?10:3))*0.45;
@@ -8901,6 +8948,7 @@ function petPowerInner(){
   if(mySkin.pet==='cinder'){if(P.lift){if(P.lift.phase==='up')letGo(false);return true;}return startDragon();}
   if(mySkin.pet==='goat')return goatLeap();
   if(mySkin.pet==='fox')return foxPounce();
+  if(mySkin.pet==='chimp')return chimpClimb();
   if(mySkin.pet==='axel'){hp=HP_MAX;renderHearts();toast('🦎 Axel wiggles its gills at you. Axolotls can regrow anything: your hearts are full.');return true;}
   if(isOwlOwner()){if(P.lift){if(P.lift.phase==='up')letGo(false);return true;}return startLift();}
   if(canFood())return togglePetFood();
@@ -14082,6 +14130,14 @@ function foxPounce(){
   P.fly=false;P.vy=9*k;P.vx=fx*16*k;P.vz=fz*16*k;P.pounce=performance.now()+3000;P.pounceAir=false;
   toast('🦊 Pounce! Rusty leaps and you go with him.');return true;
 }
+/* ---------- Coco the chimpanzee ----------
+   A chimp who lives under an oak in the Mini Isle's woods. T is Coco's climb: for 20 seconds (longer as Coco
+   levels up) walk into any wall and you climb straight up it, like a ladder. T again stops */
+function chimpClimb(){
+  if(P.climb){P.climb=0;toast('🐒 Coco hops down. No more climbing for now.');return true;}
+  P.climb=20*(1+0.1*(petLevel('chimp')-1));
+  toast('🐒 Coco shows you how to climb! Walk into any wall to go straight up it.');return true;
+}
 /* ---------- Gruff the mountain goat ----------
    A shaggy white goat with curly horns and a beard, on the highest peak in the south. T makes Gruff leap:
    a huge bounding jump (great for climbing). */
@@ -17060,6 +17116,7 @@ function buildMiniDecor(){
     }
   }
   const free=function(x,z,r){for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){if(pathSet.has((x+dx)+','+(z+dz)))return false;const t=T(x+dx,z+dz);if(G(x+dx,t+1,z+dz)!==0)return false;}return!nearFalls(x,z)&&!nearFox(x,z);};
+  const oaks=[],C0=MINI.C||[MINI.cx,MINI.cz];
   const placed=[],spaced=function(x,z,r){for(const p of placed)if(Math.hypot(p[0]-x,p[1]-z)<r)return false;return true;};
   /* palms on the beach, leaning out */
   keys.forEach(function(c){
@@ -17085,12 +17142,25 @@ function buildMiniDecor(){
       }}
     if(pink){for(let k=0;k<7;k++){const a=ihash(x,z,1340+k)*Math.PI*2,r=1+ihash(z,x,1350+k)*2.5,px=Math.round(x+Math.cos(a)*r),pz=Math.round(z+Math.sin(a)*r),tt=T(px,pz);
       if(G(px,tt,pz)===B.GRASS&&G(px,tt+1,pz)===0&&!pathSet.has(px+','+pz))S(px,tt+1,pz,B.CARPET+7);}dec.blossom++;}
-    placed.push([x,z]);dec.trees++;
+    placed.push([x,z]);dec.trees++;if(!pink)oaks.push([x,t,z]);
   });
+  /* Coco the chimp's spot: beside the oak nearest the middle of the path, well away from Rusty */
+  {
+    const mid=MINI.path&&MINI.path.route?MINI.path.route[Math.floor(MINI.path.route.length/2)]:[C0[0],C0[1]];let best=null,bd=1e9;
+    oaks.forEach(function(o){
+      for(const d of DV){const x=o[0]+d[0]*2,z=o[2]+d[1]*2,t=T(x,z),y=surf(x,z);
+        if(y!==t||G(x,y,z)===B.WATER||G(x,y+1,z)!==0||G(x,y+2,z)!==0||nearFox(x,z)||(fox&&Math.hypot(x-fox.x,z-fox.z)<12))continue;
+        const dd=Math.hypot(x-mid[0],z-mid[1]);if(dd<bd){bd=dd;best={x:x+0.5,y:y+1,z:z+0.5,yaw:Math.atan2(d[0],d[1])};}}
+    });
+    if(best)PET_HOME.chimp=best;else if(fox)PET_HOME.chimp={x:fox.x+3,y:fox.y,z:fox.z,yaw:0};
+  }
   /* coral in the shallows round the coast */
   const C=MINI.C||[MINI.cx,MINI.cz];
   for(let z=C[1]-48;z<=C[1]+48;z++)for(let x=C[0]-48;x<=C[0]+48;x++){
     if(top.has(x+','+z)||ihash(x,z,1361)>0.12)continue;
+    /* not over Atlantis, and not where a pet lives in the water (Goldie) */
+    if(x>=AT.x0-4&&x<=AT.x1+4&&z>=AT.z0-4&&z<=AT.z1+4)continue;
+    if(Object.keys(PET_HOME).some(function(id){const h=PET_HOME[id];return h&&h.swim&&Math.hypot(h.x-x-0.5,h.z-z-0.5)<4;}))continue;
     let near=false;for(let dz=-3;dz<=3&&!near;dz++)for(let dx=-3;dx<=3&&!near;dx++){const t=top.get((x+dx)+','+(z+dz));if(t!==undefined&&t>=SEA)near=true;}
     if(!near)continue;
     let y=SEA;while(y>1&&G(x,y,z)===B.WATER)y--;if(SEA-y<4)continue;
