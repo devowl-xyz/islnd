@@ -134,17 +134,18 @@ const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, 
 const UNH = { x0: 50, x1: 72, z0: 100, z1: 116, y0: 2, y1: 11, sx0: 61, sx1: 62, sz0: 91, top: 14 };
 // the sky course's floating platforms over the meadow (same numbers as public/index.html): nobody can change them
 const COURSE = (() => { const a = []; for (let r = 0; r < 4; r++) { const z = 84 + 8 * r, y = 42 + r; for (let k = 0; k < 10; k++) a.push({ x: r % 2 ? 98 - 4 * k : 62 + 4 * k, y, z, s: 1 }); if (r < 3) a.push({ x: r % 2 ? 62 : 98, y, z: z + 4, s: 1 }); } return a; })();
-function thCell(x, y, z, L) {
+// own: a house's frame counts as its owners' (they may change any block of their own house) instead of 'base'
+function thCell(x, y, z, L, own) {
   L = L || LAYOUTS.spread;
   const TH = L.TH, TH_ROOMS = L.TH_ROOMS, COT = L.COT, COT_ROOMS = L.COT_ROOMS;
-  if (x >= PADDOCK.x0 && x <= PADDOCK.x1 && z >= PADDOCK.z0 && z <= PADDOCK.z1 && y >= PADDOCK.G - 1 && y <= PADDOCK.G + 5) return 'base';
+  if (x >= PADDOCK.x0 && x <= PADDOCK.x1 && z >= PADDOCK.z0 && z <= PADDOCK.z1 && y >= PADDOCK.G - 1 && y <= PADDOCK.G + 5) return own ? 'horse' : 'base';
   if (x >= CAMP.x0 && x <= CAMP.x1 && z >= CAMP.z0 && z <= CAMP.z1 && y >= CAMP.G - 1 && y <= CAMP.G + 4) return 'base';
-  if (x >= DEN.x0 && x <= DEN.x1 && z >= DEN.z0 && z <= DEN.z1 && y >= DEN.y0 && y <= DEN.y1) return denInside(x, y, z) ? 'cinder' : 'base';
+  if (x >= DEN.x0 && x <= DEN.x1 && z >= DEN.z0 && z <= DEN.z1 && y >= DEN.y0 && y <= DEN.y1) return denInside(x, y, z) || own ? 'cinder' : 'base';
   if (x >= COT.x0 && x <= COT.x1 && z >= COT.z0 && z <= COT.z1 && y >= COT.y0 && y <= COT.y1) {
     for (const r of COT_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
-    return 'base';
+    return own ? 'cottage' : 'base';
   }
-  if (x >= AT.x0 && x <= AT.x1 && z >= AT.z0 && z <= AT.z1 && y >= AT.y0 && y <= AT.y1) return atInside(x, y, z) ? 'goldie' : 'base';
+  if (x >= AT.x0 && x <= AT.x1 && z >= AT.z0 && z <= AT.z1 && y >= AT.y0 && y <= AT.y1) return atInside(x, y, z) || own ? 'goldie' : 'base';
   const inB = (o) => x >= o.x0 && x <= o.x1 && z >= o.z0 && z <= o.z1 && y >= o.y0 && y <= o.y1;
   if (inB(L.PAL)) return inB(L.PAL_HALL) ? 'shared' : 'base';
   if (L.OD.some(inB)) return 'base';
@@ -152,16 +153,16 @@ function thCell(x, y, z, L) {
   if (AIR.some(inB)) return 'base';
   if (L.CABLE.some(inB)) return 'base';
   // the owls' secret lab: the shell is fixed, owl owners may build inside
-  if (inB(LAB)) return LAB.inside.some(inB) ? 'shared' : 'base';
+  if (inB(LAB)) return LAB.inside.some(inB) || own ? 'shared' : 'base';
   if (y >= LAB.y1 && y <= 45 && Math.hypot(x + 0.5 - LAB.hx, z + 0.5 - LAB.hz) < LAB.R + 1) return 'base';
   if (COURSE.some((p) => y === p.y && Math.abs(x - p.x) <= p.s && Math.abs(z - p.z) <= p.s)) return 'base';
   if (inB(UNH) || (x >= UNH.sx0 - 1 && x <= UNH.sx1 + 1 && z >= UNH.sz0 && z < UNH.z0 && y >= 2 && y <= UNH.top)) return 'base';
   // Biscuit & Mochi's bunker: the shell and shaft are fixed, their owners may build inside
-  if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) ? 'cottage' : 'base';
+  if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) || own ? 'cottage' : 'base';
   if (x >= BMB.sx0 && x <= BMB.sx1 && z >= BMB.sz0 && z <= BMB.sz1 && y > BMB.y1 && y <= BMB.top) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
-  if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return 'base';
-  if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return 'base';
+  if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return own ? 'shared' : 'base';
+  if (x >= TH.sx0 && x <= TH.sx1 && z >= TH.sz0 && z <= TH.sz1 && y >= TH.y0 && y <= TH.sy1) return own ? 'shared' : 'base';
   return null;
 }
 function thMay(id, pet) {
@@ -170,7 +171,7 @@ function thMay(id, pet) {
   if (id === 'lounge') return LOUNGE_PETS.includes(pet);
   return pet === id;
 }
-function thBaseIdx(i, L) { return thCell(i % W, Math.floor(i / (W * D)), Math.floor(i / W) % D, L) === 'base'; }
+function thBaseIdx(i, L) { return thCell(i % W, Math.floor(i / (W * D)), Math.floor(i / W) % D, L, true) === 'base'; }
 // The cottage's doors (its front door and the two bedroom doors), in classic numbers, shut as built.
 const COT_DOORS = [[116, 19, 68, DOOR], [116, 20, 68, DOOR_TOP], [126, 24, 67, DOOR], [126, 25, 67, DOOR_TOP], [126, 24, 69, DOOR], [126, 25, 69, DOOR_TOP]];
 function baseDoor(x, y, z, L) {
@@ -461,7 +462,7 @@ function handle(peer, msg) {
       peer.tokens = Math.min(EDIT_BURST, peer.tokens + (now - peer.tokT) / 1000 * EDIT_RATE);
       peer.tokT = now;
       const floor = isFloor(x, y, z);
-      const th = thCell(x, y, z, room.lay), thOk = !!th && th !== 'base' && thMay(th, peer.skin && peer.skin.pet);
+      const th = thCell(x, y, z, room.lay, true), thOk = !!th && th !== 'base' && thMay(th, peer.skin && peer.skin.pet);
       // opening or shutting a door is not building: anyone may, anywhere, as long as it stays the same half of a door
       const was = room.edits.has(i) ? room.edits.get(i) : baseDoor(x, y, z, room.lay);
       // and flipping a lever (95/96) or pressing a button (97/98) is like opening a door
@@ -872,7 +873,7 @@ function handle(peer, msg) {
       if (now - (peer.signT || 0) < 300) return;
       peer.signT = now;
       const i = msg.i, x = i % W, y = Math.floor(i / (W * D)), z = Math.floor(i / W) % D;
-      const th = thCell(x, y, z, room.lay);
+      const th = thCell(x, y, z, room.lay, true);
       const may = !isFloor(x, y, z) && th !== 'base' && (th ? thMay(th, peer.skin && peer.skin.pet) : canEditAt(room, peer, x, z)) && !lockedFor(room, peer, x, y, z);
       if (!may) return;
       const v = { t: cleanSignText(msg.text), r: msg.r ? 1 : 0 };
@@ -954,7 +955,7 @@ function handle(peer, msg) {
         const i = msg.cells[k], b = msg.cells[k + 1];
         if (!Number.isInteger(i) || i < 0 || i >= VOX || !Number.isInteger(b) || b < 0 || b > MAX_BLOCK) continue;
         const x = i % W, y = Math.floor(i / (W * D)), z = Math.floor(i / W) % D;
-        const th = thCell(x, y, z, room.lay);
+        const th = thCell(x, y, z, room.lay, true);
         if (isFloor(x, y, z) || th === 'base' || (th && !thMay(th, peer.skin && peer.skin.pet)) || y < 1 || lockedFor(room, peer, x, y, z)) { no++; continue; }
         room.edits.set(i, b);
         out.push(i, b);

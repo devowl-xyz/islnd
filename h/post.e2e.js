@@ -44,6 +44,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     check('whoever finds it first reads it, and it’s gone for everyone', /Ahoy, Gus/.test(await guest.evaluate(() => window.__isle.bottle.said() || '')) && !(await host.evaluate(() => window.__isle.bottle.list().some((b) => /Ahoy, Gus/.test(b.text)))));
     await guest.evaluate(() => { const b = document.getElementById('letterOk'); if (b) b.click(); });
   }
+  // owners may break any block of their own house: the room's server agrees
+  const tc = await host.evaluate(() => { const I = window.__isle, T = I.th.TH; for (let y = T.y0 + 1; y <= T.y1; y++) for (let z = T.z0; z <= T.z1; z++) for (let x = T.x0; x <= T.x1; x++) if (I.th.cell(x, y, z) === 'base' && I.get(x, y, z) && I.get(x, y, z) !== 12) return [x, y, z]; return null; });
+  await host.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), tc); await wait(2500);
+  check('in a room, someone else can’t break the treehouse’s frame', (await guest.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), tc)) !== 0 && (await host.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), tc)) !== 0);
+  await guest.evaluate(() => window.__isle.setSkin({ pet: 'hoot' })); await wait(1500);
+  await guest.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), tc);
+  await host.waitForFunction((c) => window.__isle.get(c[0], c[1], c[2]) === 0, tc, { timeout: 20000 }).catch(() => {});
+  check('but an owl owner can, and everyone sees it', (await host.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), tc)) === 0);
+  await guest.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
   const hc = await host.evaluate(() => window.__isle.shop.coins()), gc = await guest.evaluate(() => window.__isle.shop.coins());

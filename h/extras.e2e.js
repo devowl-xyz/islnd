@@ -1538,6 +1538,37 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- owners breaking their own house, Slinky, and the chase camera in planes -----
+  const cell = await a.evaluate(() => { const I = window.__isle, T = I.th.TH; for (let y = T.y0 + 1; y <= T.y1; y++) for (let z = T.z0; z <= T.z1; z++) for (let x = T.x0; x <= T.x1; x++) if (I.th.cell(x, y, z) === 'base' && I.get(x, y, z) && I.get(x, y, z) !== 12) return [x, y, z, I.get(x, y, z)]; return null; });
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'biscuit' }));
+  check('someone else still can’t break the treehouse’s frame', !!cell && !(await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), cell)), cell);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  check('but the owls’ owners can break any block of their own house', await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), cell) && (await a.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), cell)) === 0);
+  await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], c[3]), cell);
+  const camp = await a.evaluate(() => { const I = window.__isle, C = I.camp; for (let z = C.z0; z <= C.z1; z++) for (let x = C.x0; x <= C.x1; x++) { const y = C.G; if (I.th.cell(x, y, z) === 'base' && I.get(x, y, z)) return [x, y, z]; } return null; });
+  check('shared places like the campsite stay as they are', !camp || !(await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), camp)));
+  const cot = await a.evaluate(() => { const I = window.__isle, C = I.cot.COT; for (let y = C.y0 + 1; y <= C.y1; y++) for (let z = C.z0; z <= C.z1; z++) for (let x = C.x0; x <= C.x1; x++) if (I.th.cell(x, y, z) === 'base' && I.get(x, y, z) && I.get(x, y, z) !== 12) return [x, y, z, I.get(x, y, z)]; return null; });
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'mochi' }));
+  check('and Biscuit’s and Mochi’s owners can break their cottage', !!cot && await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), cot));
+  if (cot) await a.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], c[3]), cot);
+  // Slinky
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => window.__isle.pets.adopt('slinky')); await wait(3500);
+  const sf = await a.evaluate(() => { const f = window.__isle.pets.follower(), P = window.__isle.player; return f ? { id: f.id, up: f.y - P.y } : null; });
+  check('Slinky flies alongside you now, well off the ground', !!sf && sf.id === 'slinky' && sf.up > 1, sf);
+  await a.evaluate(() => window.__isle.pets.sendHome());
+  // the chase camera in planes (third person)
+  if (!(await a.evaluate(() => window.__isle.view().third))) { await a.keyboard.press('KeyV'); await wait(300); }
+  await a.evaluate(() => { const I = window.__isle, L = I.hop.legs(), t0 = I.nowS(); for (let d = 0; d < L.cycle + 5; d += 0.5) { const q = I.hop.pose(t0 + d); if (q.parked && q.leaves > 30) { I.net.tOff += d * 1000; return; } } });
+  const q = await a.evaluate(() => window.__isle.hop.pose());
+  await put(a, q.x + Math.cos(q.h) * 2.6, q.y, q.z - Math.sin(q.h) * 2.6); await wait(300);
+  await a.evaluate(() => window.__isle.hop.board()); await wait(800);
+  const ca = await a.evaluate(() => { const c = window.__isle.hop.camAt(), q = window.__isle.hop.pose(); return Math.hypot(c.x - q.x, c.z - q.z); });
+  check('in third person, the plane gets a chase camera outside it, not one jammed inside the cabin', ca > 6, ca);
+  await a.evaluate(() => window.__isle.hop.leave());
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
