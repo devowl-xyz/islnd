@@ -57,7 +57,7 @@ const TH_ROOMS = [
 ];
 // Goldie's house on the sea bed (same numbers as public/index.html): the dome is fixed,
 // and only Goldie's owner may change anything inside it.
-const AT = { cx: 50, cz: 226, x0: 43, x1: 57, z0: 219, z1: 233, y0: 2, y1: 10 };
+const AT = { cx: 107, cz: 182, x0: 100, x1: 114, z0: 175, z1: 189, y0: 2, y1: 10 };
 function atInside(x, y, z) { const dx = x - AT.cx, dz = z - AT.cz; return y >= 5 && y <= 8 && (dx * dx + dz * dz) / 28.09 + ((y - 5) / 3.9) * ((y - 5) / 3.9) < 1; }
 // Biscuit and Mochi's cottage (same numbers as public/index.html): yard, kennel, cat tree and
 // cottage frame are fixed; each pet's owner has a bedroom; the living room and gardens are shared.

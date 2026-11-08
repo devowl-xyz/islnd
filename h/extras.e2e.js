@@ -1619,6 +1619,31 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- the golden owl's wish, in the lab's secret room -----
+  const go = await a.evaluate(() => window.__isle.sec.owlAt());
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'slinky' }));
+  await a.evaluate((o) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = o.x + 1.6; P.y = o.y - 1; P.z = o.z + 0.4; }, go); await wait(800);
+  check('the golden owl stands in the secret room, and you can walk up to it', await a.evaluate(() => window.__isle.sec.owlNear()));
+  check('it won’t grant Slinky’s owner a wish', !(await a.evaluate(() => window.__isle.sec.wish())) && !(await a.evaluate(() => window.__isle.sec.wishOn())));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' })); await wait(300);
+  const gc0 = await a.evaluate(() => window.__isle.shop.coins());
+  check('an owl owner makes a wish: 50 gold coins at once', await a.evaluate(() => window.__isle.sec.wish()) && await a.evaluate(() => window.__isle.sec.wishOn()) && (await a.evaluate(() => window.__isle.shop.coins())) === gc0 + 50);
+  check('and the owl has to recharge before the next one', !(await a.evaluate(() => window.__isle.sec.wish())));
+  await put(a, 80.5, 13, 92.5); await wait(400);
+  await a.evaluate(() => window.__isle.setBlock(83, 13, 90, 3));
+  const gc1 = await a.evaluate(() => window.__isle.shop.coins());
+  await a.evaluate(() => window.__isle.act.brk(83, 13, 90));
+  check('the Midas touch: a block you hit turns to solid gold and pays 5 coins', (await a.evaluate(() => window.__isle.get(83, 13, 90))) === 25 && (await a.evaluate(() => window.__isle.shop.coins())) === gc1 + 5);
+  await a.evaluate(() => window.__isle.act.brk(83, 13, 90));
+  check('hit the gold and it breaks as usual', (await a.evaluate(() => window.__isle.get(83, 13, 90))) === 0);
+  const sx = await a.evaluate(() => window.__isle.player.x);
+  await a.evaluate(() => { window.__isle.player.yaw = -Math.PI / 2; }); await a.keyboard.down('KeyW'); await wait(1200); await a.keyboard.up('KeyW');
+  const run = (await a.evaluate(() => window.__isle.player.x)) - sx;
+  await a.evaluate(() => { window.__isle.sec.recharge(); });
+  check('and you run much faster while it lasts', run > 0.5, run);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
