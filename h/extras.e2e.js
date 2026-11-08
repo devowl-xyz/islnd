@@ -1569,6 +1569,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- the Mini Isle made pretty: greenery, beach and palms, blossom, the path to the falls, coral, flowers -----
+  const MD = await a.evaluate(() => window.__isle.hop.mini());
+  const dc = MD.decor || {};
+  check('the Mini Isle has palms on the beach, oaks and pink blossom trees', dc.palms >= 3 && dc.trees >= 20 && dc.blossom >= 5, dc);
+  check('the bare rock is grassed over, with vines down the cliffs, and coral in the shallows', dc.grassed > 100 && dc.vines > 50 && dc.coral > 20, dc);
+  check('a lantern-lit path runs from the airstrip up to the falls', !!MD.path && MD.path.n > 20 && dc.lanterns >= 3, MD.path && MD.path.n);
+  const walk = await a.evaluate((r) => {
+    const I = window.__isle, WT = I.blockId('WATER'), LV = I.blockId('LEAVES');
+    const top = (x, z) => { for (let y = 60; y > 0; y--) { const b = I.get(x, y, z); if (b && b !== WT && b !== LV) return y; } return 0; };
+    let worst = 0, bad = null;
+    for (let i = 0; i < r.length; i++) {
+      const y = top(r[i][0], r[i][1]);
+      if (I.get(r[i][0], y + 1, r[i][1]) || I.get(r[i][0], y + 2, r[i][1])) return { bad: ['no headroom', r[i], y] };
+      if (i) { const d = Math.abs(y - top(r[i - 1][0], r[i - 1][1])); if (d > worst) { worst = d; bad = [r[i], y]; } }
+    }
+    return { worst, bad };
+  }, MD.path.route);
+  check('and you can walk all of it: no step on it is more than a block', walk.worst <= 1, walk);
+  await put(a, MD.cx + 0.5, 40, MD.cz + 0.5); await wait(4000);
+  const dd = await a.evaluate(() => window.__isle.hop.decor());
+  check('flowers dot the grass, and a rainbow hangs in the falls’ spray by day', dd.built && dd.flowers > 300, dd);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
