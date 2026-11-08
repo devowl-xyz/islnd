@@ -347,6 +347,11 @@ Two planes use the airstrips, on their own timetables, waiting 40 seconds at eac
 
 **E** by a plane while it waits to board (the hint says when it leaves), and you take your seat. When it lands it says welcome; **E** gets you off on to the runway (in the air, **E** jumps out and your parachute opens).
 
+**Inside the planes.** The Island Shuttle, the Owl Hopper and the Express all have proper interiors, and you can look out of their windows from your seat:
+- **The Island Shuttle:** a tandem cockpit under the bubble canopy, lined to just below a padded leather rim, with the pilot's seat, stick and rudder pedals, an instrument panel of round dials and a little screen in front, and the passenger's seat behind.
+- **The Owl Hopper:** a lined cabin with a window by every row, navy carpet with a teal aisle, seven rows of seats with headrests and armrests, overhead bins, a strip of ceiling light, a bulkhead with an OWL HOPPER sign and a doorway to the cockpit, and a galley with a coffee machine and a loo at the back. In the cockpit: two seats, a glowing panel of screens under a glareshield, yokes, an overhead panel and the windscreen frame. When you fly it, you sit in the captain's seat.
+- **The Express (Concorde):** a narrow cabin with little windows, grey carpet with a red aisle, twelve rows of red leather seats two and two, overhead bins, a MACH 2.02 Machmeter on the front bulkhead, and a cockpit with three seats (pilot, co-pilot and flight engineer), yokes and walls of dials. When you fly it, you sit in the captain's seat.
+
 **Flying the Owl Hopper.** On board the Owl Hopper, an owl owner can press **F** to take the controls and fly it anywhere: **W** and **S** for the throttle, it turns towards where you look, and looking up makes it climb (once it's going fast enough). It lands on anything flat. Hit something at speed and it crashes: you're thrown clear and your parachute opens. **E** gets you out (on the ground when it's stopped, or by bailing out in the air), and the plane goes back to its timetable. Others in a room still see it on its timetable.
 
 **/tp mini** goes to the Mini Isle, **/tp shuttle** to the biplane and **/tp hopper** to the Owl Hopper. Fly to the Mini Isle for the Island hopper badge.
