@@ -516,10 +516,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('with it on you can walk right into Biscuit and Mochi’s garden', await a.evaluate(() => { const I = window.__isle, C = I.cot.zone, P = I.player; return P.x > C.x0 && P.x < C.x1 && P.z > C.z0 && P.z < C.z1; }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
-  // ----- Biscuit and Mochi's bunker under the lighthouse -----
+  // ----- Biscuit and Mochi's bunker under the Mini Isle's runway -----
   const BM = await a.evaluate(() => window.__isle.bm.B());
-  const LHo = await a.evaluate(() => window.__isle.lighthouse.LH);
-  check('there’s a bunker dug under the lighthouse', await a.evaluate((o) => { const I = window.__isle; return I.get(o.cx, o.iy0 + 1, o.cz) === 0 && I.get(o.cx, o.y1, o.cz) > 0 && I.get(o.sx0, 11, o.sz0) === 0; }, BM));
+  const LHo = { G: BM.top };
+  check('there’s a bunker under the sea, its shaft coming up through the Mini Isle’s runway', await a.evaluate((o) => { const s = window.__isle.hop.mini().strip; return !!s && o.sx0 >= s.x0 && o.sx1 <= s.x1 && o.sz0 >= s.z0 && o.sz1 <= s.z1; }, BM) && await a.evaluate((o) => { const I = window.__isle; return I.get(o.cx, o.iy0 + 1, o.cz) === 0 && I.get(o.cx, o.y1, o.cz) > 0 && I.get(o.sx0, 11, o.sz0) === 0; }, BM));
   await a.evaluate(() => window.__isle.cmd('/time noon'));
   await a.evaluate(() => { const I = window.__isle; I.bm.infilOff(); I.bm.calm(); I.setSkin({ pet: 'none' }); });
   await put(a, BM.sx0 + 1, LHo.G, BM.sz0 + 1); await wait(1200);
@@ -542,10 +542,36 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, BM.pad.x, BM.iy0, BM.pad.z); await wait(500);
   await a.keyboard.down('Space'); await wait(250); await a.keyboard.up('Space');
   const up = await a.waitForFunction((G) => { const P = window.__isle.player; return P.y >= G - 0.05 && P.y < G + 0.6 && Math.abs(P.vy) < 1 && !window.__isle.bm.inside(); }, LHo.G, { timeout: 30000 }).then(() => true).catch(() => false);
-  check('Space on the spring pad pops you back up into the lighthouse', up, await a.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z, P.vy]; }));
+  check('Space on the spring pad pops you back up on to the runway', up, await a.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z, P.vy]; }));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   await put(a, BM.cx + 0.5, BM.iy0, BM.cz + 0.5); await wait(400);
   check('anyone else who gets in is put back outside', !(await a.evaluate(() => window.__isle.bm.inside())));
+  // the secret room behind the east wall, and the floating potatoes
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'mochi' }));
+  const SW = await a.evaluate(() => window.__isle.bms.switchAt());
+  await put(a, SW.x - 1.2, BM.iy0, SW.z); await wait(500);
+  check('a paw print on B&M HQ’s east wall', await a.evaluate(() => window.__isle.bms.near()));
+  check('and the secret room behind it is shut', !(await a.evaluate(() => window.__isle.bms.open())));
+  check('Mochi’s owner presses it and a panel slides away', await a.evaluate(() => window.__isle.bms.press()) && await a.evaluate(() => window.__isle.bms.open()));
+  const SQ = await a.evaluate(() => window.__isle.bms.S());
+  await put(a, SQ.ix0 + 0.5, BM.iy0, SQ.iz0 + 2.5); await wait(600);
+  check('through into the secret room, hidden from the map', await a.evaluate(() => { const P = window.__isle.player; return window.__isle.bm.inside() && window.__isle.lab.hidden(P.x, P.y + 0.5, P.z); }));
+  const PS = await a.evaluate(() => window.__isle.bms.spots());
+  await put(a, PS[0].x + 1.2, BM.iy0, PS[0].z); await wait(400);
+  await a.evaluate(() => { try { localStorage.removeItem('voxel-isle-potato'); } catch (e) {} });
+  check('G does nothing before you’ve found a potato', await a.evaluate(() => window.__isle.bms.ride()) && !(await a.evaluate(() => window.__isle.bms.riding())));
+  check('a floating potato bobs over a pedestal: take it', await a.evaluate(() => window.__isle.bms.potNear()) && await a.evaluate(() => window.__isle.bms.take()) && await a.evaluate(() => window.__isle.bms.owned()));
+  await put(a, 80.5, 13, 92.5); await wait(400);
+  await a.evaluate(() => window.__isle.bms.ride()); await wait(300);
+  check('G hops you on to your potato and you fly', await a.evaluate(() => window.__isle.bms.riding() && window.__isle.player.fly));
+  const px0 = await a.evaluate(() => window.__isle.player.x);
+  await a.evaluate(() => { window.__isle.player.yaw = -Math.PI / 2; window.__isle.player.pitch = 0; }); await a.keyboard.down('KeyW'); await wait(1500); await a.keyboard.up('KeyW');
+  const pot = (await a.evaluate(() => window.__isle.player.x)) - px0;
+  await a.evaluate(() => window.__isle.bms.ride()); await wait(300);
+  check('fast, and G again hops you off', pot > 1 && !(await a.evaluate(() => window.__isle.bms.riding())), pot);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' })); await wait(200);
+  await a.evaluate(() => window.__isle.bms.ride());
+  check('it only flies for Biscuit’s and Mochi’s owners', !(await a.evaluate(() => window.__isle.bms.riding())));
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
   await put(a, 80.5, 13, 92.5); await wait(300);
 
@@ -1641,6 +1667,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const run = (await a.evaluate(() => window.__isle.player.x)) - sx;
   await a.evaluate(() => { window.__isle.sec.recharge(); });
   check('and you run much faster while it lasts', run > 0.5, run);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
+  // ----- the rainbow over the cottage, and its grappling hook -----
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.cmd('/time noon'); I.cmd('/rainbow'); });
+  const RBo = await a.evaluate(() => window.__isle.wx.rb()), CO = await a.evaluate(() => window.__isle.cot.COT);
+  check('/rainbow puts a rainbow right over Biscuit and Mochi’s cottage', await a.evaluate(() => window.__isle.wx.rainbow()) && Math.abs(RBo.cx - (CO.cx + 0.5)) < 1 && Math.abs(RBo.cz - (CO.cz + 0.5)) < 1, [RBo, CO.cx, CO.cz]);
+  check('without an owl, no grappling hook', !(await a.evaluate(() => window.__isle.wx.grapMay())));
+  const tx = RBo.cx - RBo.R * 0.6, ty = await a.evaluate((q) => window.__isle.wx.rbTop(q[0], q[1]), [tx, RBo.cz]);
+  await a.evaluate((q) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = q[0]; P.y = q[1] + 0.2; P.z = q[2]; }, [tx, ty, RBo.cz]); await wait(1200);
+  check('touch the rainbow and you get the grappling hook for 5 minutes', await a.evaluate(() => window.__isle.wx.hook() && window.__isle.wx.grapMay()));
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  }
+  {
+  // ----- Coco's tree den, and cherry blossom -----
+  const DN = await a.evaluate(() => window.__isle.hop.mini().den), CH = await a.evaluate(() => window.__isle.pets.home.chimp);
+  check('Coco has a tree den on the Mini Isle: a plank platform on log stilts with a leafy roof', !!DN && await a.evaluate((d) => { const I = window.__isle; return I.get(d.cx, d.t + 5, d.cz) === I.blockId('PLANKS') && I.get(d.cx + 2, d.t + 2, d.cz + 2) === I.blockId('LOG') && I.get(d.cx, d.t + 9, d.cz) === I.blockId('LEAVES'); }, DN), DN);
+  check('and she lives up on it', !!CH && Math.abs(CH.y - DN.floor) < 0.01 && Math.hypot(CH.x - DN.cx - 0.5, CH.z - DN.cz - 0.5) < 2, CH);
+  // walk up the steps
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  await a.evaluate((s) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = s.x; P.y = s.y; P.z = s.z - 1.5; P.yaw = Math.PI; P.pitch = 0; }, DN.step); await wait(800);
+  await a.keyboard.down('KeyW');
+  let up = 0; for (let i = 0; i < 60; i++) { await wait(400); const y = await a.evaluate(() => window.__isle.player.y); if (y > up) up = y; if (up >= DN.floor - 0.01) break; }
+  await a.keyboard.up('KeyW');
+  check('you can walk up the steps to the platform', up >= DN.floor - 0.01, [up, DN.floor]);
+  // cherry blossom
+  const BL = await a.evaluate(() => window.__isle.blockId('BLOSSOM'));
+  check('the cherry trees have real pink blossom leaves', BL === 175 && await a.evaluate((b) => { const I = window.__isle, M = I.hop.mini(); for (let z = M.cz - 40; z <= M.cz + 40; z++) for (let x = M.cx - 40; x <= M.cx + 40; x++) for (let y = 12; y < 50; y++) if (I.get(x, y, z) === b) return true; return false; }, BL));
+  await a.evaluate(() => { try { localStorage.removeItem('voxel-isle-blossom'); } catch (e) {} });
+  check('they’re not in the block picker until you’ve mined one', !(await a.evaluate((b) => window.__isle.picker.picks.indexOf(b) >= 0 && localStorage.getItem('voxel-isle-blossom') === '1', BL)));
+  const bc = await a.evaluate((b) => { const I = window.__isle, M = I.hop.mini(); for (let z = M.cz - 40; z <= M.cz + 40; z++) for (let x = M.cx - 40; x <= M.cx + 40; x++) for (let y = 12; y < 50; y++) if (I.get(x, y, z) === b) return [x, y, z]; return null; }, BL);
+  await a.evaluate((c) => window.__isle.act.brk(c[0], c[1], c[2]), bc);
+  check('break one and cherry blossom joins the block picker', (await a.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), bc)) !== BL && await a.evaluate((b) => window.__isle.picker.picks.indexOf(b) >= 0, BL));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {

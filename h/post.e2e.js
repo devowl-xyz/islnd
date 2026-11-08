@@ -65,6 +65,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await host.waitForFunction(() => { const v = window.__isle.peerVis().Gus; return v && !v.iv && v.av; }, null, { timeout: 30000 }).catch(() => {});
   check('and come back when it wears off', await host.evaluate(() => { const v = window.__isle.peerVis().Gus; return !!v && !v.iv && v.av && v.pet === true; }), await host.evaluate(() => window.__isle.peerVis()));
   await guest.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  // admins: /pet Name pet and /kill Name, and the death screen
+  check('a guest can’t use /pet on someone else', !(await guest.evaluate(() => window.__isle.cmd('/pet Hana fox'))));
+  check('the host can: /pet Gus mochi', await host.evaluate(() => window.__isle.cmd('/pet Gus mochi')));
+  await guest.waitForFunction(() => window.__isle.pets.mine() === 'mochi', null, { timeout: 20000 }).catch(() => {});
+  check('and Gus’s pet becomes Mochi', (await guest.evaluate(() => window.__isle.pets.mine())) === 'mochi', await guest.evaluate(() => window.__isle.pets.mine()));
+  check('a guest can’t /kill anyone', !(await guest.evaluate(() => window.__isle.cmd('/kill Hana'))) && !(await host.evaluate(() => window.__isle.death.on())));
+  check('the host can: /kill Gus', await host.evaluate(() => window.__isle.cmd('/kill Gus')));
+  await guest.waitForFunction(() => window.__isle.death.on(), null, { timeout: 20000 }).catch(() => {});
+  check('Gus dies: YOU DIED, with a Respawn button and a picture of him', await guest.evaluate(() => { const d = document.getElementById('death'); return window.__isle.death.on() && !d.hidden && /YOU DIED/.test(d.textContent) && !!document.getElementById('deathBtn') && !!document.getElementById('deathPic'); }));
+  const gy0 = await guest.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z]; });
+  await wait(1200);
+  check('while dead you can’t move', await guest.evaluate((p) => { const P = window.__isle.player; return Math.hypot(P.x - p[0], P.z - p[2]) < 0.01; }, gy0));
+  await guest.click('#deathBtn');
+  await guest.waitForFunction(() => !window.__isle.death.on(), null, { timeout: 10000 }).catch(() => {});
+  check('Respawn brings him back with full hearts', await guest.evaluate(() => !window.__isle.death.on() && document.getElementById('death').hidden && window.__isle.food.hp() === 5));
+  await guest.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
   const hc = await host.evaluate(() => window.__isle.shop.coins()), gc = await guest.evaluate(() => window.__isle.shop.coins());

@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 174; // 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 175; // 175 cherry blossom; 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -128,8 +128,9 @@ const LAB = { x0: 207, x1: 265, z0: 256, z1: 290, y0: 1, y1: 13, hx: 253.5, hz: 
 // the lab has moved under the Mini Isle (the same shift as public/index.html)
 const LAB_SHIFT = [-192, -49];
 (function shiftLab(o) { for (const k in o) { const v = o[k]; if (v && typeof v === 'object') { shiftLab(v); continue; } if (typeof v !== 'number') continue; if (/^(x|ix|cx|hx|bx|dx)/.test(k)) o[k] = v + LAB_SHIFT[0]; else if (/^(z|iz|cz|hz|dz)/.test(k)) o[k] = v + LAB_SHIFT[1]; } })(LAB);
-// Biscuit & Mochi's bunker under the lighthouse, and its shaft up to the lighthouse floor (same numbers as public/index.html)
-const BMB = { x0: 54, x1: 66, z0: 163, z1: 176, y0: 2, y1: 7, ix0: 55, ix1: 65, iz0: 165, iz1: 175, iy0: 3, iy1: 6, sx0: 62, sx1: 63, sz0: 172, sz1: 173, top: 11 };
+// Biscuit & Mochi's bunker under the Mini Isle's shuttle runway, its shaft up to a hatch in the runway, and its secret room (same numbers as public/index.html)
+const BMB = { x0: 38, x1: 50, z0: 260, z1: 273, y0: 2, y1: 7, ix0: 39, ix1: 49, iz0: 262, iz1: 272, iy0: 3, iy1: 6, sx0: 46, sx1: 47, sz0: 269, sz1: 270, top: 11,
+  sec: { x0: 51, x1: 57, z0: 264, z1: 270, y0: 2, y1: 7, ix0: 52, ix1: 56, iz0: 265, iz1: 269, iy0: 3, iy1: 6 } };
 // the Island Nations' hall under the meadow and its stairway (same numbers as public/index.html): nobody can change it
 const UNH = { x0: 50, x1: 72, z0: 100, z1: 116, y0: 2, y1: 11, sx0: 61, sx1: 62, sz0: 91, top: 14 };
 // the sky course's floating platforms over the meadow (same numbers as public/index.html): nobody can change them
@@ -159,6 +160,7 @@ function thCell(x, y, z, L, own) {
   if (inB(UNH) || (x >= UNH.sx0 - 1 && x <= UNH.sx1 + 1 && z >= UNH.sz0 && z < UNH.z0 && y >= 2 && y <= UNH.top)) return 'base';
   // Biscuit & Mochi's bunker: the shell and shaft are fixed, their owners may build inside
   if (inB(BMB)) return (x >= BMB.ix0 && x <= BMB.ix1 && y >= BMB.iy0 && y <= BMB.iy1 && z >= BMB.iz0 && z <= BMB.iz1) || own ? 'cottage' : 'base';
+  if (inB(BMB.sec)) return (x >= BMB.sec.ix0 && x <= BMB.sec.ix1 && y >= BMB.sec.iy0 && y <= BMB.sec.iy1 && z >= BMB.sec.iz0 && z <= BMB.sec.iz1) || own ? 'cottage' : 'base';
   if (x >= BMB.sx0 && x <= BMB.sx1 && z >= BMB.sz0 && z <= BMB.sz1 && y > BMB.y1 && y <= BMB.top) return 'base';
   for (const r of TH_ROOMS) if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && z >= r.z0 && z <= r.z1) return r.id;
   if (x >= TH.x0 && x <= TH.x1 && z >= TH.z0 && z <= TH.z1 && y >= TH.y0 && y <= TH.y1) return own ? 'shared' : 'base';
@@ -531,6 +533,15 @@ function handle(peer, msg) {
       const n = kind === 'coins' ? Math.floor(Number(msg.n)) : 0;
       if (kind === 'coins' && !(n > 0 && n <= 100000)) return;
       send(target.ws, { t: 'gift', from: peer.id, name: peer.name, kind, n, v: kind === 'hat' ? String(msg.v || '').slice(0, 12) : (kind === 'glow' ? Math.floor(Number(msg.v)) || 0 : undefined) });
+      return;
+    }
+    // admin powers over another player: /kill Name and /pet Name pet (host and admins only)
+    case 'admin': {
+      if (!room || !isBoss(room, peer)) return;
+      const target = room.peers.get(msg.to);
+      if (!target || target === peer) return;
+      if (msg.act === 'kill') send(target.ws, { t: 'admin', act: 'kill', by: peer.name });
+      else if (msg.act === 'pet' && SKIN_STYLES.pet.indexOf(msg.pet) >= 0) send(target.ws, { t: 'admin', act: 'pet', pet: msg.pet, by: peer.name });
       return;
     }
     // messages in bottles: kept by the room until someone finds them
@@ -1131,7 +1142,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, po: msg.po ? 1 : 0, dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }
