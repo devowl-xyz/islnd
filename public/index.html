@@ -17584,12 +17584,15 @@ const acct={user:null,token:null,busy:false,msg:'',last:'',db:null,timer:null};
 (function(){try{const q=JSON.parse(localStorage.getItem(ACCT_KEY)||'null');if(q&&q.user){acct.user=String(q.user);acct.token=q.token||null;acct.mode=q.mode||null;}}catch(e){}})();
 function acctMode(){if(NET_OK)return'server';return window.claude&&typeof window.claude.use==='function'?'db':'none';}
 function acctStoreMe(){try{if(acct.user)localStorage.setItem(ACCT_KEY,JSON.stringify({user:acct.user,token:acct.token,mode:acctMode()}));else localStorage.removeItem(ACCT_KEY);}catch(e){}}
-function acctSnapshot(){const o={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('voxel-isle')===0)o[k]=localStorage.getItem(k);}}catch(e){}return o;}
+/* everything the game keeps, except the photo album: photos are big, so they stay on the device they were taken on */
+const ACCT_SKIP={'voxel-isle-album':1};
+function acctKeep(k){return!!k&&k.indexOf('voxel-isle')===0&&!ACCT_SKIP[k];}
+function acctSnapshot(){const o={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(acctKeep(k))o[k]=localStorage.getItem(k);}}catch(e){}return o;}
 function acctApply(o){
   try{
-    const old=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf('voxel-isle')===0)old.push(k);}
+    const old=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(acctKeep(k))old.push(k);}
     old.forEach(function(k){localStorage.removeItem(k);});
-    Object.keys(o||{}).forEach(function(k){if(k.indexOf('voxel-isle')===0&&typeof o[k]==='string')localStorage.setItem(k,o[k]);});
+    Object.keys(o||{}).forEach(function(k){if(acctKeep(k)&&typeof o[k]==='string')localStorage.setItem(k,o[k]);});
   }catch(e){}
 }
 function hexOf(b){return Array.from(b).map(function(x){return('0'+x.toString(16)).slice(-2);}).join('');}
@@ -17605,18 +17608,46 @@ async function acctApi(body){
   if(!r.ok||!j.ok)throw new Error(j.error||'The server didn’t answer. Try again.');
   return j;
 }
-async function acctDB(){if(acct.db)return acct.db;const d=await window.claude.use('db');if(!d)throw new Error('Accounts aren’t available here. Ask the page’s owner to share it with you.');acct.db=d;return d;}
-const ACCT_PART=180000;
-async function acctDbPush(key,str){
-  const db=await acctDB(),n=Math.max(1,Math.ceil(str.length/ACCT_PART));
-  if(n>20)throw new Error('Your save is too big to keep in an account.');
-  for(let k=0;k<n;k++)await db.doc('islnd_saves/'+key+'~'+k).set({data:str.slice(k*ACCT_PART,(k+1)*ACCT_PART)});
-  await db.doc('islnd_accounts/'+key).update({parts:n,at:Date.now()});
+async function acctDB(){if(acct.db)return acct.db;const d=await window.claude.use('db');if(!d)throw new Error('Accounts can’t reach this page’s database. Make sure you’re signed in to Claude, then reload.');acct.db=d;return d;}
+/* the page's database: turn its error codes into something you can act on, and retry a blip once */
+async function acctDo(f,writing){
+  for(let n=0;;n++){
+    try{return await f();}
+    catch(e){
+      const c=e&&e.code;
+      if(c==='unavailable'&&n===0){await new Promise(function(r){setTimeout(r,400+Math.random()*600);});continue;}
+      if(c==='invalid_argument'&&writing)throw new Error('This page won’t let you save here. Only its owner and people it’s shared with as editors (or contributors) can make and save accounts: ask the owner to share it with you that way.');
+      if(c==='resource_exhausted'){if(n<2){await new Promise(function(r){setTimeout(r,1500);});continue;}throw new Error('Too many saves at once. Wait a moment and try again.');}
+      if(c==='quota_exceeded')throw new Error('This page’s account storage is full.');
+      if(c==='revoked'||c==='not_granted'||c==='capability_disabled'||c==='capability_removed')throw new Error('This page’s database isn’t available to you right now. Reload, or ask the owner to share it with you.');
+      if(c==='unavailable')throw new Error('The database didn’t answer. Try again in a moment.');
+      throw e;
+    }
+  }
 }
-async function acctDbPull(key,parts){
+/* a save is squashed (gzip) and stored as text in parts small enough for the database's documents */
+const ACCT_PART=150000;
+function b64(u){let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s);}
+function unb64(t){const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u;}
+async function acctZip(str){
+  if(typeof CompressionStream!=='function')return{z:'',data:str};
+  const r=new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip')));
+  return{z:'gz',data:b64(new Uint8Array(await r.arrayBuffer()))};
+}
+async function acctUnzip(z,data){
+  if(z!=='gz')return data;
+  return await new Response(new Blob([unb64(data)]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+}
+async function acctDbPush(key,str){
+  const db=await acctDB(),pk=await acctZip(str),n=Math.max(1,Math.ceil(pk.data.length/ACCT_PART));
+  if(n>40)throw new Error('Your save is too big to keep in an account.');
+  for(let k=0;k<n;k++){const part=pk.data.slice(k*ACCT_PART,(k+1)*ACCT_PART);await acctDo(function(){return db.doc('islnd_saves/'+key+'~'+k).set({data:part});},true);}
+  await acctDo(function(){return db.doc('islnd_accounts/'+key).update({parts:n,z:pk.z,at:Date.now()});},true);
+}
+async function acctDbPull(key,parts,z){
   const db=await acctDB();let str='';
-  for(let k=0;k<parts;k++){const d=await db.doc('islnd_saves/'+key+'~'+k).get();if(!d.exists)throw new Error('Part of your save is missing.');str+=(d.data()||{}).data||'';}
-  return JSON.parse(str);
+  for(let k=0;k<parts;k++){const d=await acctDo(function(){return db.doc('islnd_saves/'+key+'~'+k).get();});if(!d.exists)throw new Error('Part of your save is missing.');str+=(d.data()||{}).data||'';}
+  return JSON.parse(await acctUnzip(z||'',str));
 }
 function acctCheck(user,pass){
   user=String(user||'').trim();pass=String(pass||'');
@@ -17628,10 +17659,10 @@ async function acctRegister(user,pass){
   user=acctCheck(user,pass);const key=user.toLowerCase(),mode=acctMode();
   if(mode==='server'){const j=await acctApi({act:'register',user:user,pass:pass});acct.user=j.user;acct.token=j.token;}
   else if(mode==='db'){
-    const db=await acctDB(),ref=db.doc('islnd_accounts/'+key),got=await ref.get();
+    const db=await acctDB(),ref=db.doc('islnd_accounts/'+key),got=await acctDo(function(){return ref.get();});
     if(got.exists)throw new Error('That username is taken.');
     const salt=hexOf(crypto.getRandomValues(new Uint8Array(16)));
-    await ref.set({name:user,salt:salt,hash:await acctHash(pass,salt),parts:0,created:Date.now()});
+    const hash=await acctHash(pass,salt);await acctDo(function(){return ref.set({name:user,salt:salt,hash:hash,parts:0,created:Date.now()});},true);
     acct.user=user;acct.token=null;
   }else throw new Error('Accounts need the ISLND game server or the published page.');
   acctStoreMe();acct.last='';await acctSave(true);
@@ -17641,10 +17672,10 @@ async function acctLogin(user,pass){
   user=acctCheck(user,pass);const key=user.toLowerCase(),mode=acctMode();let save=null;
   if(mode==='server'){const j=await acctApi({act:'login',user:user,pass:pass});acct.user=j.user;acct.token=j.token;save=j.save;}
   else if(mode==='db'){
-    const got=await (await acctDB()).doc('islnd_accounts/'+key).get();
+    const db=await acctDB(),got=await acctDo(function(){return db.doc('islnd_accounts/'+key).get();});
     const d=got.exists?got.data():null;
     if(!d||await acctHash(pass,d.salt)!==d.hash)throw new Error('Wrong username or password.');
-    acct.user=d.name;acct.token=null;save=d.parts?await acctDbPull(key,d.parts):null;
+    acct.user=d.name;acct.token=null;save=d.parts?await acctDbPull(key,d.parts,d.z):null;
   }else throw new Error('Accounts need the ISLND game server or the published page.');
   acctStoreMe();
   try{localStorage.setItem(NAME_KEY,acct.user);}catch(e){}
