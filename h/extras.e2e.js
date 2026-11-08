@@ -1177,7 +1177,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('all the way to 1000%, and it gets very fast', !!f3 && Math.round(f3.thr * 100) === 1000 && f3.spd > 100, f3);
   check('leaving a trail of Spark Dust', (await a.evaluate(() => window.__isle.spark.live())) > 30);
   const gr = await a.evaluate(() => [0, 0.2, 0.5, 0.8].map((u) => window.__isle.spark.grad(u)));
-  check('in the Nightly gradient: mint, cyan and blue through violet to indigo', gr[0][1] > 0.85 && gr[0][1] > gr[0][0] && gr[2][2] > 0.85 && gr[2][0] > gr[2][1] && gr[3][2] < 0.7 && gr[3][0] < 0.4, gr);
+  check('all in teal, like all spark things: pale mint to deep sea-teal', gr.every((c) => c[1] > c[0] + 0.2 && c[2] > c[0] + 0.2) && gr[0][1] > 0.85, gr);
   await a.evaluate(() => window.__isle.express.setFly({ y: 110 }));
   await a.keyboard.press('KeyE'); await wait(400);
   check('E bails you out, and it goes back to its timetable', !(await a.evaluate(() => window.__isle.express.ride())) && !(await a.evaluate(() => window.__isle.express.fly())));
@@ -1308,9 +1308,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('your pet meets another pet and they do a greeting dance', (await a.evaluate(() => window.__isle.pets2.dance())) === 'biscuit');
   check('and it earns XP for the new friend', (await a.evaluate(() => window.__isle.petlv.xp('mochi'))) > xp0);
   // baby
-  check('no baby before level 5', !(await a.evaluate(() => window.__isle.pets2.baby())));
   await a.evaluate(() => window.__isle.petlv.gain(400)); await wait(1500);
-  check('at level 5 your pet has a baby that follows it', (await a.evaluate(() => window.__isle.pets2.baby())) === 'mochi' && !!(await a.evaluate(() => window.__isle.pets2.babyPos())));
+  check('pets don’t have babies, even at level 5', !(await a.evaluate(() => window.__isle.pets2.baby())));
   // costumes
   const ok = await a.evaluate(() => { const I = window.__isle; return ['witch', 'santa', 'sparkler'].map((st) => { I.setSkin({ petHatStyle: st }); return I.mySkin.petHatStyle === st; }); });
   await wait(800);

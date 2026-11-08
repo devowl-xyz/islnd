@@ -73,6 +73,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('a guest can’t /kill anyone', !(await guest.evaluate(() => window.__isle.cmd('/kill Hana'))) && !(await host.evaluate(() => window.__isle.death.on())));
   check('the host can: /kill Gus', await host.evaluate(() => window.__isle.cmd('/kill Gus')));
   await guest.waitForFunction(() => window.__isle.death.on(), null, { timeout: 20000 }).catch(() => {});
+  check('his character falls over first, and the chat says what happened', await host.waitForFunction(() => /Gus was struck down by Hana/.test(document.getElementById('chatlog').textContent), null, { timeout: 20000 }).then(() => true).catch(() => false));
+  await guest.waitForFunction(() => !document.getElementById('death').hidden, null, { timeout: 20000 }).catch(() => {});
   check('Gus dies: YOU DIED, with a Respawn button and a picture of him', await guest.evaluate(() => { const d = document.getElementById('death'); return window.__isle.death.on() && !d.hidden && /YOU DIED/.test(d.textContent) && !!document.getElementById('deathBtn') && !!document.getElementById('deathPic'); }));
   const gy0 = await guest.evaluate(() => { const P = window.__isle.player; return [P.x, P.y, P.z]; });
   await wait(1200);
