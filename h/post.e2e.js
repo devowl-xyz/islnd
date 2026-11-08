@@ -81,6 +81,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await guest.waitForFunction(() => !window.__isle.death.on(), null, { timeout: 10000 }).catch(() => {});
   check('Respawn brings him back with full hearts', await guest.evaluate(() => !window.__isle.death.on() && document.getElementById('death').hidden && window.__isle.food.hp() === 5));
   await guest.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  // swords and armour: others see what you hold and wear, and a hit lands (the server checks you're close)
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ spark: 50, diamond: 3, copper: 8 }); I.gear.craft('sword_spark'); I.gear.craft('armor_copper'); });
+  await host.keyboard.press('Digit0'); await wait(300);
+  await guest.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 92.5; });
+  await host.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 94.5; P.yaw = 0; });
+  await guest.waitForFunction(() => { const v = window.__isle.peerVis().Hana; return v && /sword_spark\|copper/.test(v.gear); }, null, { timeout: 30000 }).catch(() => {});
+  check('others see the spark sword in your hand and your copper armour', await guest.evaluate(() => { const v = window.__isle.peerVis().Hana; return !!v && /sword_spark\|copper/.test(v.gear); }), await guest.evaluate(() => window.__isle.peerVis()));
+  const ghp0 = await guest.evaluate(() => window.__isle.food.hp());
+  await host.waitForFunction(() => { const I = window.__isle; return [...I.net.peers.values()].some((p) => p.cur && Math.hypot(p.cur.x - 82.5, p.cur.z - 92.5) < 0.5); }, null, { timeout: 20000 }).catch(() => {});
+  check('a swing hits them', await host.evaluate(() => window.__isle.gear.attack()));
+  await guest.waitForFunction((h) => window.__isle.food.hp() < h || window.__isle.death.on(), ghp0, { timeout: 20000 }).catch(() => {});
+  check('and a spark sword (5 hearts) knocks them out in one go', await guest.evaluate(() => window.__isle.death.on() && /Hana got you with a spark sword/.test(window.__isle.death.cause())), await guest.evaluate(() => [window.__isle.food.hp(), window.__isle.death.cause()]));
+  await guest.evaluate(() => window.__isle.death.respawn()); await wait(300);
+  await host.keyboard.press('Digit5'); await wait(200);
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
   const hc = await host.evaluate(() => window.__isle.shop.coins()), gc = await guest.evaluate(() => window.__isle.shop.coins());

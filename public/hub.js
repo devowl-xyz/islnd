@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 175; // 175 cherry blossom; 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 176; // 176 crafting table; 175 cherry blossom; 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -533,6 +533,17 @@ function handle(peer, msg) {
       const n = kind === 'coins' ? Math.floor(Number(msg.n)) : 0;
       if (kind === 'coins' && !(n > 0 && n <= 100000)) return;
       send(target.ws, { t: 'gift', from: peer.id, name: peer.name, kind, n, v: kind === 'hat' ? String(msg.v || '').slice(0, 12) : (kind === 'glow' ? Math.floor(Number(msg.v)) || 0 : undefined) });
+      return;
+    }
+    // a sword hit: only on someone close by, and not too often
+    case 'hit': {
+      if (!room || !Number.isInteger(msg.w) || msg.w < 0 || msg.w > 20) return;
+      const target = room.peers.get(msg.to), now = Date.now();
+      if (!target || target === peer || !peer.pos || !target.pos) return;
+      if (now - (peer.hitT || 0) < 350) return;
+      if (Math.hypot(peer.pos.x - target.pos.x, peer.pos.y - target.pos.y, peer.pos.z - target.pos.z) > 6) return;
+      peer.hitT = now;
+      send(target.ws, { t: 'hit', by: peer.id, name: peer.name, w: msg.w });
       return;
     }
     // admin powers over another player: /kill Name and /pet Name pet (host and admins only)
@@ -1142,7 +1153,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, po: msg.po ? 1 : 0, dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, po: msg.po ? 1 : 0, hi: k(msg.hi, 0, 20), ar: k(msg.ar, 0, 5), sw: k(msg.sw, 0, 1e9), dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }

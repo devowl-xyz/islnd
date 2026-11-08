@@ -72,12 +72,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const I = window.__isle, R = I.runway, w = I.homeWait, P = (t) => { const q = I.autoPose(t); return { x: q.x, y: q.y, z: q.z, h: ((q.h % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) }; };
     return { w, R, dock: P(w - 1), taxi: P((w + R.roll) / 2 + 2), roll0: P(R.roll), roll1: P(R.roll + 1), roll2: P(R.roll + 2), roll4: P(R.roll + 4), air: P(R.air), up: P(R.air + 2.2), done: P(R.done), park: I.dockPark(I.docks[0]) };
   });
-  check('after boarding at the dock, the jet taxis down the runway on the ground', Math.abs(run.taxi.x - 160.5) < 0.6 && Math.abs(run.taxi.y - run.park[1]) < 0.05 && run.taxi.z > 100 && run.taxi.z < 150, run.taxi);
-  check('turns round at the far end to face north', Math.abs(run.roll0.z - 152.5) < 0.1 && Math.abs(run.roll0.h - 3 * Math.PI / 2) < 0.05, run.roll0);
+  check('it waits for you on the runway itself, on the ground', Math.abs(run.taxi.x - 160.5) < 0.6 && Math.abs(run.taxi.y - run.park[1]) < 0.05 && run.taxi.z > 100 && run.taxi.z < 150, run.taxi);
+  check('parked at the south end of the runway, it faces north, ready to go', Math.abs(run.roll0.z - run.park[2]) < 0.1 && run.park[2] > 135 && Math.abs(run.roll0.h - 3 * Math.PI / 2) < 0.05, run.roll0);
   const v1 = run.roll0.z - run.roll1.z, v2 = run.roll2.z - run.roll4.z;
   check('rolls north faster and faster, still on the ground', v2 / 2 > v1 * 1.5 && Math.abs(run.roll4.y - run.park[1]) < 0.05 && Math.abs(run.roll4.x - 160.5) < 0.1, { v1, v2, roll4: run.roll4 });
   check('lifts off near the end of the runway and climbs away', Math.abs(run.air.y - run.park[1]) < 0.05 && run.up.y > run.park[1] + 5 && run.done.y > 25 && run.done.z < 70, { air: run.air, up: run.up, done: run.done });
-  const tx = await a.evaluate(() => { const I = window.__isle, R = I.runway, s = (t) => I.air.rows(t).dep.find((r) => r.code === 'IS1').status; return [s(I.homeWait + 2), s(R.roll + 1), s(R.done + 3)]; });
+  const tx = await a.evaluate(() => { const I = window.__isle, R = I.runway, s = (t) => I.air.rows(t).dep.find((r) => r.code === 'IS1').status; return [s(I.homeWait + 0.5), s(R.roll + 1), s(R.done + 3)]; });
   check('the board shows IS1 Taxiing, then Taking off, then Departed', tx.join() === 'Taxiing,Taking off,Departed', tx);
 
   // the members' lounge

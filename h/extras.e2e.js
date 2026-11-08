@@ -1703,6 +1703,61 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
+  // ----- items, swords, armour, the crafting table and spark dust -----
+  const G = () => a.evaluate(() => window.__isle.gear.state());
+  await a.evaluate(() => { try { localStorage.removeItem('voxel-isle-gear'); } catch (e) {} });
+  check('the crafting table is in the block picker', await a.evaluate(() => window.__isle.picker.picks.indexOf(window.__isle.blockId('CRAFT')) >= 0));
+  // mine some wood and stone
+  await put(a, 80.5, 13, 92.5); await wait(300);
+  await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 3; k++) { I.setBlock(84 + k, 13, 90, I.blockId('LOG')); I.setBlock(84 + k, 14, 90, I.blockId('STONE')); } });
+  const m0 = (await G()).mats;
+  await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 3; k++) { I.act.brk(84 + k, 13, 90); I.act.brk(84 + k, 14, 90); } });
+  const m1 = (await G()).mats;
+  check('mining logs gives wood and stone gives stone', m1.wood === m0.wood + 6 && m1.stone === m0.stone + 3, [m0, m1]);
+  // the crafting table
+  await a.evaluate(() => window.__isle.setBlock(83, 13, 92, window.__isle.blockId('CRAFT')));
+  check('right click on a crafting table opens it', await a.evaluate(() => window.__isle.gear.open()) && (await G()).open && await a.evaluate(() => /Crafting table/.test(document.getElementById('craft').textContent) && /Spark sword/.test(document.getElementById('craft').textContent)));
+  check('craft a wooden sword', await a.evaluate(() => window.__isle.gear.craft('sword_wood')) && (await G()).items.indexOf('sword_wood') >= 0 && (await G()).mats.wood === m1.wood - 3);
+  check('but not a spark sword without spark dust', !(await a.evaluate(() => window.__isle.gear.craft('sword_spark'))));
+  await a.evaluate(() => window.__isle.gear.setMats({ stone: 20 }));
+  check('stone armour: crafted and worn straight away', await a.evaluate(() => window.__isle.gear.craft('armor_stone')) && (await G()).armor === 'stone');
+  await a.evaluate(() => window.__isle.gear.close());
+  // slot 0 is the item slot
+  await a.keyboard.press('Digit0'); await wait(300);
+  const gs = await G();
+  check('slot 0 is the item slot: press 0 and you hold your sword', gs.sel === 9 && gs.inHand === 'sword_wood', gs);
+  if (!(await a.evaluate(() => window.__isle.view().third))) { await a.keyboard.press('KeyV'); await wait(300); }
+  await wait(600);
+  check('and it shows in your hand, with your armour on', /sword_wood\|stone/.test(await a.evaluate(() => window.__isle.gear.dressed())), await a.evaluate(() => window.__isle.gear.dressed()));
+  await a.keyboard.press('KeyV'); await wait(600);
+  check('in first person you see the sword at the side of the view', await a.evaluate(() => window.__isle.gear.fp()));
+  await a.keyboard.press('KeyV'); await wait(300);
+  // a test dummy
+  await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; window.__isle.cmd('/spawn'); }); await wait(800);
+  const hits = [];
+  for (let k = 0; k < 6; k++) { await a.evaluate(() => window.__isle.gear.attack()); await wait(200); hits.push((await a.evaluate(() => window.__isle.gear.dummyHp()))[0]); }
+  check('left click with the sword hits a test dummy, and five hearts knock it out', hits[0] && hits[0].hp === 4 && hits.some((d) => d.down), hits.map((d) => d && d.hp));
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  // being hit: armour takes some of it
+  const hp0 = await a.evaluate(() => window.__isle.food.hp());
+  await a.evaluate(() => window.__isle.gear.hit(2, 'Tester'));
+  const hp1 = await a.evaluate(() => window.__isle.food.hp());
+  check('a 2-heart hit through stone armour costs 1.5 hearts, shown in halves', hp0 - hp1 === 1.5 && await a.evaluate(() => document.querySelectorAll('#hearts i.half').length === 1), [hp0, hp1]);
+  // the lab's spark dust chests
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  const CH = await a.evaluate(() => window.__isle.gear.chests());
+  await a.evaluate((c) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = c.x + (c.rot > 0 ? 1.1 : -1.1); P.y = c.y; P.z = c.z; }, CH[0]); await wait(600);
+  const sp0 = (await G()).mats.spark;
+  check('chests in the owls’ lab are full of spark dust', CH.length === 4 && (await a.evaluate(() => window.__isle.gear.chestNear())) === CH[0].k && await a.evaluate(() => window.__isle.gear.chestOpen()) && (await G()).mats.spark === sp0 + 25);
+  check('and then it’s empty for a while', !(await a.evaluate(() => window.__isle.gear.chestOpen())));
+  await a.evaluate(() => window.__isle.gear.setMats({ spark: 50, diamond: 3 }));
+  check('spark dust makes the spark sword and spark armour, the strongest', await a.evaluate(() => window.__isle.gear.craft('sword_spark')) && await a.evaluate(() => window.__isle.gear.craft('armor_spark')) && (await G()).armor === 'spark' && (await G()).held === 'sword_spark');
+  await a.keyboard.press('Digit0'); await wait(200);
+  check('pressing 0 again swaps to your next item', (await G()).held !== 'sword_spark', (await G()).held);
+  await put(a, 80.5, 13, 80.5); await wait(300);
+  await a.keyboard.press('Digit5'); await wait(200);
+  }
+  {
   // ----- Bird Air Express: no random crashes, the board, the grapple, mid-air -----
   check('Bird Air Express never crashes by itself', await a.evaluate(() => { const I = window.__isle, t0 = I.nowS(); for (let t = t0; t < t0 + 1500; t += 0.25) { const q = I.express.pose(t); if (q.gone || q.diving || q.crash) return false; } return true; }));
   const rows = await a.evaluate(() => window.__isle.express.rows());
