@@ -118,7 +118,7 @@ Both work for builders in a room, and everyone sees you hanging from your owl wi
 The lab is packed with gadgets (walk up to one and press **E**):
 - a teleporter to the treehouse hall
 - rocket boots (jump nearly twice as high for 3 minutes)
-- an invisibility cloak (3 minutes, off the map and barely visible)
+- an invisibility cloak (3 minutes): in a room nobody else can see you at all, not your body, your name tag, your chat bubbles or your pet, and you're off the map. You see yourself faintly so you know where you are. The see-through potion and the reactor's overdrive do the same.
 - a low-gravity field (2 minutes)
 - the Egg Annihilator 3000 (vaporises Bazza's eggs nearby)
 - a weather machine
@@ -578,5 +578,5 @@ npm test
 - `h/p2p.e2e.js` checks rooms with no server: on a plain static host with a local PeerJS server, the host's browser opens a room, a guest joins it peer to peer and gets the island, edits go both ways, the host's browser turns down an off-meadow edit, the guest sees the host, a wrong code, the room closing when the host leaves, and opening another.
 - `h/games.e2e.js` checks hide and seek and build battles with two players in a room.
 - `h/accounts.e2e.js` checks accounts with the server (creating one, a taken name, a wrong password, saving, logging in from a fresh browser and getting the save back, logging out) and on the published page with a stand-in database that, like the real one, refuses documents over 256 KiB and writes from view-only visitors (the same, with the password stored only as a hash, a big save squashed into small parts and coming back whole, photos staying on the device, and a view-only visitor told why they can't make an account).
-- `h/post.e2e.js` checks, with two players in a room: a letter carried by the pigeon, a message in a bottle washing up for the other player and vanishing for everyone once read, gifts of coins and a hat, joining a team, planting its flag, the shared team bank (and not taking out more than is in it), and the racing league showing the room's best time, and house owners: a stranger can't break the treehouse frame but an owl owner can, and the host sees it go.
+- `h/post.e2e.js` checks, with two players in a room: a letter carried by the pigeon, a message in a bottle washing up for the other player and vanishing for everyone once read, gifts of coins and a hat, joining a team, planting its flag, the shared team bank (and not taking out more than is in it), and the racing league showing the room's best time, and house owners: a stranger can't break the treehouse frame but an owl owner can, and the host sees it go. It also checks the invisibility cloak: the other player and their pet vanish completely for the host, and come back when it wears off.
 - `h/rooms.e2e.js` starts the server and drives three Chromium pages through hosting, joining, snapshots, the meadow rule, a cheating client, admin grant and revoke, late joiners, avatars, leaving and room close. Needs Playwright.

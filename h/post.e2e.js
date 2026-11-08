@@ -52,6 +52,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await guest.evaluate((c) => window.__isle.setBlock(c[0], c[1], c[2], 0), tc);
   await host.waitForFunction((c) => window.__isle.get(c[0], c[1], c[2]) === 0, tc, { timeout: 20000 }).catch(() => {});
   check('but an owl owner can, and everyone sees it', (await host.evaluate((c) => window.__isle.get(c[0], c[1], c[2]), tc)) === 0);
+  // the invisibility cloak: nobody else can see you, your name or your pet
+  await guest.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 92.5; });
+  await host.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 80.5; P.y = 13; P.z = 96.5; });
+  await host.waitForFunction(() => { const v = window.__isle.peerVis().Gus; return v && v.av && v.pet === true; }, null, { timeout: 30000 }).catch(() => {});
+  check('you can see another player and their pet', await host.evaluate(() => { const v = window.__isle.peerVis().Gus; return !!v && v.av && v.pet === true; }), await host.evaluate(() => window.__isle.peerVis()));
+  await guest.evaluate(() => window.__isle.lab.use('cloak'));
+  await host.waitForFunction(() => { const v = window.__isle.peerVis().Gus; return v && v.iv; }, null, { timeout: 30000 }).catch(() => {});
+  await wait(1000);
+  check('in the invisibility cloak they vanish completely for everyone else, pet and all', await host.evaluate(() => { const v = window.__isle.peerVis().Gus; return !!v && v.iv && !v.av && v.pet === false; }), await host.evaluate(() => window.__isle.peerVis()));
+  await guest.evaluate(() => window.__isle.lab.uncloak());
+  await host.waitForFunction(() => { const v = window.__isle.peerVis().Gus; return v && !v.iv && v.av; }, null, { timeout: 30000 }).catch(() => {});
+  check('and come back when it wears off', await host.evaluate(() => { const v = window.__isle.peerVis().Gus; return !!v && !v.iv && v.av && v.pet === true; }), await host.evaluate(() => window.__isle.peerVis()));
   await guest.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   // gifts
   await host.evaluate(() => window.__isle.shop.give(50)); await wait(1700);
