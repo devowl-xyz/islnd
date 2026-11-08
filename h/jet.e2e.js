@@ -27,40 +27,44 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const a = await open();
   const park = await a.evaluate(() => window.__isle.jetPark());
   const deck = await a.evaluate((pk) => window.__isle.get(Math.floor(pk[0]), Math.floor(pk[1] - 2), Math.floor(pk[2])), park);
-  check('the dock deck is built under the parking spot', deck === 7 || deck === 10, deck);
-  check('the dock is on the east side', park[0] > 120, park);
+  check('it parks on a runway, not on the dock: the airport runway, nearest East Beach', deck !== 0 && deck !== 12 && (await a.evaluate(() => window.__isle.stopRunway(0).name)) === 'the airport runway', deck);
+  check('the home stop is on the east side', park[0] > 120, park);
 
   // The autopilot route is the same for everyone and loops the island.
   const b = await open();
   const same = await Promise.all([a, b].map((p) => p.evaluate(() => [40, 60, 80].map((t) => { const q = window.__isle.autoPose(t); return [q.x, q.y, q.z].map((v) => Math.round(v * 10) / 10); }))));
   check('two players get the same autopilot route', JSON.stringify(same[0]) === JSON.stringify(same[1]));
   const decks = await a.evaluate(() => { const I = window.__isle; return I.docks.map((d) => { const k = I.dockPark(d); return I.get(Math.floor(k[0]), Math.floor(k[1] - 2), Math.floor(k[2])); }); });
-  check('four jet docks round the island', decks.length === 4 && decks.every((b) => b === 7 || b === 10), decks);
+  check('each of the four stops uses the runway nearest it', decks.length === 4 && decks.every((b) => b !== 0 && b !== 12) && await a.evaluate(() => { const I = window.__isle; return I.docks.every((d, i) => { const R = I.stopRunway(i), dd = (r) => Math.hypot(Math.max(r.x0, Math.min(r.x1 + 1, d.cx)) - d.cx, Math.max(r.z0, Math.min(r.z1 + 1, d.cz)) - d.cz); return I.jetRunways().every((r) => dd(r) >= Math.min(...I.jetRunways().filter((q) => q.name === R.name).map(dd)) - 0.01); }); }), [decks, await a.evaluate(() => [0, 1, 2, 3].map((i) => window.__isle.stopRunway(i).name))]);
+  check('and it lands along the runway, rolling to a stop, never dropping straight down', await a.evaluate(() => { const I = window.__isle, C = I.cycle(); let worst = 0; for (let t = 0; t < C; t += 0.1) { const a = I.autoPose(t), b = I.autoPose(t + 0.1); if (a.y < 16) { const vy = (a.y - b.y) / 0.1, vh = Math.hypot(b.x - a.x, b.z - a.z) / 0.1; if (vy > 1.5 && vh < 2) worst = Math.max(worst, vy); } } return worst === 0; }));
   const tour = await a.evaluate(() => {
     const I = window.__isle, C = I.cycle();
     const visits = I.docks.map((d) => { const k = I.dockPark(d); let best = 99; for (let t = 0; t < C; t += 0.25) { const q = I.autoPose(t); best = Math.min(best, Math.hypot(q.x - k[0], q.y - k[1], q.z - k[2])); } return best; });
-    let top = 0, minClear = 99;
+    let top = 0, minClear = 99, lowest = 99;
     for (let t = 0; t < C; t += 0.5) {
       const q = I.autoPose(t); top = Math.max(top, q.y);
+      { const x = Math.floor(q.x), z = Math.floor(q.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; } lowest = Math.min(lowest, q.y - g); }
       const near = Math.min(...I.docks.map((d) => { const k = I.dockPark(d); return Math.hypot(q.x - k[0], q.z - k[2]); }));
       if (near < 12) continue;
-      // taxiing and taking off on the airport's runway is meant to be on the ground
-      if (q.x > 148 && q.x < 168 && q.z > 80 && q.z < 158) continue;
+      // landing, rolling and taking off on a runway is meant to be low
+      if (I.jetRunways().some((r) => q.x > r.x0 - 60 && q.x < r.x1 + 61 && q.z > r.z0 - 60 && q.z < r.z1 + 61 && q.y < 40)) continue;
       const x = Math.floor(q.x), z = Math.floor(q.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; }
       minClear = Math.min(minClear, q.y - g);
     }
     const st = I.stops().map((s) => [s.dock, Math.round(s.tArrive)]);
-    return { C, visits, top, minClear, st, s5: I.jetStatus(5), sFly: I.jetStatus(40) };
+    return { C, visits, top, minClear, lowest, st, s5: I.jetStatus(5), sFly: I.jetStatus(40) };
   });
   check('the tour lands at every dock', tour.visits.every((v) => v < 0.01), tour.visits);
   check('and flies high over the hills between them', tour.top > 45 && tour.minClear >= 6, tour);
+  check('it never goes into the ground, even coming in to land', tour.lowest >= 1, tour.lowest);
   check('it knows where it is and where it goes next', tour.s5.at === 0 && tour.s5.next === 1 && tour.sFly.flying && tour.sFly.next === 1 && tour.st.map((s) => s[0]).join() === '1,2,3,0', tour);
   const parked = await a.evaluate(() => { const p = window.__isle.jetPark(); const q = window.__isle.autoPose(5); return Math.hypot(q.x - p[0], q.y - p[1], q.z - p[2]); });
   check('it waits at the dock at the start of each loop', parked < 0.01, parked);
   await b.context().close();
 
-  // Single player: you are the pilot.
+  // Single player: you are the pilot. (Board while it's parked at home on the runway: the tour runs on the clock.)
   await play(a); await wait(900);
+  await a.evaluate(() => { const I = window.__isle, C = I.cycle(), n = I.nowS(), c = ((n % C) + C) % C; I.net.tOff -= (c - 4) * 1000; }); await wait(600);
   await board(a);
   check('boarding in single player puts you in the pilot seat', await a.evaluate(() => window.__isle.jet.seat === 'pilot'));
   const p0 = await pose(a);
@@ -93,6 +97,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       for (let t = 1000; t < C.tDone; t += 0.5) {
         const q = I.callPose(t);
         if (Math.min(...I.docks.map((d) => { const k = I.dockPark(d); return Math.hypot(q.x - k[0], q.z - k[2]); })) < 12) continue;
+        if (I.jetRunways().some((r) => q.x > r.x0 - 60 && q.x < r.x1 + 61 && q.z > r.z0 - 60 && q.z < r.z1 + 61 && q.y < 40)) continue;
         const x = Math.floor(q.x), z = Math.floor(q.z); let g = 0; if (x >= 0 && z >= 0 && x < 352 && z < 352) for (let y = 47; y > 0; y--) if (I.get(x, y, z)) { g = y + 1; break; }
         worst = Math.min(worst, q.y - g);
       }
