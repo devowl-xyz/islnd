@@ -1743,6 +1743,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const hp0 = await a.evaluate(() => window.__isle.food.hp());
   await a.evaluate(() => window.__isle.gear.hit(2, 'Tester'));
   const hp1 = await a.evaluate(() => window.__isle.food.hp());
+  check('getting hit plays a hurt animation: your figure flashes red and recoils', (await a.evaluate(() => window.__isle.gear.hurtN())) >= 1 && await a.waitForFunction(() => window.__isle.gear.hurting(), null, { timeout: 4000 }).then(() => true).catch(() => false));
+  const rs = await a.evaluate(() => window.__isle.gear.rodTest('stone')), rsp = await a.evaluate(() => window.__isle.gear.rodTest('spark'));
+  check('rod creatures get armour made for them: a boxy helm round the face, a collar and a hoop; spark adds glow and dust', rs.n >= 9 && rsp.n > rs.n && rsp.dust && !rs.dust, [rs, rsp]);
   check('a 2-heart hit through stone armour costs 1.5 hearts, shown in halves', hp0 - hp1 === 1.5 && await a.evaluate(() => document.querySelectorAll('#hearts i.half').length === 1), [hp0, hp1]);
   // the lab's spark dust chests
   await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));

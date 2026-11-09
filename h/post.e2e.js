@@ -94,6 +94,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await host.waitForFunction(() => { const I = window.__isle; return [...I.net.peers.values()].some((p) => p.cur && Math.hypot(p.cur.x - 82.5, p.cur.z - 92.5) < 0.5); }, null, { timeout: 20000 }).catch(() => {});
   check('a swing hits them', await host.evaluate(() => window.__isle.gear.attack()));
   await guest.waitForFunction((h) => window.__isle.food.hp() < h || window.__isle.death.on(), ghp0, { timeout: 20000 }).catch(() => {});
+  check('everyone sees them flash red as they’re hit', await host.waitForFunction(() => window.__isle.gear.peerHurt() > 0, null, { timeout: 20000 }).then(() => true).catch(() => false));
   check('and a spark sword (5 hearts) knocks them out in one go', await guest.evaluate(() => window.__isle.death.on() && /Hana got you with a spark sword/.test(window.__isle.death.cause())), await guest.evaluate(() => [window.__isle.food.hp(), window.__isle.death.cause()]));
   await guest.evaluate(() => window.__isle.death.respawn()); await wait(300);
   await host.keyboard.press('Digit5'); await wait(200);
