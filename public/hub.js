@@ -560,15 +560,27 @@ function handle(peer, msg) {
       broadcast(room, { t: 'died', id: peer.id, name: peer.name, what }, peer.id);
       return;
     }
+    // an arrow: everyone else sees it fly (hits are sent separately, as 'hit')
+    case 'arrow': {
+      if (!room) return;
+      const now = Date.now();
+      if (now - (peer.arrowT || 0) < 250) return;
+      peer.arrowT = now;
+      const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
+      broadcast(room, { t: 'arrow', by: peer.id, x: n(msg.x), y: n(msg.y), z: n(msg.z), vx: Math.max(-60, Math.min(60, n(msg.vx))), vy: Math.max(-60, Math.min(60, n(msg.vy))), vz: Math.max(-60, Math.min(60, n(msg.vz))) }, peer.id);
+      return;
+    }
     // a sword hit: only on someone close by, and not too often
     case 'hit': {
       if (!room || !Number.isInteger(msg.w) || msg.w < 0 || msg.w > 20) return;
       const target = room.peers.get(msg.to), now = Date.now();
       if (!target || target === peer || !peer.pos || !target.pos) return;
       if (now - (peer.hitT || 0) < 350) return;
-      if (Math.hypot(peer.pos.x - target.pos.x, peer.pos.y - target.pos.y, peer.pos.z - target.pos.z) > 6) return;
+      // arrows reach further than a sword
+      if (Math.hypot(peer.pos.x - target.pos.x, peer.pos.y - target.pos.y, peer.pos.z - target.pos.z) > (msg.ranged ? 70 : 6)) return;
       peer.hitT = now;
-      send(target.ws, { t: 'hit', by: peer.id, name: peer.name, w: msg.w });
+      const dmg = msg.ranged ? Math.max(0.5, Math.min(3, Number(msg.dmg) || 1)) : undefined;
+      send(target.ws, { t: 'hit', by: peer.id, name: peer.name, w: msg.w, dmg });
       return;
     }
     // admin powers over another player: /kill Name and /pet Name pet (host and admins only)
@@ -1178,7 +1190,7 @@ function handle(peer, msg) {
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
       const k = (v, a, b) => (Number.isInteger(v) && v >= a && v <= b ? v : 0);
       peer.pos = { x: n(msg.x), y: n(msg.y), z: n(msg.z), yaw: n(msg.yaw), pitch: n(msg.pitch), rd: msg.rd ? 1 : 0, sl: msg.sl ? 1 : 0, lf: msg.lf ? 1 : 0, fr: msg.fr ? 1 : 0, gd: msg.gd ? 1 : 0, fb: msg.fb ? 1 : 0,
-        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, po: msg.po ? 1 : 0, dd: msg.dd ? 1 : 0, hu: k(msg.hu, 0, 1e9), sd: k(msg.sd, 0, 2), hi: k(msg.hi, 0, 20), ar: k(msg.ar, 0, 5), sw: k(msg.sw, 0, 1e9), dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
+        cl: msg.cl ? 1 : 0, pc: msg.pc ? 1 : 0, js: msg.js ? 1 : 0, sk: msg.sk ? 1 : 0, bk: k(msg.bk, 0, 6), zp: k(msg.zp, 0, 9999), pp: msg.pp ? 1 : 0, bl: msg.bl ? 1 : 0, iv: msg.iv ? 1 : 0, po: msg.po ? 1 : 0, dd: msg.dd ? 1 : 0, hu: k(msg.hu, 0, 1e9), sd: k(msg.sd, 0, 2), dw: msg.dw ? 1 : 0, hi: k(msg.hi, 0, 20), ar: k(msg.ar, 0, 5), sw: k(msg.sw, 0, 1e9), dg: msg.dg ? 1 : 0, sx: k(msg.sx, 0, 352), sz: k(msg.sz, 0, 352), ty: msg.ty ? 1 : 0, rc: k(msg.rc, 0, 6), rs: k(msg.rs, 0, 1e9), sg: msg.sg ? 1 : 0, gp: msg.gp ? 1 : 0, gx: n(msg.gx), gy: n(msg.gy), gz: n(msg.gz), kd: k(msg.kd, 0, 2), em: k(msg.em, 0, 5), es: k(msg.es, 0, 1e9), pk: k(msg.pk, 0, 1e9), pi: k(msg.pi, 0, 3), fx: n(msg.fx), fy: n(msg.fy), fz: n(msg.fz) };
       broadcast(room, Object.assign({ t: 'pos', id: peer.id }, peer.pos), peer.id);
       return;
     }

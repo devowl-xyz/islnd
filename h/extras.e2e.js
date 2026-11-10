@@ -1770,6 +1770,25 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('Digit5'); await wait(200);
   }
   {
+  // ----- bows and arrows -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 10, stone: 4 }); });
+  check('craft a bow, and arrows (8 for 1 wood and 1 stone)', await a.evaluate(() => window.__isle.gear.craft('bow') && window.__isle.gear.craft('arrows')) && (await a.evaluate(() => window.__isle.gear.bow.arrows())) === 8);
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  for (let k = 0; k < 6 && (await a.evaluate(() => window.__isle.gear.state().inHand)) !== 'bow'; k++) { await a.keyboard.press('Digit0'); await wait(200); }
+  await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; P.pitch = 0; window.__isle.cmd('/spawn Target'); }); await wait(600);
+  await a.evaluate(() => { const P = window.__isle.player; P.x -= 0; P.z += 6; P.pitch = -0.05; }); await wait(400);
+  await a.evaluate(() => window.__isle.gear.bow.hold(1000));
+  check('hold right click to draw and let go: an arrow flies', await a.evaluate(() => window.__isle.gear.bow.release()) && (await a.evaluate(() => window.__isle.gear.bow.arrows())) === 7);
+  await a.waitForFunction(() => window.__isle.gear.bow.hits() > 0, null, { timeout: 15000 }).catch(() => {});
+  check('and hits the test dummy', (await a.evaluate(() => window.__isle.gear.bow.hits())) > 0 && (await a.evaluate(() => window.__isle.gear.dummyHp().find((d) => d.name === 'Target').hp)) < 5, await a.evaluate(() => window.__isle.gear.dummyHp()));
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 3); });
+  await a.evaluate(() => { window.__isle.gear.bow.hold(600); window.__isle.gear.bow.release(); });
+  await a.waitForFunction(() => window.__isle.gear.bow.stuck() > 0, null, { timeout: 15000 }).catch(() => {});
+  check('an arrow that hits a wall sticks in it', (await a.evaluate(() => window.__isle.gear.bow.stuck())) > 0);
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 0); });
+  await a.keyboard.press('Digit5'); await wait(200);
+  await put(a, 80.5, 13, 80.5); await wait(300);
   // ----- the rope -----
   await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 10 }); });
   check('a rope is crafted from wood at the crafting table', await a.evaluate(() => window.__isle.gear.craft('rope')) && (await a.evaluate(() => window.__isle.gear.state())).held === 'rope');
