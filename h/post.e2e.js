@@ -98,6 +98,21 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and a spark sword (5 hearts) knocks them out in one go', await guest.evaluate(() => window.__isle.death.on() && /Hana got you with a spark sword/.test(window.__isle.death.cause())), await guest.evaluate(() => [window.__isle.food.hp(), window.__isle.death.cause()]));
   await guest.evaluate(() => window.__isle.death.respawn()); await wait(300);
   await host.keyboard.press('Digit5'); await wait(200);
+  // the shield: others see it raised, and a hit from the front bounces off
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 8, stone: 4 }); I.gear.craft('shield'); I.gear.block(true); });
+  await guest.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 6 }); I.gear.craft('sword_wood'); });
+  await guest.keyboard.press('Digit0'); await wait(300);
+  if ((await guest.evaluate(() => window.__isle.gear.state().inHand)) !== 'sword_wood') { await guest.keyboard.press('Digit0'); await wait(300); }
+  await guest.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 92.5; P.yaw = Math.PI; });
+  await host.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 82.5; P.y = 13; P.z = 94.5; P.yaw = 0; });
+  await guest.waitForFunction(() => window.__isle.gear.peerShield().Hana === 2, null, { timeout: 20000 }).catch(() => {});
+  check('others see your shield raised', (await guest.evaluate(() => window.__isle.gear.peerShield().Hana)) === 2, await guest.evaluate(() => window.__isle.gear.peerShield()));
+  const hh0 = await host.evaluate(() => window.__isle.food.hp()), hb0 = await host.evaluate(() => window.__isle.gear.blocks());
+  await guest.waitForFunction(() => [...window.__isle.net.peers.values()].some((p) => p.cur && Math.hypot(p.cur.x - 82.5, p.cur.z - 94.5) < 0.5), null, { timeout: 20000 }).catch(() => {});
+  await guest.evaluate(() => window.__isle.gear.attack());
+  await host.waitForFunction((b) => window.__isle.gear.blocks() > b, hb0, { timeout: 20000 }).catch(() => {});
+  check('and a sword hit from the front bounces off it', (await host.evaluate(() => window.__isle.gear.blocks())) > hb0 && (await host.evaluate(() => window.__isle.food.hp())) === hh0);
+  await host.evaluate(() => window.__isle.gear.block(false)); await guest.keyboard.press('Digit5');
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone
   await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4 }); I.gear.craft('rope'); });
   if ((await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'rope') { await host.keyboard.press('Digit0'); await wait(200); }

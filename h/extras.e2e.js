@@ -1752,6 +1752,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const CH = await a.evaluate(() => window.__isle.gear.chests());
   await a.evaluate((c) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = c.x + (c.rot > 0 ? 1.1 : -1.1); P.y = c.y; P.z = c.z; }, CH[0]); await wait(600);
   const sp0 = (await G()).mats.spark;
+  // the shield
+  await a.evaluate(() => window.__isle.gear.setMats({ wood: 8, stone: 4 }));
+  check('craft a shield, and it’s carried on your other arm', await a.evaluate(() => window.__isle.gear.craft('shield')) && await a.waitForFunction(() => /\|S$/.test(window.__isle.gear.dressed()), null, { timeout: 5000 }).then(() => true).catch(() => false), await a.evaluate(() => window.__isle.gear.dressed()));
+  if ((await a.evaluate(() => window.__isle.gear.state().inHand)) === 'shield') await a.keyboard.press('Digit0');
+  const sh0 = await a.evaluate(() => window.__isle.food.hp());
+  check('raise it (hold right click) and a hit bounces off', await a.evaluate(() => window.__isle.gear.block(true)) && !(await a.evaluate(() => window.__isle.gear.hit(2, 'Tester'))) && (await a.evaluate(() => window.__isle.food.hp())) === sh0 && (await a.evaluate(() => window.__isle.gear.blocks())) === 1);
+  await a.evaluate(() => window.__isle.gear.block(false));
+  check('lower it and the next hit gets through', await a.evaluate(() => { const I = window.__isle, h = I.food.hp(); return I.gear.hit(1, 'Tester') && I.food.hp() < h; }));
   check('chests in the owls’ lab are full of spark dust', CH.length === 4 && (await a.evaluate(() => window.__isle.gear.chestNear())) === CH[0].k && await a.evaluate(() => window.__isle.gear.chestOpen()) && (await G()).mats.spark === sp0 + 25);
   check('and then it’s empty for a while', !(await a.evaluate(() => window.__isle.gear.chestOpen())));
   await a.evaluate(() => window.__isle.gear.setMats({ spark: 50, diamond: 3 }));
