@@ -7199,7 +7199,8 @@ function toggleBoard(){
   if(throneNear()){takeTrident();return;}
   if(expNear()){if(express.fly||!expPose(nowS()).parked)expDrive();else expDrive();return;}
   if(clamNear()){clamOpen();return;}
-  if(libShelfNear()&&!libOpen()){libPull();return;}
+  /* by the shelf, E pulls a book, unless you're not looking at one and Pemberton is right here */
+  if(libShelfNear()&&!libOpen()&&!(butlerNear()&&!libAimed())){libPull();return;}
   if(libNear(libLecternPos())){libRead();return;}
   if(radioNear()){radioToggle();return;}
   if(coursePadNear()&&!P.ride){courseStart();return;}
@@ -14072,6 +14073,7 @@ function buildLibrary(){
   for(let z=r.z0+2;z<=r.z0+3;z++)for(let x=r.x0+1;x<=r.x0+3;x++)S(x,r.y0,z,B.CARPET+6);
 }
 function libShelfNear(){const o=libSpot();return Math.hypot(P.x-(o.x0+1),P.z-(o.z+0.5))<2.8&&Math.abs(P.y-o.y)<2;}
+function libAimed(){try{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(0,0),camera);return rc.intersectObjects(lib.books,false).length>0;}catch(e){return false;}}
 function libPull(k){
   if(k===undefined){
     /* the book you're looking at */
