@@ -1833,6 +1833,44 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.gear.bow.fireFirst(true));
   await a.keyboard.press('Digit5'); await wait(200);
   await put(a, 80.5, 13, 80.5); await wait(300);
+  // ----- spears -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 20, stone: 2, spark: 10 }); });
+  check('craft a stone spear', await a.evaluate(() => window.__isle.gear.craft('spear_stone')));
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  for (let k = 0; k < 12 && (await a.evaluate(() => window.__isle.gear.state().inHand)) !== 'spear_stone'; k++) { await a.keyboard.press('Digit0'); await wait(150); }
+  check('it goes in slot 0', (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'spear_stone');
+  await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; P.pitch = 0; window.__isle.cmd('/spawn Pike'); }); await wait(600);
+  await a.evaluate(() => { const P = window.__isle.player; P.z += 2; }); await wait(400);
+  const pk0 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Pike') || {}).hp);
+  await a.evaluate(() => window.__isle.gear.attack()); await wait(300);
+  const pk1 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Pike') || {}).hp);
+  check('a spear reaches a dummy over 4 blocks away (a sword can’t)', pk1 < pk0, [pk0, pk1]);
+  await a.evaluate(() => { const P = window.__isle.player; P.z += 3.5; P.pitch = 0.04; }); await wait(700);
+  await a.evaluate(() => { window.__isle.gear.spear.hold(1000); });
+  check('hold right click and let go: the spear is thrown', await a.evaluate(() => window.__isle.gear.spear.release()) && (await a.evaluate(() => window.__isle.gear.spear.thrown())) === 'spear_stone');
+  check('and it’s gone from your hand', (await a.evaluate(() => window.__isle.gear.state().inHand)) === null);
+  await a.waitForFunction(() => window.__isle.gear.spear.hits() > 0, null, { timeout: 15000 }).catch(() => {});
+  check('a thrown spear hits the dummy 8 blocks away', (await a.evaluate(() => window.__isle.gear.spear.hits())) > 0);
+  await a.waitForFunction(() => window.__isle.gear.spear.flying().some((s) => s.stuck), null, { timeout: 15000 }).catch(() => {});
+  const sp = (await a.evaluate(() => window.__isle.gear.spear.flying()))[0];
+  check('then it drops to the ground', !!sp && sp.stuck, sp);
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  if (sp) await put(a, sp.x, 13, sp.z + 0.5, 0);
+  await a.waitForFunction(() => !window.__isle.gear.spear.thrown(), null, { timeout: 8000 }).catch(() => {});
+  check('walk over it to pick it up', !(await a.evaluate(() => window.__isle.gear.spear.thrown())) && (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'spear_stone');
+  // the spark spear comes back by itself
+  check('craft a spark spear', await a.evaluate(() => window.__isle.gear.craft('spear_spark')));
+  for (let k = 0; k < 12 && (await a.evaluate(() => window.__isle.gear.state().inHand)) !== 'spear_spark'; k++) { await a.keyboard.press('Digit0'); await wait(150); }
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; P.pitch = 0.1; window.__isle.gear.spear.hold(1000); window.__isle.gear.spear.release(); });
+  await a.waitForFunction(() => window.__isle.gear.spear.flying().some((s) => s.back), null, { timeout: 15000 }).catch(() => {});
+  check('a spark spear flies back to you after it lands', await a.evaluate(() => window.__isle.gear.spear.flying().some((s) => s.back) || !window.__isle.gear.spear.thrown()));
+  await a.waitForFunction(() => !window.__isle.gear.spear.thrown(), null, { timeout: 15000 }).catch(() => {});
+  check('and lands back in your hand', !(await a.evaluate(() => window.__isle.gear.spear.thrown())) && (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'spear_spark');
+  await a.keyboard.press('Digit5'); await wait(200);
+  // ----- blocky mode -----
+  const bk = await a.evaluate(() => window.__isle.blocky());
+  check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);
   // ----- the rope -----
   await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 10 }); });
   check('a rope is crafted from wood at the crafting table', await a.evaluate(() => window.__isle.gear.craft('rope')) && (await a.evaluate(() => window.__isle.gear.state())).held === 'rope');

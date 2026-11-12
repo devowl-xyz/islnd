@@ -567,7 +567,7 @@ function handle(peer, msg) {
       if (now - (peer.arrowT || 0) < 250) return;
       peer.arrowT = now;
       const n = (v) => (typeof v === 'number' && isFinite(v) ? Math.round(v * 100) / 100 : 0);
-      broadcast(room, { t: 'arrow', by: peer.id, x: n(msg.x), y: n(msg.y), z: n(msg.z), vx: Math.max(-60, Math.min(60, n(msg.vx))), vy: Math.max(-60, Math.min(60, n(msg.vy))), vz: Math.max(-60, Math.min(60, n(msg.vz))), fire: msg.fire ? 1 : 0 }, peer.id);
+      broadcast(room, { t: 'arrow', by: peer.id, x: n(msg.x), y: n(msg.y), z: n(msg.z), vx: Math.max(-60, Math.min(60, n(msg.vx))), vy: Math.max(-60, Math.min(60, n(msg.vy))), vz: Math.max(-60, Math.min(60, n(msg.vz))), fire: msg.fire ? 1 : 0, sp: Number.isInteger(msg.sp) && msg.sp > 0 && msg.sp <= 20 ? msg.sp : 0 }, peer.id);
       return;
     }
     // a sword hit: only on someone close by, and not too often
@@ -579,7 +579,8 @@ function handle(peer, msg) {
       // arrows reach further than a sword
       if (Math.hypot(peer.pos.x - target.pos.x, peer.pos.y - target.pos.y, peer.pos.z - target.pos.z) > (msg.ranged ? 70 : 6)) return;
       peer.hitT = now;
-      const dmg = msg.ranged ? Math.max(0.5, Math.min(3, Number(msg.dmg) || 1)) : undefined;
+      // a thrown spark spear can hit for up to 7.5 hearts
+      const dmg = msg.ranged ? Math.max(0.5, Math.min(7.5, Number(msg.dmg) || 1)) : undefined;
       send(target.ws, { t: 'hit', by: peer.id, name: peer.name, w: msg.w, dmg, fire: msg.ranged && msg.fire ? 1 : 0 });
       return;
     }
