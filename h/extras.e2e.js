@@ -278,7 +278,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const nearButler = () => a.evaluate(() => { const I = window.__isle, b = I.butler.pose(), P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = b.x + 1; P.y = b.y; P.z = b.z; I.butler.ready(); });
   await nearButler(); await wait(400);
   check('he greets an owl owner who comes home', /Welcome|kettle|asking after|bath/.test((await a.evaluate(() => window.__isle.butler.said())) || ''), await a.evaluate(() => window.__isle.butler.said()));
-  await nearButler(); await a.keyboard.press('KeyE'); await wait(400);
+  // he potters about the hall, so try E again if he'd wandered off a step
+  for (let k = 0; k < 4 && !(await a.evaluate(() => window.__isle.butler.menu())); k++) { await nearButler(); await a.keyboard.press('KeyE'); await wait(400); }
+  if (!(await a.evaluate(() => window.__isle.butler.menu()))) console.log('pemberton', JSON.stringify(await a.evaluate(() => [window.__isle.butler.pose(), window.__isle.player.x, window.__isle.player.y, window.__isle.player.z, (document.getElementById('toast') || {}).textContent, window.__isle.butler.away()])));
   check('E opens Pemberton’s service', await a.evaluate(() => window.__isle.butler.menu() && !document.getElementById('pemb').hidden && document.querySelectorAll('#pemb [data-svc]').length >= 10));
   await a.evaluate(() => document.querySelector('#pemb [data-svc="tea"]').click()); await wait(300);
   const teaInHand = await a.evaluate(() => window.__isle.butler.tea());
