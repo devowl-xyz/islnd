@@ -164,6 +164,21 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('throw a knife and the other player sees it fly', (await guest.evaluate(() => window.__isle.gear.knife.seen())) > 0);
   await guest.waitForFunction((h) => window.__isle.food.hp() < h, kh0, { timeout: 20000 }).catch(() => {});
   check('and it hits them', (await guest.evaluate(() => window.__isle.food.hp())) < kh0, [kh0, await guest.evaluate(() => window.__isle.food.hp())]);
+  // grenades: seen flying, and the blast hurts the other player
+  await guest.evaluate(() => window.__isle.gear.bow.heal());
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ stone: 1, coal: 1 }); I.gear.craft('grenades'); });
+  for (let k = 0; k < 18 && (await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'grenades'; k++) { await host.keyboard.press('Digit0'); await wait(200); }
+  await host.evaluate(() => { const P = window.__isle.player; P.x = 82.5; P.z = 92.5; P.yaw = 0; P.pitch = -0.6; P.vx = P.vy = P.vz = 0; });
+  await wait(800);
+  const gg0 = await guest.evaluate(() => window.__isle.food.hp());
+  await host.evaluate(() => window.__isle.gear.gren.throw());
+  await guest.waitForFunction(() => window.__isle.gear.gren.seen() > 0, null, { timeout: 20000 }).catch(() => {});
+  check('lob a grenade and the other player sees it', (await guest.evaluate(() => window.__isle.gear.gren.seen())) > 0);
+  await guest.waitForFunction(() => window.__isle.gear.gren.booms() > 0, null, { timeout: 20000 }).catch(() => {});
+  check('and sees it go off', (await guest.evaluate(() => window.__isle.gear.gren.booms())) > 0);
+  await guest.waitForFunction((h) => window.__isle.food.hp() < h, gg0, { timeout: 20000 }).catch(() => {});
+  check('and the blast hurts them', (await guest.evaluate(() => window.__isle.food.hp())) < gg0, [gg0, await guest.evaluate(() => window.__isle.food.hp()), await host.evaluate(() => window.__isle.gear.gren.live())]);
+  await guest.evaluate(() => window.__isle.gear.bow.heal()); await host.evaluate(() => window.__isle.gear.bow.heal());
   await guest.evaluate(() => window.__isle.gear.bow.heal());
   await host.keyboard.press('Digit5');
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone

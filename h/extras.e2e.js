@@ -1893,6 +1893,28 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('walk over them to pick them up', (await a.evaluate(() => window.__isle.gear.knife.count())) === kc0 + ks.length, [kc0, ks.length, await a.evaluate(() => window.__isle.gear.knife.count())]);
   await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 0); });
   await a.keyboard.press('Digit5'); await wait(200);
+  // ----- grenades -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ stone: 2, coal: 2 }); });
+  check('craft grenades, 2 at a time', await a.evaluate(() => window.__isle.gear.craft('grenades')) && (await a.evaluate(() => window.__isle.gear.gren.count())) === 2);
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  for (let k = 0; k < 16 && (await a.evaluate(() => window.__isle.gear.state().inHand)) !== 'grenades'; k++) { await a.keyboard.press('Digit0'); await wait(150); }
+  check('they go in slot 0', (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'grenades');
+  await a.evaluate(() => { const I = window.__isle, P = I.player; P.yaw = 0; P.pitch = 0; I.cmd('/spawn Crate'); I.setBlock(80, 13, 91, 3); I.gear.bow.heal(); }); await wait(600);
+  const gh0 = await a.evaluate(() => window.__isle.food.hp());
+  await a.evaluate(() => { const P = window.__isle.player; P.pitch = -1.45; P.vx = P.vy = P.vz = 0; });
+  await a.mouse.click(400, 300); await wait(150);
+  check('left click lobs a grenade', (await a.evaluate(() => window.__isle.gear.gren.count())) === 1 && (await a.evaluate(() => window.__isle.gear.gren.live().length)) === 1);
+  await wait(1200);
+  check('it hasn’t gone off yet', (await a.evaluate(() => window.__isle.gear.gren.booms())) === 0);
+  await a.waitForFunction(() => window.__isle.gear.gren.booms() > 0, null, { timeout: 6000 }).catch(() => {});
+  check('it goes off after its fuse', (await a.evaluate(() => window.__isle.gear.gren.booms())) === 1);
+  await wait(300);
+  const cr = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Crate') || {}).hp);
+  check('the blast hurts a test dummy close by', cr < 5, cr);
+  check('and you, if you didn’t get clear', (await a.evaluate(() => window.__isle.food.hp())) < gh0, [gh0, await a.evaluate(() => window.__isle.food.hp())]);
+  check('and blows a small hole', (await a.evaluate(() => window.__isle.gear.gren.hole())) > 0 && (await a.evaluate(() => window.__isle.get(80, 13, 91))) === 0);
+  await a.evaluate(() => { window.__isle.cmd('/clear dummies'); window.__isle.gear.bow.heal(); });
+  await a.keyboard.press('Digit5'); await wait(200);
   // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
   check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);
