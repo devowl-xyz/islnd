@@ -1868,6 +1868,31 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => !window.__isle.gear.spear.thrown(), null, { timeout: 15000 }).catch(() => {});
   check('and lands back in your hand', !(await a.evaluate(() => window.__isle.gear.spear.thrown())) && (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'spear_spark');
   await a.keyboard.press('Digit5'); await wait(200);
+  // ----- throwing knives -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 2, stone: 4 }); });
+  check('craft throwing knives, 4 at a time', await a.evaluate(() => window.__isle.gear.craft('knives')) && (await a.evaluate(() => window.__isle.gear.knife.count())) === 4);
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  for (let k = 0; k < 12 && (await a.evaluate(() => window.__isle.gear.state().inHand)) !== 'knives'; k++) { await a.keyboard.press('Digit0'); await wait(150); }
+  check('they go in slot 0', (await a.evaluate(() => window.__isle.gear.state().inHand)) === 'knives');
+  await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; P.pitch = 0; window.__isle.cmd('/spawn Board'); }); await wait(600);
+  await a.evaluate(() => { const P = window.__isle.player; P.z += 7; P.pitch = 0; }); await wait(500);
+  const kb0 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Board') || {}).hp);
+  await a.mouse.click(400, 300); await wait(100);
+  check('left click throws a knife', (await a.evaluate(() => window.__isle.gear.knife.count())) === 3);
+  await a.waitForFunction(() => window.__isle.gear.knife.hits() > 0, null, { timeout: 10000 }).catch(() => {});
+  const kb1 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Board') || {}).hp);
+  check('it hits a test dummy 9 blocks away for 1.5 hearts', kb0 - kb1 === 1.5, [kb0, kb1]);
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 3); });
+  await a.evaluate(() => { window.__isle.gear.knife.throw(); });
+  await a.waitForFunction(() => window.__isle.gear.knife.stuck().length > 1, null, { timeout: 10000 }).catch(() => {});
+  const ks = await a.evaluate(() => window.__isle.gear.knife.stuck());
+  check('knives stick where they land', ks.length >= 2, ks);
+  const kc0 = await a.evaluate(() => window.__isle.gear.knife.count());
+  for (const k of ks) { await put(a, k.x, 13, k.z + 0.6, 0); await wait(400); }
+  check('walk over them to pick them up', (await a.evaluate(() => window.__isle.gear.knife.count())) === kc0 + ks.length, [kc0, ks.length, await a.evaluate(() => window.__isle.gear.knife.count())]);
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 0); });
+  await a.keyboard.press('Digit5'); await wait(200);
   // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
   check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);

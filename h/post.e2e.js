@@ -152,6 +152,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('throw a spear and the other player sees it fly', (await guest.evaluate(() => window.__isle.gear.spear.seen())) > 0);
   await guest.waitForFunction((h) => window.__isle.food.hp() < h, sh0, { timeout: 20000 }).catch(() => {});
   check('and it hits them from 6 blocks away', (await guest.evaluate(() => window.__isle.food.hp())) < sh0, [sh0, await guest.evaluate(() => window.__isle.food.hp())]);
+  // throwing knives: seen flying, and they hit
+  await guest.evaluate(() => window.__isle.gear.bow.heal());
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 1, stone: 2 }); I.gear.craft('knives'); });
+  for (let k = 0; k < 16 && (await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'knives'; k++) { await host.keyboard.press('Digit0'); await wait(200); }
+  await host.evaluate(() => { const P = window.__isle.player; P.x = 82.5; P.z = 96.5; P.yaw = 0; P.pitch = 0; P.vx = P.vy = P.vz = 0; });
+  await wait(800);
+  const kh0 = await guest.evaluate(() => window.__isle.food.hp());
+  await host.evaluate(() => window.__isle.gear.knife.throw());
+  await guest.waitForFunction(() => window.__isle.gear.knife.seen() > 0, null, { timeout: 20000 }).catch(() => {});
+  check('throw a knife and the other player sees it fly', (await guest.evaluate(() => window.__isle.gear.knife.seen())) > 0);
+  await guest.waitForFunction((h) => window.__isle.food.hp() < h, kh0, { timeout: 20000 }).catch(() => {});
+  check('and it hits them', (await guest.evaluate(() => window.__isle.food.hp())) < kh0, [kh0, await guest.evaluate(() => window.__isle.food.hp())]);
   await guest.evaluate(() => window.__isle.gear.bow.heal());
   await host.keyboard.press('Digit5');
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone
