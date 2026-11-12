@@ -1670,6 +1670,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const run = (await a.evaluate(() => window.__isle.player.x)) - sx;
   await a.evaluate(() => { window.__isle.sec.recharge(); });
   check('and you run much faster while it lasts', run > 0.5, run);
+  await a.evaluate(() => window.__isle.sec.wishEnd());
   await put(a, 80.5, 13, 80.5); await wait(300);
   }
   {
@@ -1677,6 +1678,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.cmd('/time noon'); I.cmd('/rainbow'); });
   const RBo = await a.evaluate(() => window.__isle.wx.rb()), CO = await a.evaluate(() => window.__isle.cot.COT);
   check('/rainbow puts a rainbow right over Biscuit and Mochi’s cottage', await a.evaluate(() => window.__isle.wx.rainbow()) && Math.abs(RBo.cx - (CO.cx + 0.5)) < 1 && Math.abs(RBo.cz - (CO.cz + 0.5)) < 1, [RBo, CO.cx, CO.cz]);
+  await a.evaluate(() => window.__isle.wx.clearHook());
   check('without an owl, no grappling hook', !(await a.evaluate(() => window.__isle.wx.grapMay())));
   const tx = RBo.cx - RBo.R * 0.6, ty = await a.evaluate((q) => window.__isle.wx.rbTop(q[0], q[1]), [tx, RBo.cz]);
   await a.evaluate((q) => { const P = window.__isle.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = q[0]; P.y = q[1] + 0.2; P.z = q[2]; }, [tx, ty, RBo.cz]); await wait(1200);
