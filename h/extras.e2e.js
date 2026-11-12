@@ -1787,6 +1787,50 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => window.__isle.gear.bow.stuck() > 0, null, { timeout: 15000 }).catch(() => {});
   check('an arrow that hits a wall sticks in it', (await a.evaluate(() => window.__isle.gear.bow.stuck())) > 0);
   await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 0); });
+  // ----- fire arrows -----
+  await a.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4, stone: 4, coal: 0 }); });
+  check('fire arrows need coal', !(await a.evaluate(() => window.__isle.gear.craft('firearrows'))));
+  await a.evaluate(() => window.__isle.gear.setMats({ coal: 2 }));
+  check('with coal, craft 4 fire arrows', await a.evaluate(() => window.__isle.gear.craft('firearrows')) && (await a.evaluate(() => window.__isle.gear.bow.fire())) === 4);
+  // a plank wall: the arrow sets it alight and it burns away
+  const PL = await a.evaluate(() => window.__isle.blockId('PLANKS'));
+  await a.evaluate((pl) => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, pl); }, PL);
+  await a.evaluate(() => { window.__isle.player.pitch = 0.06; });
+  const ar0 = await a.evaluate(() => window.__isle.gear.bow.arrows());
+  await a.evaluate(() => { window.__isle.gear.bow.hold(600); window.__isle.gear.bow.release(); });
+  check('fire arrows are shot first', (await a.evaluate(() => window.__isle.gear.bow.fire())) === 3 && (await a.evaluate(() => window.__isle.gear.bow.arrows())) === ar0);
+  await a.waitForFunction(() => window.__isle.gear.bow.lit() > 0, null, { timeout: 15000 }).catch(() => {});
+  check('a fire arrow sets a wooden wall alight', (await a.evaluate(() => window.__isle.gear.bow.lit())) > 0 && (await a.evaluate(() => window.__isle.gear.bow.burns())) > 0);
+  await wait(7000);
+  const left = await a.evaluate((pl) => { const I = window.__isle; let n = 0; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) if (I.get(x, y, 84) === pl) n++; return n; }, PL);
+  check('and the planks burn away', left < 24, left);
+  await a.evaluate(() => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, 0); });
+  // a test dummy catches fire and keeps losing hearts
+  await a.evaluate(() => { const P = window.__isle.player; P.z -= 6; P.yaw = 0; window.__isle.cmd('/spawn Torch'); }); await wait(600);
+  await a.evaluate(() => { const P = window.__isle.player; P.z += 6; P.pitch = -0.05; }); await wait(400);
+  await a.evaluate(() => { window.__isle.gear.bow.hold(1000); window.__isle.gear.bow.release(); });
+  await a.waitForFunction(() => window.__isle.gear.bow.dummyBurning(), null, { timeout: 15000 }).catch(() => {});
+  const th0 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Torch') || {}).hp);
+  check('a fire arrow sets a test dummy on fire', await a.evaluate(() => window.__isle.gear.bow.dummyBurning()), th0);
+  await wait(2500);
+  const th1 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Torch') || {}).hp);
+  check('and it keeps losing hearts while it burns', th1 < th0, [th0, th1]);
+  await a.evaluate(() => window.__isle.cmd('/clear dummies'));
+  // TNT gets lit
+  const TNT = await a.evaluate(() => window.__isle.blockId('TNT'));
+  await a.evaluate((t) => { const I = window.__isle; for (let y = 13; y <= 16; y++) for (let x = 78; x <= 83; x++) I.setBlock(x, y, 84, t); }, TNT);
+  await a.evaluate(() => { window.__isle.player.pitch = 0.06; });
+  await a.evaluate(() => { window.__isle.gear.bow.hold(600); window.__isle.gear.bow.release(); });
+  await a.waitForFunction(() => window.__isle.gear.bow.tnt() > 0, null, { timeout: 15000 }).catch(() => {});
+  check('a fire arrow lights TNT', (await a.evaluate(() => window.__isle.gear.bow.tnt())) > 0);
+  await a.evaluate(() => { const P = window.__isle.player; P.z += 30; }); await wait(4000);
+  await a.evaluate(() => { const I = window.__isle; for (let y = 10; y <= 18; y++) for (let x = 74; x <= 87; x++) for (let z = 80; z <= 88; z++) if (I.get(x, y, z) === I.blockId('TNT')) I.setBlock(x, y, z, 0); });
+  // the crafting table can turn "fire first" off
+  await a.evaluate(() => window.__isle.gear.bow.fireFirst(false));
+  const f0 = await a.evaluate(() => window.__isle.gear.bow.fire());
+  await a.evaluate(() => { window.__isle.gear.bow.hold(300); window.__isle.gear.bow.release(); });
+  check('with fire first off, plain arrows go first', (await a.evaluate(() => window.__isle.gear.bow.fire())) === f0);
+  await a.evaluate(() => window.__isle.gear.bow.fireFirst(true));
   await a.keyboard.press('Digit5'); await wait(200);
   await put(a, 80.5, 13, 80.5); await wait(300);
   // ----- the rope -----

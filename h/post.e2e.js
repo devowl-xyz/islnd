@@ -125,6 +125,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('shoot an arrow and the other player sees it fly', (await guest.evaluate(() => window.__isle.gear.bow.seen())) > 0);
   await guest.waitForFunction((h) => window.__isle.food.hp() < h, ah0, { timeout: 20000 }).catch(() => {});
   check('and it hits them from 10 blocks away', (await guest.evaluate(() => window.__isle.food.hp())) < ah0, [ah0, await guest.evaluate(() => window.__isle.food.hp()), await host.evaluate(() => window.__isle.gear.bow.hits())]);
+  // a fire arrow sets them alight, and the host sees them burn
+  await guest.evaluate(() => window.__isle.gear.bow.heal());
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 1, stone: 1, coal: 1 }); I.gear.craft('firearrows'); });
+  await wait(600);
+  const fb0 = await guest.evaluate(() => window.__isle.gear.bow.burnHurt());
+  await host.evaluate(() => { window.__isle.gear.bow.hold(1000); window.__isle.gear.bow.release(); });
+  await guest.waitForFunction(() => window.__isle.gear.bow.seenFire() > 0, null, { timeout: 20000 }).catch(() => {});
+  check('the other player sees a fire arrow fly', (await guest.evaluate(() => window.__isle.gear.bow.seenFire())) > 0);
+  await guest.waitForFunction(() => window.__isle.gear.bow.burning(), null, { timeout: 20000 }).catch(() => {});
+  check('a fire arrow sets them on fire', await guest.evaluate(() => window.__isle.gear.bow.burning()), await guest.evaluate(() => window.__isle.food.hp()));
+  await host.waitForFunction(() => window.__isle.gear.bow.peerBurning(), null, { timeout: 20000 }).catch(() => {});
+  check('and the shooter sees them burning', await host.evaluate(() => window.__isle.gear.bow.peerBurning()));
+  await guest.waitForFunction((b) => window.__isle.gear.bow.burnHurt() > b, fb0, { timeout: 20000 }).catch(() => {});
+  check('burning costs them hearts', (await guest.evaluate(() => window.__isle.gear.bow.burnHurt())) > fb0);
   await host.keyboard.press('Digit5');
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone
   await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4 }); I.gear.craft('rope'); });
