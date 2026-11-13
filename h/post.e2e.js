@@ -127,7 +127,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and it hits them from 10 blocks away', (await guest.evaluate(() => window.__isle.food.hp())) < ah0, [ah0, await guest.evaluate(() => window.__isle.food.hp()), await host.evaluate(() => window.__isle.gear.bow.hits())]);
   // a fire arrow sets them alight, and the host sees them burn
   await guest.evaluate(() => window.__isle.gear.bow.heal());
-  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 1, stone: 1, coal: 1 }); I.gear.craft('firearrows'); });
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 2, stone: 1, coal: 1 }); I.gear.craft('firearrows'); });
   await wait(600);
   const fb0 = await guest.evaluate(() => window.__isle.gear.bow.burnHurt());
   await host.evaluate(() => { window.__isle.gear.bow.hold(1000); window.__isle.gear.bow.release(); });
@@ -154,7 +154,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and it hits them from 6 blocks away', (await guest.evaluate(() => window.__isle.food.hp())) < sh0, [sh0, await guest.evaluate(() => window.__isle.food.hp())]);
   // throwing knives: seen flying, and they hit
   await guest.evaluate(() => window.__isle.gear.bow.heal());
-  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 1, stone: 2 }); I.gear.craft('knives'); });
+  await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 2, stone: 2 }); I.gear.craft('knives'); });
   for (let k = 0; k < 16 && (await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'knives'; k++) { await host.keyboard.press('Digit0'); await wait(200); }
   await host.evaluate(() => { const P = window.__isle.player; P.x = 82.5; P.z = 96.5; P.yaw = 0; P.pitch = 0; P.vx = P.vy = P.vz = 0; });
   await wait(800);

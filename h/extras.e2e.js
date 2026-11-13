@@ -1715,14 +1715,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // mine some wood and stone
   await put(a, 80.5, 13, 92.5); await wait(300);
   await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 3; k++) { I.setBlock(84 + k, 13, 90, I.blockId('LOG')); I.setBlock(84 + k, 14, 90, I.blockId('STONE')); } });
-  const m0 = (await G()).mats;
+  const m0 = (await G()).mats, lg0 = await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('LOG')));
   await a.evaluate(() => { const I = window.__isle; for (let k = 0; k < 3; k++) { I.act.brk(84 + k, 13, 90); I.act.brk(84 + k, 14, 90); } });
   const m1 = (await G()).mats;
-  check('mining logs gives wood and stone gives stone', m1.wood === m0.wood + 6 && m1.stone === m0.stone + 3, [m0, m1]);
+  const lg1 = await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('LOG')));
+  check('mining logs gives logs and stone gives stone', lg1 === lg0 + 3 && m1.stone === m0.stone + 3, [lg0, lg1, m0, m1]);
   // the crafting table
   await a.evaluate(() => window.__isle.setBlock(83, 13, 92, window.__isle.blockId('CRAFT')));
   check('right click on a crafting table opens it', await a.evaluate(() => window.__isle.gear.open()) && (await G()).open && await a.evaluate(() => /Crafting table/.test(document.getElementById('craft').textContent) && /Spark sword/.test(document.getElementById('craft').textContent)));
-  check('craft a wooden sword', await a.evaluate(() => window.__isle.gear.craft('sword_wood')) && (await G()).items.indexOf('sword_wood') >= 0 && (await G()).mats.wood === m1.wood - 3);
+  check('craft a wooden sword', await a.evaluate(() => window.__isle.gear.craft('sword_wood')) && (await G()).items.indexOf('sword_wood') >= 0 && (await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('LOG')))) === lg1 - 1);
   check('but not a spark sword without spark dust', !(await a.evaluate(() => window.__isle.gear.craft('sword_spark'))));
   await a.evaluate(() => window.__isle.gear.setMats({ stone: 20 }));
   check('stone armour: crafted and worn straight away', await a.evaluate(() => window.__isle.gear.craft('armor_stone')) && (await G()).armor === 'stone');
@@ -1881,7 +1882,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const P = window.__isle.player; P.yaw = 0; P.pitch = 0; window.__isle.cmd('/spawn Board'); }); await wait(600);
   await a.evaluate(() => { const P = window.__isle.player; P.z += 7; P.pitch = 0; }); await wait(500);
   const kb0 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Board') || {}).hp);
-  await a.mouse.click(400, 300); await wait(100);
+  await play(a); await a.evaluate(() => window.__isle.click(0)); await wait(150);
   check('left click throws a knife', (await a.evaluate(() => window.__isle.gear.knife.count())) === 3);
   await a.waitForFunction(() => window.__isle.gear.knife.hits() > 0, null, { timeout: 10000 }).catch(() => {});
   const kb1 = await a.evaluate(() => (window.__isle.gear.dummyHp().find((d) => d.name === 'Board') || {}).hp);
@@ -1906,7 +1907,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle, P = I.player; P.yaw = 0; P.pitch = 0; I.cmd('/spawn Crate'); I.setBlock(80, 13, 91, 3); I.gear.bow.heal(); }); await wait(600);
   const gh0 = await a.evaluate(() => window.__isle.food.hp());
   await a.evaluate(() => { const P = window.__isle.player; P.pitch = -1.45; P.vx = P.vy = P.vz = 0; });
-  await a.mouse.click(400, 300); await wait(150);
+  await play(a); await a.evaluate(() => window.__isle.click(0)); await wait(150);
   check('left click lobs a grenade', (await a.evaluate(() => window.__isle.gear.gren.count())) === 1 && (await a.evaluate(() => window.__isle.gear.gren.live().length)) === 1);
   await wait(1200);
   check('it hasn’t gone off yet', (await a.evaluate(() => window.__isle.gear.gren.booms())) === 0);
@@ -1918,6 +1919,68 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and you, if you didn’t get clear', (await a.evaluate(() => window.__isle.food.hp())) < gh0, [gh0, await a.evaluate(() => window.__isle.food.hp())]);
   check('and blows a small hole', (await a.evaluate(() => window.__isle.gear.gren.hole())) > 0 && (await a.evaluate(() => window.__isle.get(80, 13, 91))) === 0);
   await a.evaluate(() => { window.__isle.cmd('/clear dummies'); window.__isle.gear.bow.heal(); });
+  await a.keyboard.press('Digit5'); await wait(200);
+  // ----- game modes, and crafting like Minecraft -----
+  check('you start in creative', (await a.evaluate(() => window.__isle.gm.get())) === 'creative');
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/gamemode survival')); await wait(200);
+  check('/gamemode survival switches to survival', (await a.evaluate(() => window.__isle.gm.get())) === 'survival' && /Survival/.test(await a.evaluate(() => (document.getElementById('gmode') || {}).textContent || '')));
+  await a.evaluate(() => { window.__isle.player.fly = false; }); await a.keyboard.press('KeyF'); await wait(200);
+  check('no flying in survival', !(await a.evaluate(() => window.__isle.player.fly)));
+  const STN = await a.evaluate(() => window.__isle.blockId('STONE'));
+  await a.evaluate(() => window.__isle.inv.clear());
+  await a.keyboard.press('Digit3'); await wait(200);
+  await a.evaluate(() => window.__isle.act.place(81, 13, 90)); await wait(200);
+  check('you can’t place a block you haven’t got', (await a.evaluate(() => window.__isle.get(81, 13, 90))) === 0);
+  check('the hotbar shows you’ve none', await a.evaluate(() => document.querySelectorAll('#hotbar .slot')[2].classList.contains('none')));
+  await a.evaluate((b) => window.__isle.setBlock(81, 13, 90, b), STN);
+  await a.evaluate(() => window.__isle.act.brk(81, 13, 90)); await wait(100);
+  check('one hit doesn’t break stone in survival', (await a.evaluate(() => window.__isle.get(81, 13, 90))) === STN);
+  for (let k = 0; k < 14 && (await a.evaluate(() => window.__isle.get(81, 13, 90))) === STN; k++) { await a.evaluate(() => window.__isle.act.brk(81, 13, 90)); await wait(170); }
+  check('keep hitting and it breaks, into your inventory', (await a.evaluate(() => window.__isle.get(81, 13, 90))) === 0 && (await a.evaluate((b) => window.__isle.inv.get(b), STN)) === 1);
+  check('dirt breaks faster than stone, ores slower', await a.evaluate(() => { const I = window.__isle; return I.gm.mineT(I.blockId('DIRT')) < I.gm.mineT(I.blockId('STONE')) && I.gm.mineT(I.blockId('STONE')) < I.gm.mineT(I.blockId('COAL')); }));
+  check('and the hotbar counts it', (await a.evaluate(() => document.querySelectorAll('#hotbar .slot')[2].querySelector('.cnt').textContent)) === '1');
+  await a.evaluate(() => window.__isle.act.place(81, 13, 90)); await wait(200);
+  check('placing it uses it up', (await a.evaluate(() => window.__isle.get(81, 13, 90))) === STN && (await a.evaluate((b) => window.__isle.inv.get(b), STN)) === 0);
+  await a.evaluate(() => window.__isle.setBlock(81, 13, 90, 0));
+  // falls hurt
+  const fh0 = await a.evaluate(() => window.__isle.gm.fallHurt());
+  // a clear, dry spot with a stone floor (landing in water doesn't hurt), and not so far that Pemberton
+  // rushes in with tea (he does that for owl owners down to 2 hearts)
+  await a.evaluate((b) => { const I = window.__isle; for (let y = 13; y <= 26; y++) I.setBlock(70, y, 96, 0); I.setBlock(70, 12, 96, b); I.gear.bow.heal(); const P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 70.5; P.z = 96.5; P.y = 20; }, STN);
+  await a.waitForFunction((f) => window.__isle.gm.fallHurt() > f, fh0, { timeout: 20000 }).catch(() => {}); await wait(200);
+  check('a long fall hurts in survival', (await a.evaluate(() => window.__isle.gm.fallHurt())) > fh0 && (await a.evaluate(() => window.__isle.food.hp())) < 5, await a.evaluate(() => window.__isle.food.hp()));
+  await a.evaluate(() => window.__isle.gear.bow.heal());
+  // the 2×2 grid in your inventory
+  const LOGB = await a.evaluate(() => window.__isle.blockId('LOG')), PLK = await a.evaluate(() => window.__isle.blockId('PLANKS'));
+  await a.evaluate((l) => { const I = window.__isle; I.inv.set(l, 2); I.grid.open(2); }, LOGB);
+  check('B’s crafting button opens your inventory with a 2×2 grid', await a.evaluate(() => document.querySelectorAll('#craft .cgrid.s2 .cell').length === 4 && /Your bag/.test(document.getElementById('craft').textContent)));
+  await a.evaluate((l) => { const I = window.__isle; I.grid.pick(l); I.grid.put(0); }, LOGB);
+  check('a log in the grid shows planks', (await a.evaluate(() => window.__isle.grid.match())) === 'planks');
+  check('click the result: 4 planks', await a.evaluate(() => window.__isle.grid.out()) && (await a.evaluate((p) => window.__isle.inv.get(p), PLK)) === 4 && (await a.evaluate((l) => window.__isle.inv.get(l), LOGB)) === 1);
+  await a.evaluate((p) => { const I = window.__isle; I.grid.pick(p); I.grid.put(0); I.grid.pick(p); I.grid.put(2); }, PLK);
+  check('two planks one above the other make sticks', (await a.evaluate(() => window.__isle.grid.match())) === 'sticks' && await a.evaluate(() => window.__isle.grid.out()) && (await a.evaluate(() => window.__isle.inv.get('stick'))) === 4);
+  check('a sword won’t fit in the 2×2 grid', !(await a.evaluate(() => window.__isle.grid.fill('sword_wood'))));
+  await a.evaluate(() => window.__isle.grid.close());
+  // the 3×3 grid at a crafting table: a pattern makes a sword
+  await a.evaluate(() => { const I = window.__isle; I.inv.set(I.blockId('PLANKS'), 2); I.grid.open(3); });
+  await a.evaluate((p) => { const I = window.__isle; I.grid.pick(p); I.grid.put(1); I.grid.pick(p); I.grid.put(4); I.grid.pick('stick'); I.grid.put(7); }, PLK);
+  check('two planks over a stick make a wooden sword', (await a.evaluate(() => window.__isle.grid.match())) === 'sword_wood');
+  await a.evaluate(() => { const I = window.__isle; I.grid.pick(null); I.grid.put(7); I.grid.pick('stick'); I.grid.put(6); });
+  check('the wrong pattern makes nothing', (await a.evaluate(() => window.__isle.grid.match())) === null);
+  await a.evaluate(() => { const I = window.__isle; I.grid.pick(null); I.grid.put(6); I.grid.pick('stick'); I.grid.put(7); });
+  const hadSword = await a.evaluate(() => window.__isle.gear.state().items.indexOf('sword_wood') >= 0);
+  check(hadSword ? 'and you can’t make a second one' : 'craft it from the grid', hadSword ? !(await a.evaluate(() => window.__isle.grid.out())) : (await a.evaluate(() => window.__isle.grid.out())) && (await a.evaluate(() => window.__isle.gear.state().items.indexOf('sword_wood') >= 0)));
+  await a.evaluate(() => window.__isle.grid.close());
+  check('closing the grid hands back what was in it', (await a.evaluate((p) => window.__isle.inv.get(p), PLK)) + (await a.evaluate(() => window.__isle.inv.get('stick'))) >= (hadSword ? 3 : 0));
+  // the recipe book turns logs into planks and sticks for you
+  await a.evaluate(() => { const I = window.__isle; I.inv.clear(); I.inv.set(I.blockId('LOG'), 2); });
+  check('the recipe book’s Craft makes a crafting table straight from logs', await a.evaluate(() => window.__isle.gear.craft('table')) && (await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('CRAFT')))) === 1 && (await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('LOG')))) === 1);
+  await a.evaluate(() => window.__isle.cmd('/gamemode creative')); await wait(200);
+  check('/gamemode creative switches back', (await a.evaluate(() => window.__isle.gm.get())) === 'creative');
+  await a.keyboard.press('KeyF'); await wait(200);
+  check('and you can fly again', await a.evaluate(() => window.__isle.player.fly));
+  await a.keyboard.press('KeyF'); await wait(200);
   await a.keyboard.press('Digit5'); await wait(200);
   // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
