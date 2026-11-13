@@ -686,6 +686,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Swords &amp; armour</dt><dd>Wood to spark. Craft at a crafting table.</dd>
         <dt>Survival / creative</dt><dd>/gamemode survival or creative. Or in Settings.</dd>
         <dt>Hunger</dt><dd>Survival only. I for your inventory, click food to eat. Or /eat.</dd>
+        <dt>Food</dt><dd>Dig grass for berries, wheat, carrots. Bake bread, pie, cake.</dd>
         <dt>Crafting</dt><dd>B then Crafting (2×2), or a crafting table (3×3).</dd>
         <dt>Shield</dt><dd>Craft one. Hold right click to block.</dd>
         <dt>Grenades</dt><dd>Left click to lob one. It goes off 2.5 seconds later.</dd>
@@ -908,7 +909,7 @@ function survival(){return gameMode==='survival';}
 let invStored=false;
 const inv=(function(){let o=null;try{o=JSON.parse(localStorage.getItem(INV_KEY)||'null');}catch(e){o=null;}invStored=!!(o&&typeof o==='object');const r={};if(invStored)for(const k in o)if((o[k]|0)>0)r[k]=o[k]|0;return r;})();
 /* things that aren't blocks */
-const ITEM_INFO={apple:{n:'Apple',i:'🍎'},berries:{n:'Berries',i:'🫐'},fish:{n:'Raw fish',i:'🐟'},cooked_fish:{n:'Cooked fish',i:'🍤'},stick:{n:'Stick',i:'🥢'},coal:{n:'Coal',i:'⚫'},copper:{n:'Copper',i:'🟠'},diamond:{n:'Diamond',i:'💎'},spark:{n:'Spark dust',i:'✨'}};
+const ITEM_INFO={apple:{n:'Apple',i:'🍎'},berries:{n:'Berries',i:'🫐'},fish:{n:'Raw fish',i:'🐟'},cooked_fish:{n:'Cooked fish',i:'🍤'},carrot:{n:'Carrot',i:'🥕'},potato:{n:'Potato',i:'🥔'},baked_potato:{n:'Baked potato',i:'🍠'},wheat:{n:'Wheat',i:'🌾'},bread:{n:'Bread',i:'🍞'},cookie:{n:'Cookie',i:'🍪'},egg:{n:'Egg',i:'🥚'},fried_egg:{n:'Fried egg',i:'🍳'},mushroom:{n:'Mushroom',i:'🍄'},mushroom_stew:{n:'Mushroom stew',i:'🍲'},apple_pie:{n:'Apple pie',i:'🥧'},cake:{n:'Cake',i:'🎂'},golden_apple:{n:'Golden apple',i:'🌟'},stick:{n:'Stick',i:'🥢'},coal:{n:'Coal',i:'⚫'},copper:{n:'Copper',i:'🟠'},diamond:{n:'Diamond',i:'💎'},spark:{n:'Spark dust',i:'✨'}};
 /* the old crafting materials, now just things in your inventory: "wood" is planks, "stone" is stone */
 const MATK={wood:String(B.PLANKS),stone:String(B.STONE),copper:'copper',diamond:'diamond',spark:'spark',coal:'coal'};
 let invSaveT=0;
@@ -946,7 +947,7 @@ function dropFor(b){
    little food; below that they don't; and with nothing left you starve, losing half a heart every four
    seconds down to one heart. Eat from your inventory (I, or B then Crafting), or /eat */
 const HUNGER_MAX=10,HUNGER_KEY='voxel-isle-hunger';
-const FOOD={apple:2,berries:1,fish:1,cooked_fish:4};
+const FOOD={apple:2,berries:1,fish:1,cooked_fish:4,carrot:2,potato:1,baked_potato:4,bread:3,cookie:1,fried_egg:3,mushroom_stew:5,apple_pie:6,cake:10,golden_apple:10};
 let hunger=(function(){try{const v=+localStorage.getItem(HUNGER_KEY);return isFinite(v)&&localStorage.getItem(HUNGER_KEY)!==null?Math.max(0,Math.min(HUNGER_MAX,v)):HUNGER_MAX;}catch(e){return HUNGER_MAX;}})();
 const hung={ex:0,lx:null,lz:0,ly:0,ground:true,starveT:0,saveT:0,warned:0};
 function hungerSet(v){hunger=Math.max(0,Math.min(HUNGER_MAX,Math.round(v*2)/2));clearTimeout(hung.saveT);hung.saveT=setTimeout(function(){try{localStorage.setItem(HUNGER_KEY,String(hunger));}catch(e){}},400);try{renderHunger();}catch(e){}}
@@ -4191,14 +4192,29 @@ function renderHunger(){
   let h='';for(let i=0;i<HUNGER_MAX/2;i++){const v=hunger-i*2;h+='<i class="'+(v>=2?'on':v>=1?'half':'off')+'">🍗</i>';}
   if(el.innerHTML!==h)el.innerHTML=h;el.classList.toggle('low',hunger<=3);
 }
-/* eat something from your inventory: the given food, or the best you've got */
+/* digging turns up food now and then: berries, wheat, carrots and potatoes in the grass and soil,
+   mushrooms in deep stone and gravel, and an egg from one of Bazza's */
+function foodFind(b){
+  const r=Math.random();
+  if(b===B.GRASS){if(r<0.06)gainItem('berries',1);else if(r<0.14)gainItem('wheat',1);else if(r<0.17)gainItem('carrot',1);else if(r<0.2)gainItem('potato',1);}
+  else if(b===B.DIRT){if(r<0.04)gainItem('carrot',1);else if(r<0.08)gainItem('potato',1);}
+  else if(b===B.DEEP||b===B.GRAVEL){if(r<0.06)gainItem('mushroom',1);}
+  else if(b===B.EGG)gainItem('egg',1);
+}
+/* eat something from your inventory: the given food, or the one that suits how hungry you are */
 function eat(k){
-  if(!k){k=Object.keys(FOOD).filter(function(f){return invGet(f)>0;}).sort(function(a,b){return FOOD[b]-FOOD[a];})[0];if(!k){toast('🍗 You’ve nothing to eat. Apples come from leaves, berries from grass, and fish from fishing.');return false;}}
+  /* /eat on its own picks the biggest food that won't go to waste (or the smallest, if they all would);
+     the golden apple is kept for when you ask for it */
+  if(!k){const need=HUNGER_MAX-hunger,have=Object.keys(FOOD).filter(function(f){return invGet(f)>0&&f!=='golden_apple';});
+    k=have.filter(function(f){return FOOD[f]<=need;}).sort(function(a,b){return FOOD[b]-FOOD[a];})[0]||have.sort(function(a,b){return FOOD[a]-FOOD[b];})[0];if(!k){toast('🍗 You’ve nothing to eat. Dig grass and soil, shake apples from leaves, or go fishing.');return false;}}
   if(!FOOD[k])return false;
   if(invGet(k)<1){toast('You’ve no '+keyName(k).toLowerCase()+'.');return false;}
-  if(hunger>=HUNGER_MAX){toast('🍗 You’re full.');return false;}
+  if(hunger>=HUNGER_MAX&&k!=='golden_apple'){toast('🍗 You’re full.');return false;}
   invTake(k,1);hungerAdd(FOOD[k]);hung.eaten=(hung.eaten||0)+1;
-  toast(ITEM_INFO[k].i+' '+(k==='apple'?'Crunch!':k==='berries'?'Sweet!':k==='fish'?'Raw fish. Chewy. Cook it with coal next time.':'Mmm, cooked fish.')+' +'+(FOOD[k]/2)+' drumstick'+(FOOD[k]===2?'':'s')+'.');
+  /* the golden apple mends you too */
+  if(k==='golden_apple'){hp=HP_MAX;renderHearts();}
+  const say={apple:'Crunch!',berries:'Sweet!',fish:'Raw fish. Chewy. Cook it with coal next time.',cooked_fish:'Mmm, cooked fish.',carrot:'Crunchy.',potato:'A raw potato. Bake it with coal next time.',baked_potato:'A hot baked potato. Lovely.',bread:'Fresh bread.',cookie:'A cookie!',fried_egg:'A fried egg, sunny side up.',mushroom_stew:'A warm bowl of mushroom stew.',apple_pie:'Apple pie. Delicious.',cake:'A whole cake! You’re stuffed.',golden_apple:'A golden apple! Full food and full hearts.'}[k]||'Nom.';
+  toast(ITEM_INFO[k].i+' '+say+' +'+(FOOD[k]/2)+' drumstick'+(FOOD[k]===2?'':'s')+'.');
   if(gear.open)drawCraft();
   return true;
 }
@@ -4264,7 +4280,7 @@ function breakBlock(){
   if((isHead(b)||isPistonOn(b))){const i=(target.y*D+target.z)*W+target.x,k=rsDir6(i,isHead(b)?OPP6[mechDir(b)]:mechDir(b));if(setBlock(target.x,target.y,target.z,0)&&k>=0&&(isHead(vox[k])||isPistonOn(vox[k])))setBlock(k%W,Math.floor(k/SLAB),Math.floor(k/W)%D,0);return;}
   if(setBlock(target.x,target.y,target.z,0)&&pt){const o=get(pt[0],pt[1],pt[2]);if((isDoor(b)&&isDoor(o))||(isBed(b)&&isBed(o)))setBlock(pt[0],pt[1],pt[2],0);}
   if(b===B.BLOSSOM&&get(target.x,target.y,target.z)!==B.BLOSSOM)blossomUnlock();
-  {const dr=dropFor(b),gone=get(target.x,target.y,target.z)!==b;if(dr&&gone)gainItem(dr[0],dr[1]);if(gone){exhaust(0.05);if(b===B.GRASS&&Math.random()<0.06)gainItem('berries',1);}}
+  {const dr=dropFor(b),gone=get(target.x,target.y,target.z)!==b;if(dr&&gone)gainItem(dr[0],dr[1]);if(gone){exhaust(0.05);foodFind(b);}}
 }
 function freeCell(x,y,z){const c=get(x,y,z);return(c===0||c===B.WATER||c===B.LAVA)&&!(P.x+PR>x&&P.x-PR<x+1&&P.z+PR>z&&P.z-PR<z+1&&P.y+bodyH()>y&&P.y<y+1);}
 function placeBlock(){
@@ -18625,6 +18641,14 @@ const RECIPES=[
   {id:'bed',pat:['WWW','PPP'],keys:{W:K_WOOL,P:[K_P]},out:{k:String(B.BED),n:1}},
   {id:'glass',name:'Glass',any:[[K_SAND],['coal']],out:{k:K_GLASS,n:2}},
   {id:'cooked_fish',name:'Cooked fish',any:[['fish'],['coal']],out:{k:'cooked_fish',n:1}},
+  {id:'baked_potato',name:'Baked potato',any:[['potato'],['coal']],out:{k:'baked_potato',n:1}},
+  {id:'fried_egg',name:'Fried egg',any:[['egg'],['coal']],out:{k:'fried_egg',n:1}},
+  {id:'bread',name:'Bread',pat:['WWW'],keys:{W:['wheat']},out:{k:'bread',n:1}},
+  {id:'cookie',name:'4 cookies',any:[['wheat'],['berries']],out:{k:'cookie',n:4}},
+  {id:'mushroom_stew',name:'Mushroom stew',pat:['M M',' P '],keys:{M:['mushroom'],P:[K_P]},out:{k:'mushroom_stew',n:1}},
+  {id:'apple_pie',name:'Apple pie',any:[['apple'],['wheat'],['berries'],['egg']],out:{k:'apple_pie',n:1}},
+  {id:'cake',name:'Cake',pat:['BBB','EAE','WWW'],keys:{B:['berries'],E:['egg'],A:['apple'],W:['wheat']},out:{k:'cake',n:1}},
+  {id:'golden_apple',name:'Golden apple',pat:['GGG','GAG','GGG'],keys:{G:[String(B.GOLD)],A:['apple']},out:{k:'golden_apple',n:1}},
   {id:'bricks',pat:['QQ','QQ'],keys:{Q:[K_CLAY]},out:{k:String(B.BRICK),n:1}},
   {id:'sandstone',pat:['GG','GG'],keys:{G:[K_SAND]},out:{k:String(B.SANDSTONE),n:1}},
   {id:'lamp',pat:[' A ','AKA',' A '],keys:{A:[K_GLASS],K:['coal']},out:{k:String(B.LAMP),n:1}},
@@ -19419,7 +19443,7 @@ function closeCraft(relock){
   if(relock&&everLocked&&!touch&&!noLock)try{canvas.requestPointerLock();}catch(e){}
 }
 /* creative: a stack of every material, so you can craft anything */
-function creativeSupply(){if(survival())return false;['stick','coal','copper','diamond','spark'].concat([K_L,K_P,K_SAND,K_CLAY,K_GLASS,String(B.STONE),String(B.WHITE)]).forEach(function(k){if(invGet(k)<64)inv[k]=64;});invChanged();toast('✨ Creative supply: 64 of every material.');return true;}
+function creativeSupply(){if(survival())return false;['stick','coal','copper','diamond','spark','apple','berries','fish','wheat','egg','mushroom','potato','carrot',String(B.GOLD)].concat([K_L,K_P,K_SAND,K_CLAY,K_GLASS,String(B.STONE),String(B.WHITE)]).forEach(function(k){if(invGet(k)<64)inv[k]=64;});invChanged();toast('✨ Creative supply: 64 of every material.');return true;}
 function drawCraft(){
   const el=$('craft');if(!el)return;
   const n=cg.size,m=gridMatch(),owned=m&&ownsOut(m);
@@ -19432,7 +19456,7 @@ function drawCraft(){
   const keysHave=Object.keys(inv).filter(function(k){return invGet(k)>0;}).sort(function(a,b){return(isBlockKey(a)-isBlockKey(b))||keyName(a).localeCompare(keyName(b));});
   h+='<h4>Your bag</h4><div class="bag">'+(keysHave.length?keysHave.map(function(k){return'<button type="button" class="bi'+(cg.cur===k?' on':'')+'" data-take="'+k+'" title="'+keyName(k)+'" aria-label="'+keyName(k)+' ×'+invGet(k)+'">'+iconHTML(k,invGet(k))+'</button>';}).join(''):'<p class="sub">Empty. Mine some blocks: logs, stone, ores…</p>')+'</div>';
   {const foods=Object.keys(FOOD).filter(function(f){return invGet(f)>0;});
-    h+='<h4>Food'+(survival()?' · '+(hunger/2)+' of '+(HUNGER_MAX/2)+' 🍗':'')+'</h4><div class="bag">'+(foods.length?foods.map(function(f){return'<button type="button" class="bi food" data-eat="'+f+'" title="Eat: '+keyName(f)+' (+'+(FOOD[f]/2)+' 🍗)" aria-label="Eat '+keyName(f)+', '+invGet(f)+' left">'+iconHTML(f,invGet(f))+'</button>';}).join('')+'<p class="sub">Click a food to eat it.</p>':'<p class="sub">No food. Apples come from leaves, berries from grass and fish from fishing; cook fish with coal.</p>')+'</div>';}
+    h+='<h4>Food'+(survival()?' · '+(hunger/2)+' of '+(HUNGER_MAX/2)+' 🍗':'')+'</h4><div class="bag">'+(foods.length?foods.map(function(f){return'<button type="button" class="bi food" data-eat="'+f+'" title="Eat: '+keyName(f)+' (+'+(FOOD[f]/2)+' 🍗)" aria-label="Eat '+keyName(f)+', '+invGet(f)+' left">'+iconHTML(f,invGet(f))+'</button>';}).join('')+'<p class="sub">Click a food to eat it.</p>':'<p class="sub">No food. Apples come from leaves; berries, wheat, carrots and potatoes from digging grass and soil; mushrooms from deep stone and gravel; eggs from Bazza’s; fish from fishing. Cook with coal, and bake bread, cookies, stew, pie and cake in the grid.</p>')+'</div>';}
   if(!survival())h+='<button type="button" class="ghost" data-supply="1">✨ Creative supply (64 of every material)</button>';
   h+='<p class="sub">Mining gives you what you break: logs, stone, dirt, sand and so on, coal, copper and diamonds from ores, and sometimes a stick from leaves. Spark dust is only in the chests in the owls’ lab.</p>';
   h+='<h4>Recipe book</h4><div class="sgrid">';

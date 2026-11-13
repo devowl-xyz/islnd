@@ -2004,6 +2004,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('cook a fish with coal', await a.evaluate(() => window.__isle.gear.craft('cooked_fish')) && (await a.evaluate(() => window.__isle.inv.get('cooked_fish'))) === 1);
   await a.evaluate(() => window.__isle.cmd('/eat')); await wait(200);
   check('/eat eats the best food you’ve got: cooked fish, two drumsticks', (await a.evaluate(() => window.__isle.hunger.get())) === 6 && (await a.evaluate(() => window.__isle.inv.get('cooked_fish'))) === 0);
+  // more foods
+  await a.evaluate(() => { const I = window.__isle; I.inv.set('wheat', 3); I.hunger.set(4); });
+  check('three wheat in a row make bread', await a.evaluate(() => window.__isle.gear.craft('bread')) && (await a.evaluate(() => window.__isle.inv.get('bread'))) === 1);
+  check('and bread is one and a half drumsticks', await a.evaluate(() => window.__isle.hunger.eat('bread')) && (await a.evaluate(() => window.__isle.hunger.get())) === 7);
+  await a.evaluate(() => { const I = window.__isle; I.inv.set('berries', 3); I.inv.set('egg', 2); I.inv.set('apple', 1); I.inv.set('wheat', 3); I.grid.open(3); });
+  check('berries, eggs, an apple and wheat in the grid make a cake', await a.evaluate(() => window.__isle.grid.fill('cake')) && (await a.evaluate(() => window.__isle.grid.match())) === 'cake' && await a.evaluate(() => window.__isle.grid.out()) && (await a.evaluate(() => window.__isle.inv.get('cake'))) === 1);
+  await a.evaluate(() => window.__isle.grid.close());
+  await a.evaluate(() => { const I = window.__isle; I.inv.set('cookie', 2); I.hunger.set(8); }); await a.evaluate(() => window.__isle.cmd('/eat')); await wait(200);
+  check('/eat picks a cookie, not the whole cake, when you’re only peckish', (await a.evaluate(() => window.__isle.inv.get('cake'))) === 1 && (await a.evaluate(() => window.__isle.inv.get('cookie'))) === 1);
+  await a.evaluate(() => { const I = window.__isle; I.inv.set(I.blockId('GOLD'), 8); I.inv.set('apple', 1); I.hunger.set(2); I.hunger.hp(2); });
+  check('gold round an apple makes a golden apple', await a.evaluate(() => window.__isle.gear.craft('golden_apple')));
+  check('which fills your food and your hearts', await a.evaluate(() => window.__isle.hunger.eat('golden_apple')) && (await a.evaluate(() => window.__isle.hunger.get())) === 10 && (await a.evaluate(() => window.__isle.food.hp())) === 5);
   await a.evaluate(() => { const I = window.__isle; I.hunger.set(10); I.hunger.hp(5); });
   await a.evaluate(() => window.__isle.cmd('/gamemode creative')); await wait(200);
   check('/gamemode creative switches back', (await a.evaluate(() => window.__isle.gm.get())) === 'creative');
