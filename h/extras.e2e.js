@@ -2016,6 +2016,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle; I.inv.set(I.blockId('GOLD'), 8); I.inv.set('apple', 1); I.hunger.set(2); I.hunger.hp(2); });
   check('gold round an apple makes a golden apple', await a.evaluate(() => window.__isle.gear.craft('golden_apple')));
   check('which fills your food and your hearts', await a.evaluate(() => window.__isle.hunger.eat('golden_apple')) && (await a.evaluate(() => window.__isle.hunger.get())) === 10 && (await a.evaluate(() => window.__isle.food.hp())) === 5);
+  // potions
+  await a.evaluate(() => { const I = window.__isle; I.inv.set(I.blockId('GLASS'), 3); });
+  check('three glass in a V make three bottles', await a.evaluate(() => window.__isle.gear.craft('bottle')) && (await a.evaluate(() => window.__isle.inv.get('bottle'))) === 3);
+  await a.evaluate(() => { const I = window.__isle; I.inv.set('copper', 1); I.inv.set('apple', 1); I.inv.set('berries', 1); I.inv.set('wheat', 1); });
+  check('a bottle and copper brew a potion of swiftness', await a.evaluate(() => window.__isle.gear.craft('potion_speed')) && (await a.evaluate(() => window.__isle.inv.get('potion_speed'))) === 1);
+  check('drink it: you’re swift, and you get the bottle back', await a.evaluate(() => window.__isle.potion.drink('speed')) && await a.evaluate(() => window.__isle.potion.on('speed')) && (await a.evaluate(() => window.__isle.inv.get('bottle'))) === 3);
+  await wait(400);
+  check('the effect shows in the corner with its time left', /⚡ 1:2\d|⚡ 1:3\d/.test(await a.evaluate(() => window.__isle.potion.effects())), await a.evaluate(() => window.__isle.potion.effects()));
+  await a.evaluate(() => window.__isle.hunger.hp(2));
+  check('a potion of healing: two hearts back', await a.evaluate(() => window.__isle.gear.craft('potion_heal') && window.__isle.potion.drink('heal')) && (await a.evaluate(() => window.__isle.food.hp())) === 4);
+  check('slow falling', await a.evaluate(() => window.__isle.gear.craft('potion_slowfall') && window.__isle.potion.drink('slow')));
+  const fs0 = await a.evaluate(() => window.__isle.gm.fallHurt());
+  await a.evaluate(() => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = 70.5; P.z = 96.5; P.y = 22; });
+  let vmin = 0; for (let k = 0; k < 60; k++) { const r = await a.evaluate(() => [window.__isle.player.vy, window.__isle.player.onGround, window.__isle.player.y]); vmin = Math.min(vmin, r[0]); if (r[1] && r[2] < 14) break; await wait(200); }
+  check('drifts you down gently, with no fall damage', vmin > -3.5 && (await a.evaluate(() => window.__isle.gm.fallHurt())) === fs0, vmin);
+  check('/drink with no potion left tells you', !(await a.evaluate(() => window.__isle.potion.drink('invis'))));
   await a.evaluate(() => { const I = window.__isle; I.hunger.set(10); I.hunger.hp(5); });
   await a.evaluate(() => window.__isle.cmd('/gamemode creative')); await wait(200);
   check('/gamemode creative switches back', (await a.evaluate(() => window.__isle.gm.get())) === 'creative');
