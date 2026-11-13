@@ -2040,7 +2040,54 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('and the food bar goes away', await a.evaluate(() => document.getElementById('hunger').hidden));
   await a.keyboard.press('KeyF'); await wait(200);
   await a.keyboard.press('Digit5'); await wait(200);
-  // ----- blocky mode -----
+  // ----- the Glimmer: another dimension -----
+  const RU = await a.evaluate(() => window.__isle.glim.ruin());
+  const OBS = await a.evaluate(() => window.__isle.blockId('OBSIDIAN'));
+  check('there’s a ruined obsidian portal frame by the meadow', !!RU && await a.evaluate(([r, o]) => { const I = window.__isle; return I.get(r.x - 1, r.y, r.z) === o && I.get(r.x + 2, r.y + 2, r.z) === o && I.get(r.x, r.y + 3, r.z) === o && I.get(r.x, r.y, r.z) === 0; }, [RU, OBS]), RU);
+  await a.evaluate(() => window.__isle.gm.set('creative'));
+  await a.evaluate((r) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = r.x + 1; P.y = r.y; P.z = r.z - 1.5; P.yaw = Math.PI; }, RU); await wait(500);
+  check('stand by it and it’s a frame', !!(await a.evaluate(() => window.__isle.glim.find())));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E lights it', (await a.evaluate(() => window.__isle.glim.lit())).length === 1);
+  await a.evaluate((r) => { const P = window.__isle.player; P.x = r.x + 1; P.z = r.z + 0.5; P.y = r.y; }, RU);
+  await a.waitForFunction(() => window.__isle.glim.on(), null, { timeout: 15000 }).catch(() => {});
+  check('step into it and you’re in the Glimmer', await a.evaluate(() => window.__isle.glim.on()));
+  await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  await wait(1500);
+  const G = await a.evaluate(() => window.__isle.glim.G());
+  const me = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z, og: P.onGround }; });
+  check('a world of floating islands, and you land on the main one', G.n >= 10 && me.og && Math.abs(me.x - G.spawn.x) < 2 && Math.abs(me.y - G.spawn.y) < 2, [G, me]);
+  check('only the Glimmer is drawn', (await a.evaluate(() => window.__isle.glim.layer())) === 2);
+  // spark blocks give spark dust
+  const RS = await a.evaluate(() => window.__isle.blockId('RSBLOCK'));
+  const sp0 = await a.evaluate(() => window.__isle.inv.get('spark'));
+  await a.evaluate(([b, g]) => { window.__isle.setBlock(g.cx + 3, Math.floor(g.spawn.y), g.cz - 3, b); }, [RS, G]);
+  await a.evaluate((g) => window.__isle.act.brk(g.cx + 3, Math.floor(g.spawn.y), g.cz - 3), G);
+  check('spark blocks there give spark dust', (await a.evaluate(() => window.__isle.inv.get('spark'))) === sp0 + 2);
+  // a block you place there stays there
+  await a.evaluate((g) => window.__isle.setBlock(g.cx + 4, Math.floor(g.spawn.y), g.cz - 4, 8), G);
+  // the void
+  const v0 = await a.evaluate(() => window.__isle.glim.voided());
+  await a.evaluate(() => { const P = window.__isle.player; P.x += 60; P.z += 60; P.y = 20; P.fly = false; P.vy = 0; });
+  await a.waitForFunction((v) => window.__isle.glim.voided() > v, v0, { timeout: 20000 }).catch(() => {});
+  check('fall into the void and it throws you back', (await a.evaluate(() => window.__isle.glim.voided())) > v0 && Math.abs((await a.evaluate(() => window.__isle.player.x)) - G.spawn.x) < 2);
+  // the temple
+  await a.evaluate((t) => { const P = window.__isle.player; P.x = t.x + 1; P.y = t.y; P.z = t.z; P.vx = P.vy = P.vz = 0; }, G.temple); await wait(500);
+  const d0 = await a.evaluate(() => window.__isle.inv.get('diamond'));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('the temple’s altar holds treasure', (await a.evaluate(() => window.__isle.inv.get('diamond'))) === d0 + 4);
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('once', (await a.evaluate(() => window.__isle.inv.get('diamond'))) === d0 + 4);
+  // home through the portal by the spawn
+  await a.evaluate((g) => { const P = window.__isle.player; P.x = g.portal.x + 1; P.y = g.portal.y; P.z = g.portal.z + 0.5; P.vx = P.vy = P.vz = 0; }, G);
+  await a.waitForFunction(() => !window.__isle.glim.on(), null, { timeout: 15000 }).catch(() => {});
+  check('the portal there takes you home', !(await a.evaluate(() => window.__isle.glim.on())) && (await a.evaluate(() => window.__isle.glim.layer())) === 1);
+  await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  check('back by the portal you went through, with the island just as it was', Math.abs((await a.evaluate(() => window.__isle.player.x)) - (RU.x + 1)) < 2 && await a.evaluate(([r, o]) => window.__isle.get(r.x - 1, r.y, r.z) === o, [RU, OBS]) && (await a.evaluate((g) => window.__isle.get(g.cx + 4, Math.floor(g.spawn.y), g.cz - 4), G)) !== 8);
+  await a.evaluate(() => window.__isle.glim.enter()); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  check('and what you built in the Glimmer is still there next time', (await a.evaluate((g) => window.__isle.get(g.cx + 4, Math.floor(g.spawn.y), g.cz - 4), G)) === 8);
+  await a.evaluate(() => window.__isle.glim.leave()); await wait(1500);
+    // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
   check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);
   // ----- the rope -----
