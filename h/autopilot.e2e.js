@@ -71,6 +71,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('/autopilot works too', await a.evaluate(() => { window.__isle.cmd('/autopilot'); return window.__isle.ap.state().on; }));
   await a.evaluate(() => window.__isle.cmd('/autopilot'));
 
+  // ----- a runway of runway blocks, laid by a player, is a runway the autopilot knows -----
+  const rw = await a.evaluate(() => {
+const y = I.groundAt(bx, bz); window.__rwY = y; for (let k = 0; k < 14; k++) I.setBlock(bx + k, y, bz, I.B.RUNWAY);
+    return I.ap.runways().filter((r) => r.name === 'the runway').map((r) => ({ len: Math.round(Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1])), y: r.y }));
+  });
+  check('a row of twelve or more runway blocks is a runway the autopilot can use', rw.length >= 1 && rw.some((r) => r.len >= 12), rw);
+  await a.evaluate(() => { const I = window.__isle, P = I.player, bx = Math.floor(P.x) + 3, bz = Math.floor(P.z) - 8; const y = window.__rwY; for (let k = 0; k < 14; k++) I.setBlock(bx + k, y, bz, 0); });
+  check('a short row of runway blocks is not a runway', await a.evaluate(() => {
+    const I = window.__isle, P = I.player, bx = Math.floor(P.x) + 3, bz = Math.floor(P.z) - 8;
+    const y = I.groundAt(bx, bz);
+    for (let k = 0; k < 5; k++) I.setBlock(bx + k, y, bz, I.B.RUNWAY);
+    const n = I.ap.runways().filter((r) => r.name === 'the runway').length;
+    for (let k = 0; k < 5; k++) I.setBlock(bx + k, y, bz, 0);
+    return n === 0;
+  }));
+
   await browser.close();
   server.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
