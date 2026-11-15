@@ -1511,7 +1511,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle, f = I.hop.fly(); I.player.yaw = Math.atan2(-(176 - f.x), -(176 - f.z)); I.player.pitch = 0.3; I.hop.setFly({ h: I.player.yaw }); I.hop.setFly({ thr: 1, spd: 30, ground: false, y: f.y + 25 }); }); await wait(3000);
   const fb = await a.evaluate(() => window.__isle.hop.fly());
   check('W opens the throttle and it flies where you steer', !!fb && Math.hypot(fb.x - fa.x, fb.z - fa.z) > 5 && fb.y > fa.y, [fa, fb]);
-  check('you sit in the cockpit as it goes', await a.evaluate(() => { const P = window.__isle.player, f = window.__isle.hop.fly(); return !!f && Math.hypot(P.x - f.x, P.z - f.z) < 7; }));
+  check('you sit in the cockpit as it goes', await a.evaluate(() => { const P = window.__isle.player, f = window.__isle.hop.fly(); return !!f && Math.hypot(P.x - f.x, P.z - f.z) < 10; }));
   await a.evaluate(() => window.__isle.toggleBoard()); await wait(400);
   check('E in the air bails you out, and it goes back to its timetable', !(await a.evaluate(() => window.__isle.hop.ride())) && !(await a.evaluate(() => window.__isle.hop.fly())) && await a.evaluate(() => window.__isle.chute()));
   await a.evaluate(() => window.__isle.noChute());

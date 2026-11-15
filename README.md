@@ -355,7 +355,7 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 Two planes use the airstrips, on their own timetables, waiting 40 seconds at each stop:
 
 - **The Island Shuttle**, for everyone: a modern biplane (a white body with an orange stripe, charcoal wings with orange tips, the top one set well forward of the bottom one and joined by big slanted struts, a blue bubble canopy, an orange spinner, a two-bladed propeller and spatted wheels). It runs between the **North Shore airstrip** (out in the sea off the north coast, with a boardwalk from the North Shore jet dock) and the Mini Isle.
-- **The Owl Hopper**, for Hoot's, Snowy's and Slinky's owners only (and anyone with the base infiltrator on): a white and teal twin-turboprop with a high wing, six-bladed propellers, a T-tail and rows of seats. It flies the Mini Isle (from its own strip on the far side of the island), the Sky Palace's sky dock and Owl Island, and round again.
+- **The Owl Hopper**, for Hoot's, Snowy's and Slinky's owners only (and anyone with the base infiltrator on): a big white and teal four-engined turboprop (a third bigger than it was, and built from blocks so it looks right in blocky mode: a square fuselage with a stepped nose and tail cone) with a long high wing carrying two engines on each side, six-bladed propellers, a T-tail and rows of seats. It flies the Mini Isle (from its own strip on the far side of the island), the Sky Palace's sky dock and Owl Island, and round again.
 
 **E** by a plane while it waits to board (the hint says when it leaves), and you take your seat. When it lands it says welcome; **E** gets you off on to the runway (in the air, **E** jumps out and your parachute opens).
 
