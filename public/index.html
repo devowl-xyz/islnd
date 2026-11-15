@@ -691,7 +691,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Swords &amp; armour</dt><dd>Wood to spark. Craft at a crafting table.</dd>
         <dt>Survival / creative</dt><dd>/gamemode survival or creative. Or in Settings.</dd>
         <dt>Hunger</dt><dd>Survival only. I for your inventory, click food to eat. Or /eat.</dd>
-        <dt>The Glimmer</dt><dd>Obsidian frame 4×5, E to light it, step in. One’s east of the meadow.</dd>
+        <dt>The Glimmer</dt><dd>Obsidian frame 4×5, E to light it, step in. One’s east of the meadow. Shared in rooms.</dd>
         <dt>Potions</dt><dd>Brew in the grid with a bottle. Drink from I, or /drink.</dd>
         <dt>Food</dt><dd>Dig grass for berries, wheat, carrots. Bake bread, pie, cake.</dd>
         <dt>Crafting</dt><dd>B then Crafting (2×2), or a crafting table (3×3).</dd>
@@ -2939,13 +2939,14 @@ function setBlock(x,y,z,b){
   if(x<0||z<0||x>=W||z>=D||y<0||y>=H)return false;
   const i=(y*D+z)*W+x;
   if(vox[i]===b&&!((b===B.WATER||b===B.LAVA)&&wl[i]!==WMAX))return false;
+  /* the Glimmer has none of the island's rules; in a room its edits go to everyone there */
+  if(dim.on){if(y<1)return false;writeCell(i,b);dim.edits.set(i,b);if(inRoom())netSend({t:'glimedit',x:x,y:y,z:z,b:b});else glimSave();return true;}
   if(isFloor(x,y,z)){toast('The meadow floor can\u2019t be dug. Dig down beside the meadow and tunnel under it.');return false;}
   const th=thCell(x,y,z,false,true);
   if(th==='base'){toast(fixedMsg(x,y,z));return false;}
   if(th&&!thMay(th,mySkin.pet)){toast(roomMsg(x,y,z,th));return false;}
   if(iceMe){toast('You’re frozen! You can’t build until you’re unfrozen.');return false;}
   {const lk=lockedForMe(x,y,z);if(lk){toast('This build is locked by '+lk.name+'.');return false;}}
-  if(dim.on){writeCell(i,b);dim.edits.set(i,b);glimSave();return true;}
   if(inRoom()){
     if(!th&&!canEditAt(x,z)&&!(b===0&&vox[i]===B.EGG)){toast('You can build on the meadow. The host can make you an admin to build anywhere.');return false;}
     writeCell(i,b);net.pending.set(i,b);
@@ -2958,6 +2959,7 @@ function setBlock(x,y,z,b){
 /* applies an edit the server confirmed; never sends, so it can't loop */
 function applyRemote(i,b){
   if(!(i>=0&&i<vox.length))return;
+  if(dim.on&&dim.ov){dim.ovEdits.set(i,b);dim.ov[i]=b;dim.ovWl[i]=b===B.WATER||b===B.LAVA?WMAX:0;net.pending.delete(i);scheduleSave();return;}
   edits.set(i,b);
   if(net.pending.get(i)===b)net.pending.delete(i);
   if(vox[i]!==b||((b===B.WATER||b===B.LAVA)&&wl[i]!==WMAX))writeCell(i,b);
@@ -5156,6 +5158,8 @@ function updateAvatars(dt){
     typingFx(p.av,p.tgt.ty);splatFig(p.av,p.tgt.pp);balloonFig(p.av,p.tgt.bl);cloakFig(p.av,p.tgt.iv);penguinFig(p.av,p.tgt.dg);
     /* a cloaked player is invisible to everyone else: no body, name, bubbles or effects */
     if(p.tgt.iv)p.av.g.visible=false;
+    /* someone in the other world (the island or the Glimmer) isn't here */
+    if(((p.tgt.dm|0)===1)!==dim.on)p.av.g.visible=false;else if(dim.on)dimLayer(p.av.g);
     if(p.tgt.rs&&p.tgt.rs!==p.reactSeen){if(p.reactSeen!==undefined)spawnReact(p.av,p.tgt.rc-1);p.reactSeen=p.tgt.rs;}
     if(p.tgt.bk){p.av.g.position.y=p.cur.y+0.4;animateFigure(p.av,p.cur.yaw,p.cur.pitch,0,false,dt);bikePose(p.av,(bikes[p.tgt.bk-1]||{spin:0}).spin*0.5);}
     if(p.tgt.cl&&!p.cloudFx){p.cloudFx=makeCloud(1.1);scene.add(p.cloudFx);}
@@ -5172,8 +5176,8 @@ function netTick(dt){
   if(posT<0.1)return;
   posT=0;
   const r=function(v){return Math.round(v*100)/100;};
-  const m={t:'pos',x:r(P.x),y:r(P.y),z:r(P.z),yaw:r(P.yaw),pitch:r(P.pitch),rd:P.ride?1:0,pc:P.chute?1:0,js:P.ski!==null?1:0,sk:P.skis?1:0,bk:P.bike!==null?P.bike+1:0,zp:P.zip?P.zip.k+1:0,pp:P.splat?1:0,bl:balloonOn()?1:0,iv:performance.now()<labState.cloak?1:0,po:potatoPet()?1:0,hi:inHand()?ITEM_IDS.indexOf(inHand())+1:0,dd:dead?1:0,hu:gear.hurtN||0,sd:hasShield()?(blocking()?2:1):0,dw:gear.drawing?1:0,fi:gear.burnUntil?1:0,ar:(!gear.noArmor&&wornArmor())?TIERS.indexOf(wornArmor())+1:0,sw:gear.swing,dg:disguise.mode==='pemb'?1:0,sx:sec.decoy?Math.round(sec.decoy.x):0,sz:sec.decoy?Math.round(sec.decoy.z):0,ty:myTyping?1:0,rc:myReact?myReact.i+1:0,rs:myReact?myReact.seq:0,sg:spyK>0.5?1:0,gp:P.grap?1:0,gx:P.grap?r(grapEnd().x):0,gy:P.grap?r(grapEnd().y):0,gz:P.grap?r(grapEnd().z):0,sl:P.sleep?1:0,lf:P.lift?1:0,fr:frost?1:0,gd:P.dash?1:0,fb:fire2?1:0,em:P.emote?P.emote.i+1:0,es:P.emote?P.emote.seq:0,pk:myTrick?myTrick.seq:0,pi:myTrick?myTrick.i:0,fx:fishing?r(fishing.bob.x):0,fy:fishing?r(fishing.bob.y):0,fz:fishing?r(fishing.bob.z):0,cl:P.cloud?1:0,kd:heliCaptive()?(heliHanging()?1:2):0};
-  const key=m.x+','+m.y+','+m.z+','+m.yaw+','+m.pitch+','+m.rd+','+m.sl+','+m.lf+','+m.fr+','+m.gd+','+m.fb+','+m.em+','+m.es+','+m.pk+','+m.fx+','+m.fz+','+m.cl+','+m.pc+','+m.js+','+m.sk+','+m.bk+','+m.zp+','+m.pp+','+m.bl+','+m.iv+','+m.dg+','+m.sx+','+m.sz+','+m.ty+','+m.rs+','+m.sg+','+m.gp+','+m.gx+','+m.gy+','+m.gz+','+m.po+','+m.hi+','+m.ar+','+m.sw+','+m.dd+','+m.hu+','+m.sd+','+m.dw+','+m.fi;
+  const m={t:'pos',x:r(P.x),y:r(P.y),z:r(P.z),yaw:r(P.yaw),pitch:r(P.pitch),rd:P.ride?1:0,pc:P.chute?1:0,js:P.ski!==null?1:0,sk:P.skis?1:0,bk:P.bike!==null?P.bike+1:0,zp:P.zip?P.zip.k+1:0,pp:P.splat?1:0,bl:balloonOn()?1:0,iv:performance.now()<labState.cloak?1:0,po:potatoPet()?1:0,hi:inHand()?ITEM_IDS.indexOf(inHand())+1:0,dd:dead?1:0,hu:gear.hurtN||0,sd:hasShield()?(blocking()?2:1):0,dw:gear.drawing?1:0,fi:gear.burnUntil?1:0,dm:dim.on?1:0,ar:(!gear.noArmor&&wornArmor())?TIERS.indexOf(wornArmor())+1:0,sw:gear.swing,dg:disguise.mode==='pemb'?1:0,sx:sec.decoy?Math.round(sec.decoy.x):0,sz:sec.decoy?Math.round(sec.decoy.z):0,ty:myTyping?1:0,rc:myReact?myReact.i+1:0,rs:myReact?myReact.seq:0,sg:spyK>0.5?1:0,gp:P.grap?1:0,gx:P.grap?r(grapEnd().x):0,gy:P.grap?r(grapEnd().y):0,gz:P.grap?r(grapEnd().z):0,sl:P.sleep?1:0,lf:P.lift?1:0,fr:frost?1:0,gd:P.dash?1:0,fb:fire2?1:0,em:P.emote?P.emote.i+1:0,es:P.emote?P.emote.seq:0,pk:myTrick?myTrick.seq:0,pi:myTrick?myTrick.i:0,fx:fishing?r(fishing.bob.x):0,fy:fishing?r(fishing.bob.y):0,fz:fishing?r(fishing.bob.z):0,cl:P.cloud?1:0,kd:heliCaptive()?(heliHanging()?1:2):0};
+  const key=m.x+','+m.y+','+m.z+','+m.yaw+','+m.pitch+','+m.rd+','+m.sl+','+m.lf+','+m.fr+','+m.gd+','+m.fb+','+m.em+','+m.es+','+m.pk+','+m.fx+','+m.fz+','+m.cl+','+m.pc+','+m.js+','+m.sk+','+m.bk+','+m.zp+','+m.pp+','+m.bl+','+m.iv+','+m.dg+','+m.sx+','+m.sz+','+m.ty+','+m.rs+','+m.sg+','+m.gp+','+m.gx+','+m.gy+','+m.gz+','+m.po+','+m.hi+','+m.ar+','+m.sw+','+m.dd+','+m.hu+','+m.sd+','+m.dw+','+m.fi+','+m.dm;
   if(key===lastSent)return;
   lastSent=key;netSend(m);
 }
@@ -5356,6 +5360,7 @@ function p2pJoin(t,onOpen,code){
   });
 }
 function enteredRoom(m,host){
+  glimRoomSwap(true);
   if(saveTimer){clearTimeout(saveTimer);saveNow();}
   if(jet.seat)leaveJetLocal();
   if(typeof m.now==='number')net.tOff=m.now-Date.now();
@@ -5380,6 +5385,7 @@ function enteredRoom(m,host){
   renderRoom();
 }
 function leftRoom(reason){
+  glimRoomSwap(false);
   palace.guests.clear();palace.pets=new Set(palace.mine);
   tagState=null;if(race&&race.room)race=null;
   const wasHost=net.host;
@@ -5429,6 +5435,7 @@ function onNet(m){
     case 'edit':applyRemote((m.y*D+m.z)*W+m.x,m.b);break;
     case 'revert':{
       net.pending.delete(m.i);
+      if(dim.on&&dim.ov){const v=(m.b===null||m.b===undefined)?base[m.i]:m.b;dim.ov[m.i]=v;break;}
       const v=(m.b===null||m.b===undefined)?base[m.i]:m.b;
       if(vox[m.i]!==v||(v===B.WATER&&wl[m.i]!==WMAX))writeCell(m.i,v);
       if(m.why==='perm')toast('That spot is outside the meadow. Ask the host for admin.');
@@ -5489,6 +5496,8 @@ function onNet(m){
     case 'announce':onAnnounce(m);break;
     case 'locks':onLocks(m);break;
     case 'pasted':onPasted(m);break;
+    case 'glimsnap':{const a=Array.isArray(m.edits)?m.edits:[];for(let k=0;k+1<a.length;k+=2){const i=a[k],b=a[k+1];if(i>=0&&i<vox.length&&b>=0&&b<=LASTB){dim.roomEdits.set(i,b);if(dim.on){writeCell(i,b);}}}break;}
+    case 'glimedit':{const i=(m.y*D+m.z)*W+m.x;if(!(i>=0&&i<vox.length)||!(m.b>=0&&m.b<=LASTB))break;dim.roomEdits.set(i,m.b);if(dim.on)writeCell(i,m.b);break;}
     case 'fireworks':onFireworks(m);break;
     case 'skis':onSkis(m);break;
     case 'skiPos':onSkiPos(m);break;
@@ -5498,7 +5507,7 @@ function onNet(m){
     case 'jetCall':if(m.dock>=0&&m.dock<DOCKS.length)onJetCall(m);break;
     case 'callNo':toast(m.why==='pilot'?'Someone is flying the jet right now.':m.why==='atc'?'Only the host and admins can be air traffic control.':m.why==='held'?'The host is holding the jet. Only the host or an admin can send it on.':'The jet was only just called. Try again in a moment.');break;
     case 'boardNo':toast(m.why==='full'?'The jet is full.':'Only the host or an admin can fly the jet.');break;
-    case 'pos':{const p=net.peers.get(m.id);if(p)p.tgt={x:m.x,y:m.y,z:m.z,yaw:m.yaw,pitch:m.pitch,rd:!!m.rd,sl:!!m.sl,lf:!!m.lf,fr:!!m.fr,gd:!!m.gd,fb:!!m.fb,em:m.em|0,es:m.es|0,pk:m.pk|0,pi:m.pi|0,fx:+m.fx||0,fy:+m.fy||0,fz:+m.fz||0,cl:!!m.cl,kd:m.kd|0,pc:!!m.pc,js:!!m.js,sk:!!m.sk,bk:m.bk|0,zp:m.zp|0,pp:!!m.pp,bl:!!m.bl,iv:!!m.iv,po:!!m.po,dd:!!m.dd,hu:m.hu|0,sd:m.sd|0,dw:!!m.dw,fi:!!m.fi,hi:m.hi|0,ar:m.ar|0,sw:m.sw|0,dg:!!m.dg,sx:m.sx|0,sz:m.sz|0,ty:!!m.ty,rc:m.rc|0,rs:m.rs|0,sg:!!m.sg,gp:!!m.gp,gx:+m.gx||0,gy:+m.gy||0,gz:+m.gz||0};break;}
+    case 'pos':{const p=net.peers.get(m.id);if(p)p.tgt={x:m.x,y:m.y,z:m.z,yaw:m.yaw,pitch:m.pitch,rd:!!m.rd,sl:!!m.sl,lf:!!m.lf,fr:!!m.fr,gd:!!m.gd,fb:!!m.fb,em:m.em|0,es:m.es|0,pk:m.pk|0,pi:m.pi|0,fx:+m.fx||0,fy:+m.fy||0,fz:+m.fz||0,cl:!!m.cl,kd:m.kd|0,pc:!!m.pc,js:!!m.js,sk:!!m.sk,bk:m.bk|0,zp:m.zp|0,pp:!!m.pp,bl:!!m.bl,iv:!!m.iv,po:!!m.po,dd:!!m.dd,hu:m.hu|0,sd:m.sd|0,dw:!!m.dw,fi:!!m.fi,dm:m.dm|0,hi:m.hi|0,ar:m.ar|0,sw:m.sw|0,dg:!!m.dg,sx:m.sx|0,sz:m.sz|0,ty:!!m.ty,rc:m.rc|0,rs:m.rs|0,sg:!!m.sg,gp:!!m.gp,gx:+m.gx||0,gy:+m.gy||0,gz:+m.gz||0};break;}
     case 'game':gameMsg(m);break;
     case 'letter':if(m.text)letterArrive(String(m.name||'Someone').slice(0,16),String(m.text).slice(0,200));break;
     case 'gift':giftArrive(m);break;
@@ -9183,7 +9192,7 @@ function drawMap(){
   if(!labHidden(heli.x,heli.y+1,heli.z)){c.save();c.translate(heli.x*k,heli.z*k);c.rotate(heli.h);c.fillStyle='#d23a32';c.beginPath();c.arc(0,0,5,0,Math.PI*2);c.fill();c.fillRect(-11,-1.5,8,3);c.strokeStyle='#fff';c.lineWidth=1.5;c.beginPath();c.moveTo(-7,-7);c.lineTo(7,7);c.moveTo(-7,7);c.lineTo(7,-7);c.stroke();c.restore();}
   /* other players (owl owners in the lab, and anyone cloaked, don't show) */
   /* (anyone in the lab's secret room shows at the spot farthest from everyone else instead) */
-  net.peers.forEach(function(p){if(!p.cur)return;const dc=p.tgt&&p.tgt.sx?p.tgt:null,px=dc?dc.sx:p.cur.x,pz=dc?dc.sz:p.cur.z;if(!dc&&(labHidden(p.cur.x,p.cur.y+0.5,p.cur.z)||(p.tgt&&p.tgt.iv)))return;c.fillStyle=skinSwatch(p.skin);c.beginPath();c.arc(px*k,pz*k,5,0,Math.PI*2);c.fill();c.strokeStyle='#fff';c.lineWidth=2;c.stroke();c.fillStyle='#fff';c.fillText(p.name,px*k,pz*k+13);});
+  net.peers.forEach(function(p){if(!p.cur)return;const dc=p.tgt&&p.tgt.sx?p.tgt:null,px=dc?dc.sx:p.cur.x,pz=dc?dc.sz:p.cur.z;if(!dc&&(labHidden(p.cur.x,p.cur.y+0.5,p.cur.z)||(p.tgt&&p.tgt.iv)))return;if(p.tgt&&((p.tgt.dm|0)===1)!==dim.on)return;c.fillStyle=skinSwatch(p.skin);c.beginPath();c.arc(px*k,pz*k,5,0,Math.PI*2);c.fill();c.strokeStyle='#fff';c.lineWidth=2;c.stroke();c.fillStyle='#fff';c.fillText(p.name,px*k,pz*k+13);});
   if(sec.decoy){c.save();c.strokeStyle='#b48aff';c.lineWidth=2;if(c.setLineDash)c.setLineDash([4,3]);c.beginPath();c.arc(sec.decoy.x*k,sec.decoy.z*k,8,0,Math.PI*2);c.stroke();c.restore();c.fillStyle='#b48aff';c.fillText('🤫 where they see you',sec.decoy.x*k,sec.decoy.z*k-14);}
   /* you: an arrow the way you face */
   c.save();c.translate(P.x*k,P.z*k);c.rotate(-P.yaw);c.fillStyle='#ffd45e';c.beginPath();c.moveTo(0,-10);c.lineTo(7,7);c.lineTo(0,3);c.lineTo(-7,7);c.closePath();c.fill();c.strokeStyle='#14202a';c.lineWidth=2;c.stroke();c.restore();
@@ -9705,7 +9714,7 @@ function updatePets(dt){
     else f.yaw+=angDiff(f.yaw,st.yaw)*Math.min(1,dt*2);
     f.P.g.position.set(f.x,f.y,f.z);f.P.g.rotation.y=f.yaw;
     /* a cloaked player's pet vanishes with them */
-    f.P.g.visible=!(st.inJet&&d.move==='ground')&&!(o!=='me'&&o&&o.tgt&&o.tgt.iv);
+    f.P.g.visible=!(st.inJet&&d.move==='ground')&&!(o!=='me'&&o&&o.tgt&&o.tgt.iv)&&!(o!=='me'&&o&&o.tgt&&((o.tgt.dm|0)===1)!==dim.on);
     animatePet(f.P,dt,moving,d.move==='air'&&!(perched&&dist<0.3),id==='cinder'&&perched&&dist<0.5,wet);
     if(perched&&dist<0.6)f.yaw+=angDiff(f.yaw,(COT_SPOT[id]&&COT_SPOT[id].yaw)||Math.PI)*Math.min(1,dt*3);
     applyTrick(f,o==='me'?myTrick:peerTrick(o));
@@ -19179,7 +19188,7 @@ function burnOthersTick(){
   });
   net.peers.forEach(function(p){if(p.tgt&&p.tgt.fi&&p.cur&&p.av&&p.av.g.visible)burnFlames(p.cur.x,p.cur.y,p.cur.z);});
 }
-function arrowArrive(m){const p=net.peers.get(m.by);spawnArrow({knife:ITEM_IDS[(m.sp|0)-1]==='knives',gren:ITEM_IDS[(m.sp|0)-1]==='grenades',spear:isSpear(ITEM_IDS[(m.sp|0)-1])?ITEM_IDS[(m.sp|0)-1]:null,x:+m.x,y:+m.y,z:+m.z,vx:+m.vx,vy:+m.vy,vz:+m.vz,fire:!!m.fire,mine:false,from:p||null,stuck:0,t:performance.now()});}
+function arrowArrive(m){const p=net.peers.get(m.by);if(p&&p.tgt&&((p.tgt.dm|0)===1)!==dim.on)return;spawnArrow({knife:ITEM_IDS[(m.sp|0)-1]==='knives',gren:ITEM_IDS[(m.sp|0)-1]==='grenades',spear:isSpear(ITEM_IDS[(m.sp|0)-1])?ITEM_IDS[(m.sp|0)-1]:null,x:+m.x,y:+m.y,z:+m.z,vx:+m.vx,vy:+m.vy,vz:+m.vz,fire:!!m.fire,mine:false,from:p||null,stuck:0,t:performance.now()});}
 function arrowsTick(dt){
   if(!arrows.list.length)return;
   const now=performance.now();dt=Math.min(dt,0.05);
@@ -19701,11 +19710,13 @@ function gearTick(dt){
    by the meadow. The Glimmer is a whole world of its own: while you're there the island is put away
    and only the Glimmer is drawn, and what you build there is saved separately. Spark blocks there give
    spark dust; a temple on the furthest island holds treasure, once; fall into the void and it throws you
-   back up. The portal by where you arrive takes you home. Only on your own island, not in a room */
+   back up. The portal by where you arrive takes you home. In a room the Glimmer is shared: the server keeps
+   its edits apart from the island's, and you only see the people in the same world as you */
 const GLIM_KEY='voxel-isle-glimmer',PORTAL_KEY='voxel-isle-portals',GLIM_LOOT_KEY='voxel-isle-glimmer-loot';
 const GLIM={cx:176,cz:176,y:40,spawn:null,portal:null,temple:null,islands:[]};
 const dim={on:false,ov:null,ovWl:null,ovEdits:null,edits:new Map(),from:null,inT:0,travel:0,fx:null,group:null,portals:[],t:0};
 dim.portals=portalsLoad();
+dim.roomEdits=new Map();
 /* the frame of obsidian round a 2×3 gap whose bottom-left inside cell is (x,y,z); axis 'x' runs along x */
 function portalFrame(x,y,z,ax){
   const c=function(u,v){return ax==='x'?[x+u,y+v,z]:[x,y+v,z+u];};
@@ -19724,12 +19735,11 @@ function portalFind(){
 }
 function portalSame(a,b){return a.x===b.x&&a.y===b.y&&a.z===b.z&&a.ax===b.ax;}
 function portalsLoad(){try{const a=JSON.parse(localStorage.getItem(PORTAL_KEY)||'[]');return Array.isArray(a)?a.filter(function(q){return q&&isFinite(q.x);}):[];}catch(e){return[];}}
-function portalsSave(){try{localStorage.setItem(PORTAL_KEY,JSON.stringify(dim.portals.filter(function(q){return!q.glim;})));}catch(e){}}
+function portalsSave(){if(inRoom())return;try{localStorage.setItem(PORTAL_KEY,JSON.stringify(dim.portals.filter(function(q){return!q.glim;})));}catch(e){}}
 /* E by an empty frame lights it */
 function portalLight(){
   const f=portalFind();if(!f)return false;
   if(dim.portals.some(function(q){return portalSame(q,f);}))return false;
-  if(inRoom()){toast('🌀 The Glimmer only opens on your own island, not in a room.');return true;}
   if(dim.on){toast('🌀 You’re already in the Glimmer. Use the portal you came through to go home.');return true;}
   if(survival()&&!invTake('spark',1)){toast('🌀 The frame needs a pinch of spark dust to light it. (Spark dust is in the owls’ lab.)');return true;}
   dim.portals.push(f);portalsSave();portalMesh(f);
@@ -19827,12 +19837,12 @@ function travelShow(txt){
 }
 function glimEnter(from){
   if(dim.on)return false;
-  if(inRoom()){toast('🌀 The Glimmer only opens on your own island, not in a room.');return false;}
   if(P.ride)dismount(true);if(P.fly&&survival())P.fly=false;
   dim.from=from?{x:from.ax==='x'?from.x+1:from.x+0.5,y:from.y,z:from.ax==='x'?from.z+1.6:from.z+1,ax:from.ax}:{x:FX+0.5,y:FIELD_Y,z:FZ+0.5};
   dim.ov=vox.slice();dim.ovWl=wl.slice();dim.ovEdits=new Map(edits);
   saveNow();
-  glimLoadEdits();glimGen();
+  if(inRoom())dim.edits=dim.roomEdits;else{dim.edits=new Map();glimLoadEdits();}
+  glimGen();
   dim.on=true;dim.inT=0;dim.trips=(dim.trips||0)+1;
   P.x=GLIM.spawn.x;P.y=GLIM.spawn.y;P.z=GLIM.spawn.z;P.vx=P.vy=P.vz=0;P.yaw=Math.PI;
   camera.layers.set(1);
@@ -19844,7 +19854,7 @@ function glimEnter(from){
 }
 function glimLeave(){
   if(!dim.on)return false;
-  glimSave();
+  if(!inRoom())glimSave();
   vox.set(dim.ov);wl.set(dim.ovWl);
   edits.clear();dim.ovEdits.forEach(function(b,i){edits.set(i,b);});
   dim.ov=dim.ovWl=dim.ovEdits=null;dim.on=false;dim.inT=0;
@@ -19890,6 +19900,13 @@ function dimTick(dt){
     if(survival()){hp=Math.max(0.5,hp-1);renderHearts();try{hurtMe();}catch(e){}}
     dim.voided=(dim.voided||0)+1;toast('🌀 The void spits you back out'+(survival()?' (−1 heart).':'.'));
   }
+}
+/* moving between your island and a room: come home from the Glimmer first, and swap portal lists */
+function glimRoomSwap(joining){
+  if(dim.on)glimLeave();
+  dim.portals.forEach(function(q){if(q.mesh){scene.remove(q.mesh);q.mesh=null;}});
+  dim.portals=joining?[]:portalsLoad();
+  if(!joining)dim.roomEdits=new Map();
 }
 /* the temple's treasure, once */
 function glimLootNear(){return dim.on&&GLIM.temple&&Math.hypot(P.x-GLIM.temple.x,P.z-GLIM.temple.z)<2.5&&Math.abs(P.y-GLIM.temple.y)<3;}

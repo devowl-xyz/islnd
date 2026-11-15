@@ -181,6 +181,32 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await guest.evaluate(() => window.__isle.gear.bow.heal()); await host.evaluate(() => window.__isle.gear.bow.heal());
   await guest.evaluate(() => window.__isle.gear.bow.heal());
   await host.keyboard.press('Digit5');
+  // the Glimmer in a room: a shared other world
+  await host.evaluate(() => window.__isle.glim.enter());
+  await host.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 20000 }).catch(() => {});
+  check('the host can go to the Glimmer in a room', await host.evaluate(() => window.__isle.glim.on()));
+  await guest.waitForFunction(() => { const v = window.__isle.peerVis().Hana; return v && !v.av; }, null, { timeout: 20000 }).catch(() => {});
+  check('and someone still on the island can’t see them', await guest.evaluate(() => { const v = window.__isle.peerVis().Hana; return !!v && !v.av; }));
+  const GG = await host.evaluate(() => window.__isle.glim.G());
+  const gx = GG.cx + 5, gy = Math.floor(GG.spawn.y), gz = GG.cz - 5;
+  await host.evaluate((q) => window.__isle.setBlock(q[0], q[1], q[2], 8), [gx, gy, gz]);
+  // meanwhile on the island, the guest builds something
+  const ix = 84, iz = 96;
+  await guest.evaluate((q) => window.__isle.setBlock(q[0], 13, q[1], 8), [ix, iz]); await wait(1000);
+  check('the host’s island doesn’t change under them while they’re away', (await host.evaluate((q) => window.__isle.get(q[0], 13, q[1]), [ix, iz])) !== 8);
+  await guest.evaluate(() => window.__isle.glim.enter());
+  await guest.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 20000 }).catch(() => {});
+  check('the guest follows into the same Glimmer, with the host’s block in it', await guest.evaluate(() => window.__isle.glim.on()) && (await guest.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [gx, gy, gz])) === 8);
+  await guest.waitForFunction(() => { const v = window.__isle.peerVis().Hana; return v && v.av; }, null, { timeout: 20000 }).catch(() => {});
+  check('and they can see each other there', await guest.evaluate(() => { const v = window.__isle.peerVis().Hana; return !!v && v.av; }) && await host.evaluate(() => { const v = window.__isle.peerVis().Gus; return !!v && v.av; }));
+  await guest.evaluate((q) => window.__isle.setBlock(q[0] + 1, q[1], q[2], 8), [gx, gy, gz]);
+  await host.waitForFunction((q) => window.__isle.get(q[0] + 1, q[1], q[2]) === 8, [gx, gy, gz], { timeout: 20000 }).catch(() => {});
+  check('what one builds there, the other sees', (await host.evaluate((q) => window.__isle.get(q[0] + 1, q[1], q[2]), [gx, gy, gz])) === 8);
+  await host.evaluate(() => window.__isle.glim.leave()); await guest.evaluate(() => window.__isle.glim.leave());
+  await host.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 20000 }).catch(() => {});
+  check('home again, the host finds the guest’s island build', (await host.evaluate((q) => window.__isle.get(q[0], 13, q[1]), [ix, iz])) === 8);
+  check('and the Glimmer’s blocks stayed in the Glimmer', (await host.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [gx, gy, gz])) !== 8);
+  await guest.evaluate((q) => window.__isle.setBlock(q[0], 13, q[1], 0), [ix, iz]);
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone
   await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4 }); I.gear.craft('rope'); });
   if ((await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'rope') { await host.keyboard.press('Digit0'); await wait(200); }
