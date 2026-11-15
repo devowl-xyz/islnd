@@ -1489,6 +1489,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('a bigger High Sky Palace floats higher and further east, with a sky dock off its side', SK.on && SK.FY > 70 && SK.cx > 200 && (await a.evaluate((s) => window.__isle.get((s.x0 + s.x1) >> 1, s.y - 1, (s.z0 + s.z1) >> 1), SK.strip)) !== 0, SK);
   check('and there’s a bleak Owl Island out in the south-east sea with its own airstrip', OW.on && !!OW.strip && !!OW.stork);
   check('the Island Shuttle (a biplane) runs North Shore to the Mini Isle and back', JSON.stringify(await a.evaluate(() => window.__isle.owl2.shuttleStops())) === JSON.stringify(['North Shore', 'the Mini Isle']));
+  { const hs = await a.evaluate(() => window.__isle.hopShape());
+    check('the Owl Hopper is as long, wide and tall as ever, but slimmer: thinner wings and tail, narrow engines, small wheel spats', Math.abs(hs.x - 43.66) < 0.05 && Math.abs(hs.y - 12.77) < 0.05 && Math.abs(hs.z - 32.64) < 0.05 && hs.bulk < 115, hs); }
   check('the Owl Hopper flies the Mini Isle, the Sky Palace, Owl Island and round again', JSON.stringify(await a.evaluate(() => window.__isle.owl2.stops())) === JSON.stringify(['the Mini Isle', 'the Sky Palace', 'Owl Island']));
   check('the old Sky Palace is gone', (await a.evaluate(() => window.__isle.get(14, 63, 70))) === 0 && !(await a.evaluate(() => window.__isle.map.places().some((p) => p[0] === 'Sky Palace'))));
   const oskip = (name) => a.evaluate((nm) => { const I = window.__isle, L = I.hop.owlLegs(), t0 = I.nowS(); for (let d = 0; d < L.cycle + 5; d += 0.5) { const q = I.hop.owlPose(t0 + d); if (q.parked === nm && q.leaves > 25) { I.net.tOff += d * 1000; return true; } } return false; }, name);
