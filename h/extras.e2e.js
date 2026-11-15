@@ -2042,8 +2042,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.keyboard.press('Digit5'); await wait(200);
   // ----- the Glimmer: another dimension -----
   const RU = await a.evaluate(() => window.__isle.glim.ruin());
-  const OBS = await a.evaluate(() => window.__isle.blockId('OBSIDIAN'));
-  check('there’s a ruined obsidian portal frame by the meadow', !!RU && await a.evaluate(([r, o]) => { const I = window.__isle; return I.get(r.x - 1, r.y, r.z) === o && I.get(r.x + 2, r.y + 2, r.z) === o && I.get(r.x, r.y + 3, r.z) === o && I.get(r.x, r.y, r.z) === 0; }, [RU, OBS]), RU);
+  const OBS = await a.evaluate(() => window.__isle.blockId('RSBLOCK'));
+  check('there’s a ruined spark block portal frame by the meadow', !!RU && await a.evaluate(([r, o]) => { const I = window.__isle; return I.get(r.x - 1, r.y, r.z) === o && I.get(r.x + 2, r.y + 2, r.z) === o && I.get(r.x, r.y + 3, r.z) === o && I.get(r.x, r.y, r.z) === 0; }, [RU, OBS]), RU);
   await a.evaluate(() => window.__isle.gm.set('creative'));
   await a.evaluate((r) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = r.x + 1; P.y = r.y; P.z = r.z - 1.5; P.yaw = Math.PI; }, RU); await wait(500);
   check('stand by it and it’s a frame', !!(await a.evaluate(() => window.__isle.glim.find())));
@@ -2139,6 +2139,77 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const cs = await a.evaluate(() => window.__isle.car.state());
   check('and drives you to the meadow', cs.trips === 1 && Math.hypot((await a.evaluate(() => window.__isle.player.x)) - 80.5, (await a.evaluate(() => window.__isle.player.z)) - 96.5) < 5, [cs, await a.evaluate(() => [window.__isle.player.x, window.__isle.player.z])]);
   await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  // ----- wisps: Emberwisp, Galewisp and Tidewisp -----
+  await a.evaluate(() => { const I = window.__isle; I.wisp.clear(); I.cmd('/gamemode creative'); I.cmd('/time noon'); I.gear.bow.heal(); });
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  await a.evaluate(() => window.__isle.cmd('/spawn galewisp')); await wait(300);
+  const gw = (await a.evaluate(() => window.__isle.wisp.list())).filter((w) => w.kind === 'gale')[0];
+  check('/spawn galewisp brings a pale blue Galewisp', !!gw, gw);
+  await a.evaluate(() => { const I = window.__isle; I.inv.set('berries', 6); const w = I.wisp.list().filter((q) => q.kind === 'gale')[0], P = I.player; P.fly = true; P.vx = P.vy = P.vz = 0; P.x = w.x + 1; P.y = w.y - 1; P.z = w.z; });
+  for (let k = 0; k < 6 && !(await a.evaluate(() => window.__isle.wisp.list().some((w) => w.tame))); k++) { await a.evaluate(() => { const I = window.__isle, w = I.wisp.list().filter((q) => q.kind === 'gale')[0], P = I.player; P.x = w.x + 1; P.y = w.y - 1; P.z = w.z; I.wisp.use(); }); await wait(200); }
+  check('feed it berries and it’s tamed', await a.evaluate(() => window.__isle.wisp.list().some((w) => w.tame)) && (await a.evaluate(() => window.__isle.inv.get('berries'))) < 6);
+  await a.evaluate(() => { const I = window.__isle, w = I.wisp.list().filter((q) => q.tame)[0], P = I.player; P.x = w.x + 1; P.y = w.y - 1; P.z = w.z; I.wisp.use(); }); await wait(200);
+  await play(a);
+  check('E rides it', await a.evaluate(() => window.__isle.wisp.riding()));
+  const ry0 = await a.evaluate(() => window.__isle.player.y);
+  await a.keyboard.down('Space'); await wait(3500); await a.keyboard.up('Space');
+  check('Space flies it up, with you on it', (await a.evaluate(() => window.__isle.player.y)) > ry0 + 1, [ry0, await a.evaluate(() => window.__isle.player.y)]);
+  await a.evaluate(() => window.__isle.wisp.use()); await wait(200);
+  check('and E gets off', !(await a.evaluate(() => window.__isle.wisp.riding())));
+  // Emberwisps, in survival
+  await a.evaluate(() => { const I = window.__isle; I.wisp.clear(); localStorage.removeItem('voxel-isle-galewisp'); I.cmd('/gamemode survival'); I.gear.bow.heal(); });
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  const ew = await a.evaluate(() => { const P = window.__isle.player; return window.__isle.wisp.spawn('ember', P.x, P.y + 3, P.z - 9); });
+  await a.evaluate((id) => window.__isle.wisp.fire(id), ew);
+  check('an Emberwisp shoots fireballs', (await a.evaluate(() => window.__isle.wisp.balls().length)) > 0);
+  const eh0 = await a.evaluate(() => window.__isle.food.hp());
+  await a.waitForFunction((h) => window.__isle.food.hp() < h, eh0, { timeout: 15000 }).catch(() => {});
+  check('that hurt', (await a.evaluate(() => window.__isle.food.hp())) < eh0, [eh0, await a.evaluate(() => window.__isle.food.hp())]);
+  await a.evaluate(() => { const I = window.__isle; I.gear.bow.heal(); I.player.yaw = 0; I.player.pitch = 0.2; });
+  const ehp0 = (await a.evaluate((id) => window.__isle.wisp.list().filter((w) => w.id === id)[0], ew) || {}).hp;
+  await a.evaluate((id) => window.__isle.wisp.fire(id), ew);
+  await a.waitForFunction(() => { const I = window.__isle, P = I.player; return I.wisp.balls().some((b) => !b.refl && Math.hypot(b.x - P.x, b.z - P.z) < 3.2); }, null, { timeout: 15000, polling: 16 }).catch(() => {});
+  check('hit a fireball as it reaches you and it flies back', await a.evaluate(() => window.__isle.wisp.swat()) && (await a.evaluate(() => window.__isle.wisp.stats().reflects)) > 0);
+  await a.waitForFunction((id) => { const w = window.__isle.wisp.list().filter((q) => q.id === id)[0]; return !w || w.hp < 4; }, ew, { timeout: 15000 }).catch(() => {});
+  const ehp1 = (await a.evaluate((id) => window.__isle.wisp.list().filter((w) => w.id === id)[0], ew) || { hp: 0 }).hp;
+  check('and hits the Emberwisp', ehp1 < ehp0, [ehp0, ehp1]);
+  await a.evaluate(() => { const I = window.__isle; I.wisp.clear(); I.cmd('/gamemode creative'); I.gear.bow.heal(); });
+  // Tidewisps, over the water at night
+  await a.evaluate(() => window.__isle.cmd('/time 23')); await wait(300);
+  const shore = await a.evaluate(() => { const I = window.__isle; for (let x = 60; x > 4; x--) { const z = 92; const g = (() => { for (let y = 40; y > 0; y--) { const b = I.get(x, y, z); if (b) return [y, b]; } return [0, 0]; })(); if (g[1] === 12) return { wx: x, x: x + 4, z: z }; } return null; });
+  check('there’s sea to the west for a Tidewisp', !!shore, shore);
+  if (shore) {
+    await a.evaluate((s) => { const I = window.__isle, P = I.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = s.x + 0.5; P.z = s.z + 0.5; for (let y = 40; y > 0; y--) if (I.get(s.x, y, s.z)) { P.y = y + 1; break; } I.wisp.spawn('tide', s.wx - 3, 13.5, s.z + 0.5); }, shore); await wait(300);
+    const td0 = await a.evaluate((s) => window.__isle.player.x - s.wx, shore);
+    await wait(3000);
+    const td1 = await a.evaluate((s) => window.__isle.player.x - s.wx, shore);
+    check('a Tidewisp glows over the water at night and pulls you towards it', td1 < td0 - 0.5 && (await a.evaluate(() => window.__isle.wisp.stats().pulled)) > 0, [td0, td1]);
+  }
+  await a.evaluate(() => { const I = window.__isle; I.wisp.clear(); I.cmd('/time noon'); });
+  // far more of them in the Glimmer
+  await a.evaluate(() => { window.__isle.wisp.auto(true); window.__isle.glim.enter(); }); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  await a.waitForFunction(() => window.__isle.wisp.count() >= 4, null, { timeout: 30000 }).catch(() => {});
+  check('wisps are far more common in the Glimmer', (await a.evaluate(() => window.__isle.wisp.count())) >= 4, await a.evaluate(() => window.__isle.wisp.count()));
+  await a.evaluate(() => window.__isle.glim.leave()); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  await wait(6000);
+  check('than on the island (never more than three about)', (await a.evaluate(() => window.__isle.wisp.count())) <= 3, await a.evaluate(() => window.__isle.wisp.count()));
+  await a.evaluate(() => { window.__isle.wisp.auto(false); window.__isle.wisp.clear(); });
+  // ----- totems of undying, by the golden owl -----
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  const TP = await a.evaluate(() => { const I = window.__isle; I.totem.reset(); I.inv.set('totem', 0); return I.totem.pos(); });
+  await a.evaluate((t) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = t.x - 1.2; P.y = t.y - 1; P.z = t.z + 0.4; }, TP); await wait(800);
+  await play(a);
+  check('a totem of undying waits on a pedestal in the secret room, across from the golden owl', await a.evaluate(() => window.__isle.totem.near() && window.__isle.totem.ready()));
+  await a.keyboard.press('KeyE'); await wait(300);
+  check('E takes it', (await a.evaluate(() => window.__isle.inv.get('totem'))) === 1 && !(await a.evaluate(() => window.__isle.totem.ready())));
+  await a.evaluate(() => { const I = window.__isle; I.hunger.hp(1); I.gear.hit(5, 'A test'); }); await wait(300);
+  check('the next time you’d die, it saves you instead', !(await a.evaluate(() => window.__isle.death.on())) && (await a.evaluate(() => window.__isle.food.hp())) >= 1 && (await a.evaluate(() => window.__isle.totem.saves())) === 1 && (await a.evaluate(() => window.__isle.inv.get('totem'))) === 0);
+  await a.evaluate(() => { window.__isle.gear.bow.heal(); window.__isle.setSkin({ pet: 'biscuit' }); });
+  await put(a, 80.5, 13, 92.5, 0); await wait(300);
+  // ----- the Everything else page, in dropdowns -----
+  const folds = await a.evaluate(() => [...document.querySelectorAll('#moreCard details.fold > summary')].map((s) => s.textContent.trim().split(/\s+/)[0]));
+  check('the Everything else page is folded into dropdowns', folds.length >= 9 && folds.some((f) => /Settings/i.test(f)) && folds.some((f) => /Pets/i.test(f)), folds);
+  check('Play together stays open, to type a room code', await a.evaluate(() => !document.querySelector('#net') || !document.querySelector('#net').closest('details')));
   // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
   check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);
