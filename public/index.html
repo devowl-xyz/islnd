@@ -882,8 +882,10 @@ const B={AIR:0,GRASS:1,DIRT:2,STONE:3,SAND:4,LOG:5,LEAVES:6,PLANKS:7,BRICK:8,GLA
   /* pink cherry blossom leaves, from the Mini Isle's cherry trees */
   BLOSSOM:175,
   /* a crafting table, for swords and armour */
-  CRAFT:176};
-const MAXB=88,LASTB=176;
+  CRAFT:176,
+  /* the Glimmer's own blocks: violet moss, its stone, spark ore, glowing glimcrystal, glimwood and starleaf */
+  GLIMMOSS:177,GLIMSTONE:178,SPARKORE:179,GLIMCRYSTAL:180,GLIMWOOD:181,STARLEAF:182};
+const MAXB=88,LASTB=182;
 /* redstone's state: its parts, gate outputs, what's powered, lit TNT. Up here so the world can be built before it */
 const rs={cells:new Set(),scanned:false,t:0,out:new Map(),hist:new Map(),pow:new Map(),devOn:new Set(),doorBy:new Set(),tnt:new Map(),btn:new Map(),obs:new Map(),cool:new Map(),zap:new Map(),disp:new Map(),elevOn:new Set(),beltOn:new Set(),railOn:new Set(),tick:0,flights:0,notes:0,booms:0,pushes:0,ac:null};
 function isWireB(b){return b===B.WIRE||b===B.WIRE_ON;}
@@ -915,7 +917,7 @@ function cellTop(b){if(b===B.RAIL||b===B.PRAIL||b===B.SDOOR_OPEN)return 0;if(b==
 const CARPET_H=0.0625;
 const NAMES=['Air','Grass','Dirt','Stone','Sand','Log','Leaves','Planks','Brick','Glass','Concrete','Lamp','Water',
   'Clay','Gravel','Deepstone','Granite','Basalt','Coal ore','Copper ore','Iron ore','Crystal','Bedrock','Sandstone','Marble','Gold','Snow',
-  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence','Wood slab','Stone slab','Wood stairs','Wood stairs','Wood stairs','Wood stairs','Stone stairs','Stone stairs','Stone stairs','Stone stairs','Slide','Slide','Slide','Slide'],PAINTS.map(function(p){return p[1]+' wool';}),PAINTS.map(function(p){return p[1]+' carpet';}),['Glass pane','Zip line post','Ostrich egg','Obsidian','Magma','Lava','Cracked stone','Spark wire','Spark wire','Lever','Lever','Button','Button','Pressure plate','Pressure plate','Spark block','Redstone lamp','Redstone lamp','NOT gate','NOT gate','NOT gate','NOT gate','Delay','Delay','Delay','Delay','TNT','Note block'].concat(Array(12).fill('Piston'),Array(12).fill('Sticky piston'),Array(12).fill('Piston head'),Array(6).fill('Observer'),['Slime block','Rail','Powered rail','Powered rail','Spark door','Spark door','Daylight sensor','Cyan glow block','Pink glow block','Gold glow block','Display','Elevator pad','Conveyor belt','Conveyor belt','Conveyor belt','Conveyor belt','Paint bucket','Beat block','Pet house','Cherry blossom','Crafting table']));
+  'Bed','Bed','Door','Door','Door','Door'].concat(PAINTS.map(function(p){return p[1];}),['Ice','Sign','Fence','Wood slab','Stone slab','Wood stairs','Wood stairs','Wood stairs','Wood stairs','Stone stairs','Stone stairs','Stone stairs','Stone stairs','Slide','Slide','Slide','Slide'],PAINTS.map(function(p){return p[1]+' wool';}),PAINTS.map(function(p){return p[1]+' carpet';}),['Glass pane','Zip line post','Ostrich egg','Obsidian','Magma','Lava','Cracked stone','Spark wire','Spark wire','Lever','Lever','Button','Button','Pressure plate','Pressure plate','Spark block','Redstone lamp','Redstone lamp','NOT gate','NOT gate','NOT gate','NOT gate','Delay','Delay','Delay','Delay','TNT','Note block'].concat(Array(12).fill('Piston'),Array(12).fill('Sticky piston'),Array(12).fill('Piston head'),Array(6).fill('Observer'),['Slime block','Rail','Powered rail','Powered rail','Spark door','Spark door','Daylight sensor','Cyan glow block','Pink glow block','Gold glow block','Display','Elevator pad','Conveyor belt','Conveyor belt','Conveyor belt','Conveyor belt','Paint bucket','Beat block','Pet house','Cherry blossom','Crafting table','Glimmoss','Glimstone','Spark ore','Glimcrystal','Glimwood','Starleaf']));
 /* the last slot (0) is the item slot: it holds an item, not a block */
 const HOTBAR=[B.GRASS,B.DIRT,B.STONE,B.SAND,B.PLANKS,B.BRICK,B.GLASS,B.WHITE,B.LAMP,B.AIR];
 /* everything in the block picker, in order */
@@ -962,6 +964,8 @@ function dropFor(b){
   if(b===B.GRASS)return[String(B.DIRT),1];
   if(b===B.COAL)return['coal',1];if(b===B.COPPER)return['copper',1];
   if(b===B.RSBLOCK&&dim.on)return['spark',2];if(b===B.CRYSTAL)return['diamond',1];
+  if(b===B.GLIMMOSS)return[String(B.GLIMSTONE),1];if(b===B.SPARKORE)return['spark',2];
+  if(b===B.STARLEAF)return Math.random()<0.3?['stick',1]:null;
   if(b===B.LEAVES||b===B.BLOSSOM){const r=Math.random();return r<0.1?['apple',1]:r<0.4?['stick',1]:(b===B.BLOSSOM?[String(B.BLOSSOM),1]:null);}
   if(isBed(b))return[String(B.BED),1];if(isDoor(b))return[String(B.DOOR),1];
   let k=rsBase(b);if(isStair(k)||isSlide(k)||isGate(k)||isMech(k))k=familyBase(k);
@@ -999,7 +1003,7 @@ const pot={};
 function potOn(n){return performance.now()<(pot[n]||0);}
 /* how long a block takes to break in survival, in seconds */
 function hardness(b){
-  if(b===B.LEAVES||b===B.BLOSSOM)return 0.25;if(b===B.GLASS||b===B.PANE)return 0.3;
+  if(b===B.LEAVES||b===B.BLOSSOM||b===B.STARLEAF)return 0.25;if(b===B.GLIMCRYSTAL)return 0.5;if(b===B.GLIMMOSS)return 0.7;if(b===B.GLIMWOOD)return 1;if(b===B.GLIMSTONE)return 1.5;if(b===B.SPARKORE)return 2;if(b===B.GLASS||b===B.PANE)return 0.3;
   if(isWool(b)||isCarpet(b))return 0.4;
   if(b===B.GRASS||b===B.DIRT||b===B.SAND||b===B.SNOW||b===B.GRAVEL||b===B.CLAY)return 0.5;
   if(b===B.LOG||b===B.PLANKS||b===B.SLAB_WOOD||isStair(b)&&b<B.STAIR_STONE||b===B.FENCE||isDoor(b)||b===B.SIGN||b===B.CRAFT||isBed(b))return 1;
@@ -1324,6 +1328,47 @@ paint(125,function(u,v){
   if(u>0.62&&u<0.68&&v>0.3&&v<0.8)c=[90,58,30];if(u>0.56&&u<0.76&&v>0.3&&v<0.42)c=[120,124,132];
   return mulc(c,bev(u,v,1));
 });
+/* the Glimmer's blocks. Glimstone: dark plum stone with violet seams */
+function glimBase(u,v){
+  const vo=vor(u,v,5,301),seam=smooth(0.0,0.06,vo.d2-vo.d1),n=pf(u,v,303),t=ihash(vo.id,3,305);
+  const c=mixc(t<0.5?[58,40,82]:[70,48,98],[86,62,118],n*0.6);
+  return mulc(mixc([140,96,200],c,seam),bev(u,v,0.9));
+}
+paint(128,glimBase);
+/* glimmoss: soft violet moss with pale sparkles */
+paint(126,function(u,v){
+  const n=pf(u,v,311),sp=ihash(Math.floor(u*16),Math.floor(v*16),313)>0.94;
+  const c=mixc([150,96,214],[184,132,236],n);
+  return mulc(sp?[236,214,255]:c,bev(u,v,0.6));
+});
+/* its side: glimstone with the moss hanging over the top edge */
+paint(127,function(u,v){
+  const drip=0.2+0.12*Math.sin(u*31)+0.08*pf(u,0,317);
+  return v<drip?mulc(mixc([150,96,214],[184,132,236],pf(u,v,311)),bev(u,v,0.6)):glimBase(u,v);
+});
+/* spark ore: teal spark crystals set in glimstone */
+paint(129,oreTile(glimBase,[[70,236,214],[150,255,236]],331,true));
+/* glimcrystal: pale lavender crystal that glows */
+paint(130,function(u,v){
+  const vo=vor(u,v,4,341),f=1-smooth(0,0.45,vo.d1),t=ihash(vo.id,2,343);
+  const c=mixc(t<0.5?[206,168,255]:[180,226,255],[255,248,255],f*0.7);
+  return mulc(c,0.82+0.3*Math.sign(Math.sin((u+v)*30+vo.id*3))*0.4);
+});
+/* glimwood: rings on the cut ends, pale lavender bark with teal streaks */
+paint(131,function(u,v){
+  const r=Math.hypot(u-0.5,v-0.5),ring=0.5+0.5*Math.sin(r*40+pf(u,v,351)*4);
+  return mulc(mixc([196,170,224],[150,120,190],ring*0.6),bev(u,v,1));
+});
+paint(132,function(u,v){
+  const g=0.5+0.5*Math.sin((u*7+pf(u,v*0.4,353)*2.5)*Math.PI*2),streak=Math.abs(Math.sin(u*9.3+v*2))>0.985;
+  return mulc(streak?[96,214,200]:mixc([140,112,176],[176,148,210],g*0.7),bev(u,v,1));
+});
+/* starleaf: deep night-blue leaves with tiny stars */
+paint(133,function(u,v){
+  const vo=vor(u,v,7,361),lit=1-smooth(0.05,0.55,vo.d1),star=ihash(Math.floor(u*20),Math.floor(v*20),363)>0.95;
+  const base=ihash(vo.id,4,365)<0.5?[40,52,128]:[56,70,156];
+  return star?[230,236,255]:mulc(mixc(mulc(base,0.7),mixc(base,[120,140,230],0.35),lit),bev(u,v,0.7));
+});
 /* cherry blossom: clusters of pink petals with the odd white one */
 paint(123,function(u,v){
   const vo=vor(u,v,7,181),lit=1-smooth(0.05,0.55,vo.d1),t=ihash(vo.id,4,183);
@@ -1564,7 +1609,7 @@ BT[B.PANE]=[10,10,10];BT[B.ZIP]=[6,6,5];BT[B.EGG]=[61,61,61];BT[B.OBSIDIAN]=[62,
 BT[B.WIRE]=[79,79,79];BT[B.WIRE_ON]=[80,80,80];BT[B.LEVER]=BT[B.LEVER_ON]=BT[B.BUTTON]=BT[B.BUTTON_ON]=BT[B.PLATE]=BT[B.PLATE_ON]=[3,3,3];
 BT[B.RSBLOCK]=[66,66,66];BT[B.RLAMP]=[67,67,67];BT[B.RLAMP_ON]=[68,68,68];for(let k=0;k<8;k++)BT[B.NOTG+k]=[3,3,3];BT[B.TNT]=[70,70,69];BT[B.NOTE]=[71,71,71];
 for(let k=0;k<12;k++){BT[B.PISTON+k]=[8,73,72];BT[B.STICKY+k]=[74,73,72];BT[B.HEAD+k]=[8,8,8];}for(let k=0;k<6;k++)BT[B.OBSERVER+k]=[78,78,75];
-BT[B.SLIME]=[81,81,81];BT[B.RAIL]=[82,82,82];BT[B.PRAIL]=[88,88,88];BT[B.SDOOR]=BT[B.SDOOR_OPEN]=[92,92,92];BT[B.DSENSOR]=[93,8,8];BT[B.GLOW]=[94,94,94];BT[B.GLOW+1]=[95,95,95];BT[B.GLOW+2]=[96,96,96];BT[B.DISPLAY]=[113,113,97];BT[B.ELEV]=[114,3,3];for(let k=0;k<4;k++)BT[B.BELT+k]=[115+k,119,119];BT[B.PAINT]=[120,120,120];BT[B.BEAT]=[121,121,121];BT[B.PETBED]=[9,8,122];BT[B.BLOSSOM]=[123,123,123];BT[B.CRAFT]=[124,8,125];
+BT[B.SLIME]=[81,81,81];BT[B.RAIL]=[82,82,82];BT[B.PRAIL]=[88,88,88];BT[B.SDOOR]=BT[B.SDOOR_OPEN]=[92,92,92];BT[B.DSENSOR]=[93,8,8];BT[B.GLOW]=[94,94,94];BT[B.GLOW+1]=[95,95,95];BT[B.GLOW+2]=[96,96,96];BT[B.DISPLAY]=[113,113,97];BT[B.ELEV]=[114,3,3];for(let k=0;k<4;k++)BT[B.BELT+k]=[115+k,119,119];BT[B.PAINT]=[120,120,120];BT[B.BEAT]=[121,121,121];BT[B.PETBED]=[9,8,122];BT[B.BLOSSOM]=[123,123,123];BT[B.CRAFT]=[124,8,125];BT[B.GLIMMOSS]=[126,128,127];BT[B.GLIMSTONE]=[128,128,128];BT[B.SPARKORE]=[129,129,129];BT[B.GLIMCRYSTAL]=[130,130,130];BT[B.GLIMWOOD]=[131,131,132];BT[B.STARLEAF]=[133,133,133];
 
 /* ---------- world data and generation ---------- */
 const vox=new Uint8Array(W*H*D);
@@ -2903,8 +2948,8 @@ function simWake(i){
   lavaQ.add(i);if(x>0)lavaQ.add(i-1);if(x<W-1)lavaQ.add(i+1);if(z>0)lavaQ.add(i-W);if(z<D-1)lavaQ.add(i+W);if(y>0)lavaQ.add(i-SLAB);if(y<H-1)lavaQ.add(i+SLAB);
 }
 /* the one place a cell changes: keeps water levels, meshes and the simulation in step */
-function passLight(b){return b===0||b===B.GLASS||b===B.WATER||b===B.LEAVES||b===B.BLOSSOM||isShape(b);}
-function emitOf(b){if(b>=B.GLOW&&b<=B.GLOW+2)return 15;return b===B.LAMP||b===B.RLAMP_ON?15:(b===B.CRYSTAL?11:(b===B.MAGMA?13:(b===B.LAVA?15:(b===B.RSBLOCK?7:0))));}
+function passLight(b){return b===0||b===B.GLASS||b===B.WATER||b===B.LEAVES||b===B.BLOSSOM||b===B.STARLEAF||isShape(b);}
+function emitOf(b){if(b>=B.GLOW&&b<=B.GLOW+2)return 15;if(b===B.GLIMCRYSTAL)return 13;if(b===B.SPARKORE)return 6;return b===B.LAMP||b===B.RLAMP_ON?15:(b===B.CRYSTAL?11:(b===B.MAGMA?13:(b===B.LAVA?15:(b===B.RSBLOCK?7:0))));}
 const LM=8; /* how far light reaches, in blocks */
 function markArea(x,z,r){
   const a=Math.max(0,Math.floor((x-r)/CH)),b=Math.min(NC-1,Math.floor((x+r)/CH));
@@ -3098,7 +3143,7 @@ function flowAt(x,y,z){
 const LAVA_EVERY=4,LAVA_STEP=2;
 const lavaQ=new Set(),burns=new Map();let lavaN=0;
 function isLiq(b){return b===B.WATER||b===B.LAVA;}
-function flammable(b){return b===B.LOG||b===B.LEAVES||b===B.BLOSSOM||b===B.PLANKS||b===B.SLAB_WOOD||(b>=B.STAIR_WOOD&&b<B.STAIR_WOOD+4)||b===B.FENCE||b===B.SIGN||isBed(b)||(b>=B.DOOR&&b<=B.DOOR_TOP_OPEN)||(b>=B.WOOL&&b<B.WOOL+12)||isCarpet(b);}
+function flammable(b){return b===B.LOG||b===B.LEAVES||b===B.BLOSSOM||b===B.GLIMWOOD||b===B.STARLEAF||b===B.PLANKS||b===B.SLAB_WOOD||(b>=B.STAIR_WOOD&&b<B.STAIR_WOOD+4)||b===B.FENCE||b===B.SIGN||isBed(b)||(b>=B.DOOR&&b<=B.DOOR_TOP_OPEN)||(b>=B.WOOL&&b<B.WOOL+12)||isCarpet(b);}
 function lavaRests(j){if(j<SLAB)return true;const b=vox[j-SLAB];return(b!==0&&!isLiq(b))||(b===B.LAVA&&wl[j-SLAB]===WMAX);}
 function lavaWant(i){
   if(vox[i]===B.LAVA&&wl[i]===WMAX)return WMAX;
@@ -5440,7 +5485,8 @@ function onNet(m){
   switch(m.t){
     case 'hosted':{
       enteredRoom(m,true);
-      /* the room starts as a copy of the host's island */
+      /* the room starts as a copy of the host's island, lit portals and all */
+      portalsLoad().forEach(function(q){if(portalArrive(q,true))netSend({t:'portal',x:q.x,y:q.y,z:q.z,ax:q.ax});});
       const flat=flatEdits(),N=6000;
       for(let k=0;k<flat.length||k===0;k+=N)netSend({t:'seed',edits:flat.slice(k,k+N),last:k+N>=flat.length});
       toast('Room '+m.code+' is open. Share the code to invite people.');
@@ -5517,6 +5563,8 @@ function onNet(m){
     case 'announce':onAnnounce(m);break;
     case 'locks':onLocks(m);break;
     case 'pasted':onPasted(m);break;
+    case 'portal':portalArrive(m,false);break;
+    case 'portals':(Array.isArray(m.list)?m.list:[]).forEach(function(q){portalArrive(q,true);});break;
     case 'glimsnap':{const a=Array.isArray(m.edits)?m.edits:[];for(let k=0;k+1<a.length;k+=2){const i=a[k],b=a[k+1];if(i>=0&&i<vox.length&&b>=0&&b<=LASTB){dim.roomEdits.set(i,b);if(dim.on){writeCell(i,b);}}}break;}
     case 'glimedit':{const i=(m.y*D+m.z)*W+m.x;if(!(i>=0&&i<vox.length)||!(m.b>=0&&m.b<=LASTB))break;dim.roomEdits.set(i,m.b);if(dim.on)writeCell(i,m.b);break;}
     case 'fireworks':onFireworks(m);break;
@@ -18716,7 +18764,7 @@ const K_P=String(B.PLANKS),K_L=String(B.LOG),K_SAND=String(B.SAND),K_GLASS=Strin
 const K_STONE=[B.STONE,B.GRANITE,B.BASALT,B.DEEP].map(String),K_WOOL=[B.WHITE].concat(PAINTS.map(function(p,i){return B.WOOL+i;})).map(String);
 const TIER_MAT={wood:[K_P],stone:K_STONE,copper:['copper'],diamond:['diamond'],spark:['spark']};
 const RECIPES=[
-  {id:'planks',name:'4 planks',any:[[K_L]],out:{k:K_P,n:4}},
+  {id:'planks',name:'4 planks',any:[[K_L,String(B.GLIMWOOD)]],out:{k:K_P,n:4}},
   {id:'sticks',name:'4 sticks',pat:['P','P'],keys:{P:[K_P]},out:{k:'stick',n:4}},
   {id:'table',name:'Crafting table',pat:['PP','PP'],keys:{P:[K_P]},out:{k:String(B.CRAFT),n:1}}
 ].concat(TIERS.map(function(t){return{id:'sword_'+t,pat:['M','M',t==='spark'?'D':'S'],keys:{M:TIER_MAT[t],S:['stick'],D:['diamond']},out:{gear:'sword_'+t}};}),
@@ -19758,6 +19806,15 @@ function portalFind(){
 function portalSame(a,b){return a.x===b.x&&a.y===b.y&&a.z===b.z&&a.ax===b.ax;}
 function portalsLoad(){try{const a=JSON.parse(localStorage.getItem(PORTAL_KEY)||'[]');return Array.isArray(a)?a.filter(function(q){return q&&isFinite(q.x);}):[];}catch(e){return[];}}
 function portalsSave(){if(inRoom())return;try{localStorage.setItem(PORTAL_KEY,JSON.stringify(dim.portals.filter(function(q){return!q.glim;})));}catch(e){}}
+/* someone in the room lit a portal (or several, when you join) */
+function portalArrive(q,quiet){
+  if(!q||!Number.isInteger(q.x)||(q.ax!=='x'&&q.ax!=='z'))return false;
+  const f={x:q.x,y:q.y,z:q.z,ax:q.ax};
+  if(dim.portals.some(function(o){return!o.glim&&portalSame(o,f);}))return false;
+  dim.portals.push(f);portalMesh(f);
+  if(!quiet){const p=net.peers.get(q.by);toast('🌀 '+(p?p.name:'Someone')+' lit a portal to the Glimmer.');}
+  return true;
+}
 /* E by an empty frame lights it */
 function portalLight(){
   const f=portalFind();if(!f)return false;
@@ -19765,7 +19822,8 @@ function portalLight(){
   if(dim.on){toast('🌀 You’re already in the Glimmer. Use the portal you came through to go home.');return true;}
   if(survival()&&!invTake('spark',1)){toast('🌀 The frame needs a pinch of spark dust to light it. (Spark dust is in the owls’ lab.)');return true;}
   dim.portals.push(f);portalsSave();portalMesh(f);
-  toast('🌀 The portal flares into life! Step into it to go to the Glimmer.');
+  if(inRoom())netSend({t:'portal',x:f.x,y:f.y,z:f.z,ax:f.ax});
+  toast('🌀 The portal flares into life'+(inRoom()?' for everyone in the room':'')+'! Step into it to go to the Glimmer.');
   try{sndBurst(220,0.6,0.15,'sine');}catch(e){}
   return true;
 }
@@ -19809,20 +19867,20 @@ function glimGen(){
       const wob=(n3(x*0.15,ii*3.1,z*0.15,71)-0.5)*0.5,d=Math.hypot(x-I.cx,z-I.cz)/R+wob;if(d>=1)continue;
       const t=I.y+Math.round((1-d)*2.5),bot=I.y-Math.round(Math.pow(1-d,0.7)*R*0.9+n3(x*0.3,7,z*0.3,73)*3);
       for(let y=bot;y<=t;y++){
-        let b=y===t?(I.fr?(d>0.85?B.WHITE:B.PINK):B.PURPLE):(y>=t-2?B.BASALT:B.OBSIDIAN);
-        if(y<t-1){const n=n3(x*0.22,y*0.22,z*0.22,79);if(n>0.74)b=B.RSBLOCK;else if(n<0.16)b=B.CRYSTAL;}
+        let b=y===t?(I.fr?(d>0.85?B.WHITE:B.PINK):B.GLIMMOSS):(y>=t-3||n3(x*0.1,y*0.1,z*0.1,77)>0.45?B.GLIMSTONE:B.OBSIDIAN);
+        if(y<t-1){const n=n3(x*0.22,y*0.22,z*0.22,79);if(n>0.74)b=B.SPARKORE;else if(n<0.13)b=B.CRYSTAL;else if(n<0.17)b=B.GLIMCRYSTAL;}
         S(x,y,z,b);
       }
       /* glowing drips under the islands */
-      if(r()<0.04)S(x,bot-1,z,B.GLOW+((x+z)%3));
+      if(r()<0.04){S(x,bot-1,z,B.GLIMCRYSTAL);if(r()<0.5)S(x,bot-2,z,B.GLIMCRYSTAL);}
       top[x+','+z]=t;
     }
     /* crystal spires and blossom trees */
     const n=I.fr?0:(ii===0?3:1+Math.floor(r()*3));
     for(let k=0;k<n;k++){
       const a=r()*Math.PI*2,dd=r()*R*0.6,x=Math.round(I.cx+Math.cos(a)*dd),z=Math.round(I.cz+Math.sin(a)*dd),t=top[x+','+z];if(t===undefined)continue;
-      if(r()<0.5){const h=4+Math.floor(r()*6);for(let y=t+1;y<=t+h;y++)S(x,y,z,y===t+h?B.GLOW+1:B.GLASS);}
-      else{const h=4+Math.floor(r()*3);for(let y=t+1;y<=t+h;y++)S(x,y,z,B.BASALT);for(let dy=-1;dy<=2;dy++)for(let dz2=-2;dz2<=2;dz2++)for(let dx2=-2;dx2<=2;dx2++)if(Math.abs(dx2)+Math.abs(dz2)+Math.max(0,dy)<4&&!(dx2===0&&dz2===0&&dy<1))S(x+dx2,t+h+dy,z+dz2,B.BLOSSOM);}
+      if(r()<0.5){const h=4+Math.floor(r()*6);for(let y=t+1;y<=t+h;y++)S(x,y,z,B.GLIMCRYSTAL);if(h>6){S(x+1,t+1,z,B.GLIMCRYSTAL);S(x,t+1,z+1,B.GLIMCRYSTAL);}}
+      else{const h=4+Math.floor(r()*3);for(let y=t+1;y<=t+h;y++)S(x,y,z,B.GLIMWOOD);for(let dy=-1;dy<=2;dy++)for(let dz2=-2;dz2<=2;dz2++)for(let dx2=-2;dx2<=2;dx2++)if(Math.abs(dx2)+Math.abs(dz2)+Math.max(0,dy)<4&&!(dx2===0&&dz2===0&&dy<1))S(x+dx2,t+h+dy,z+dz2,B.STARLEAF);}
     }
   });
   /* the French island: a little school in the colours of the flag, with a lectern to practise at */
@@ -19836,7 +19894,7 @@ function glimGen(){
   const near=[FR].concat(isl.slice(2).sort(function(a,b){return Math.hypot(a.cx-GLIM.cx,a.cz-GLIM.cz)-Math.hypot(b.cx-GLIM.cx,b.cz-GLIM.cz);}).slice(0,4));
   near.forEach(function(I){
     const ax=GLIM.cx,az=GLIM.cz,dist=Math.hypot(I.cx-ax,I.cz-az),n=Math.ceil(dist/2.2);
-    for(let k=0;k<=n;k++){const u=k/n,x=Math.round(ax+(I.cx-ax)*u),z=Math.round(az+(I.cz-az)*u);if(top[x+','+z]!==undefined)continue;const y=Math.round(GLIM.y+2+(I.y+2-GLIM.y-2)*u);S(x,y,z,B.BASALT);if(k%5===0)S(x,y-1,z,B.GLOW);}
+    for(let k=0;k<=n;k++){const u=k/n,x=Math.round(ax+(I.cx-ax)*u),z=Math.round(az+(I.cz-az)*u);if(top[x+','+z]!==undefined)continue;const y=Math.round(GLIM.y+2+(I.y+2-GLIM.y-2)*u);S(x,y,z,B.GLIMSTONE);if(k%5===0)S(x,y-1,z,B.GLIMCRYSTAL);}
   });
   /* the temple, on the island furthest out */
   const far=isl.slice(2).sort(function(a,b){return Math.hypot(b.cx-GLIM.cx,b.cz-GLIM.cz)-Math.hypot(a.cx-GLIM.cx,a.cz-GLIM.cz);})[0];
@@ -19873,6 +19931,7 @@ function travelShow(txt){
 }
 function glimEnter(from){
   if(dim.on)return false;
+  glimBlocksUnlock();
   if(P.ride)dismount(true);if(P.fly&&survival())P.fly=false;
   dim.from=from?{x:from.ax==='x'?from.x+1:from.x+0.5,y:from.y,z:from.ax==='x'?from.z+1.6:from.z+1,ax:from.ax}:{x:FX+0.5,y:FIELD_Y,z:FZ+0.5};
   dim.ov=vox.slice();dim.ovWl=wl.slice();dim.ovEdits=new Map(edits);
@@ -20097,6 +20156,15 @@ function frDecor(){
     const c=carModel();c.position.set(GLIM.fr.cx+5.5,GLIM.fr.top+1,GLIM.fr.cz+2.5);c.rotation.y=0.6;g.add(c);scene.add(g);dimLayer(g);GLIM.frFx=g;}
   GLIM.frFx.visible=true;
 }
+/* the Glimmer's blocks join the block picker once you've been there */
+const GLIM_BLOCKS=[B.GLIMMOSS,B.GLIMSTONE,B.SPARKORE,B.GLIMCRYSTAL,B.GLIMWOOD,B.STARLEAF],GLIM_PICK_KEY='voxel-isle-glimblocks';
+function glimBlocksUnlock(){
+  const first=PICKS.indexOf(B.GLIMMOSS)<0;
+  GLIM_BLOCKS.forEach(function(b){if(PICKS.indexOf(b)<0)PICKS.push(b);});
+  if(first&&pickerEl)pickerEl.innerHTML='';
+  try{if(localStorage.getItem(GLIM_PICK_KEY)!=='1'){localStorage.setItem(GLIM_PICK_KEY,'1');setTimeout(function(){toast('✨ The Glimmer’s own blocks are in your block picker now (B).');},2500);}}catch(e){}
+}
+try{if(localStorage.getItem(GLIM_PICK_KEY)==='1')GLIM_BLOCKS.forEach(function(b){if(PICKS.indexOf(b)<0)PICKS.push(b);});}catch(e){}
 /* the temple's treasure, once */
 function glimLootNear(){return dim.on&&GLIM.temple&&Math.hypot(P.x-GLIM.temple.x,P.z-GLIM.temple.z)<2.5&&Math.abs(P.y-GLIM.temple.y)<3;}
 function glimLoot(){

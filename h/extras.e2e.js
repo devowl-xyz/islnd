@@ -2058,6 +2058,17 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const me = await a.evaluate(() => { const P = window.__isle.player; return { x: P.x, y: P.y, z: P.z, og: P.onGround }; });
   check('a world of floating islands, and you land on the main one', G.n >= 10 && me.og && Math.abs(me.x - G.spawn.x) < 2 && Math.abs(me.y - G.spawn.y) < 2, [G, me]);
   check('only the Glimmer is drawn', (await a.evaluate(() => window.__isle.glim.layer())) === 2);
+  // the Glimmer's own blocks
+  check('its islands are topped with glimmoss', await a.evaluate((g) => { const I = window.__isle, gm = I.blockId('GLIMMOSS'); let n = 0; for (let dz = -6; dz <= 6; dz++) for (let dx = -6; dx <= 6; dx++) for (let y = 30; y < 60; y++) if (I.get(g.cx + dx, y, g.cz + dz) === gm) n++; return n > 40; }, G));
+  check('with glimstone, spark ore, glimcrystal, glimwood and starleaf too', await a.evaluate((g) => { const I = window.__isle, want = ['GLIMSTONE', 'SPARKORE', 'GLIMCRYSTAL', 'GLIMWOOD', 'STARLEAF'].map((n) => I.blockId(n)), seen = new Set(); for (let z = g.cz - 70; z <= g.cz + 70; z += 1) for (let x = g.cx - 70; x <= g.cx + 70; x += 1) for (let y = 10; y < 70; y++) { const b = I.get(x, y, z); if (want.indexOf(b) >= 0) seen.add(b); } return seen.size === 5; }, G));
+  check('and they’re in the block picker now you’ve been', await a.evaluate(() => window.__isle.picker.picks.indexOf(window.__isle.blockId('GLIMMOSS')) >= 0 && window.__isle.picker.picks.indexOf(window.__isle.blockId('STARLEAF')) >= 0));
+  const SO = await a.evaluate(() => window.__isle.blockId('SPARKORE'));
+  const so0 = await a.evaluate(() => window.__isle.inv.get('spark'));
+  await a.evaluate(([b, g]) => { window.__isle.setBlock(g.cx + 2, Math.floor(g.spawn.y), g.cz - 3, b); }, [SO, G]);
+  await a.evaluate((g) => window.__isle.act.brk(g.cx + 2, Math.floor(g.spawn.y), g.cz - 3), G);
+  check('spark ore gives spark dust', (await a.evaluate(() => window.__isle.inv.get('spark'))) === so0 + 2);
+  await a.evaluate(() => { const I = window.__isle; I.inv.set(I.blockId('GLIMWOOD'), 1); I.inv.set(I.blockId('PLANKS'), 0); });
+  check('glimwood makes planks', await a.evaluate(() => window.__isle.gear.craft('planks')) && (await a.evaluate(() => window.__isle.inv.get(window.__isle.blockId('PLANKS')))) === 4);
   // spark blocks give spark dust
   const RS = await a.evaluate(() => window.__isle.blockId('RSBLOCK'));
   const sp0 = await a.evaluate(() => window.__isle.inv.get('spark'));

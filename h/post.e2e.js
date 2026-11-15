@@ -181,6 +181,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await guest.evaluate(() => window.__isle.gear.bow.heal()); await host.evaluate(() => window.__isle.gear.bow.heal());
   await guest.evaluate(() => window.__isle.gear.bow.heal());
   await host.keyboard.press('Digit5');
+  // a portal lit by one person is lit for everyone
+  const RUP = await host.evaluate(() => window.__isle.glim.ruin());
+  await host.evaluate((r) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = r.x + 1; P.y = r.y; P.z = r.z - 1.5; }, RUP); await wait(500);
+  await host.evaluate(() => window.__isle.glim.light());
+  await guest.waitForFunction(() => window.__isle.glim.lit().length > 0, null, { timeout: 20000 }).catch(() => {});
+  check('when one person lights a portal, it’s lit for everyone in the room', (await host.evaluate(() => window.__isle.glim.lit().length)) === 1 && (await guest.evaluate(() => window.__isle.glim.lit().length)) === 1);
   // the Glimmer in a room: a shared other world
   await host.evaluate(() => window.__isle.glim.enter());
   await host.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 20000 }).catch(() => {});

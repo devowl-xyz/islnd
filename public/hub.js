@@ -20,7 +20,7 @@ opts = opts || {};
 /* World rules, kept in step with the client (public/index.html). */
 const W = 352, D = 352, H = 80;
 const FX = 80, FZ = 92, FIELD_R = 24;
-const MAX_BLOCK = 176; // 176 crafting table; 175 cherry blossom; 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
+const MAX_BLOCK = 182; // 177-182 the Glimmer's blocks (glimmoss, glimstone, spark ore, glimcrystal, glimwood, starleaf); 176 crafting table; 175 cherry blossom; 166-174 display, elevator, belts, paint bucket (tool), beat block, pet house; 156-165 slime, rails, spark doors, daylight sensor, glow blocks; 114-155 pistons, sticky pistons, their heads and observers, 93-113 redstone (wire, lever, button, plate, redstone block, lamp, NOT gates, delays, TNT, note block), 92 cracked stone (hides the tunnels), 91 lava, 90 magma, 89 obsidian, 88 Bazza's ostrich egg, 12 is water, 13 to 23 underground blocks, 24 marble, 25 gold, 26 snow, 27-28 bed, 29-32 door, 33-44 colours, 45 ice, 46 sign, 47 fence, 48-49 slabs, 50-57 stairs, 58-61 slides, 62-73 wool, 74-85 carpets, 86 glass pane, 87 zip line post
 const SIGN = 46, SIGN_MAX = 60, EGG = 88;
 // Doors: bottom and top, shut or open. Anyone may open or shut one, even in a building that can't be changed.
 const DOOR = 29, DOOR_TOP = 30, DOOR_OPEN = 31, DOOR_TOP_OPEN = 32;
@@ -303,6 +303,8 @@ function sendSnapshot(room, peer) {
     room.glim.forEach((b, i) => { g.push(i, b); });
     for (let k = 0; k < g.length; k += SNAP_CHUNK * 2) send(peer.ws, { t: 'glimsnap', edits: g.slice(k, k + SNAP_CHUNK * 2) });
   }
+  // portals to the Glimmer that someone in the room has lit
+  if (room.portals && room.portals.length) send(peer.ws, { t: 'portals', list: room.portals });
   room.peers.forEach((p) => {
     if (p.id !== peer.id && p.pos) send(peer.ws, Object.assign({ t: 'pos', id: p.id }, p.pos));
   });
@@ -410,7 +412,7 @@ function handle(peer, msg) {
       peer.name = cleanName(msg.name);
       peer.skin = cleanSkin(msg.skin);
       peer.admin = false;
-      const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), glim: new Map(), seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null, park: null } };
+      const r = { code, hostId: peer.id, peers: new Map(), edits: new Map(), glim: new Map(), portals: [], seeding: true, jet: { pilot: null, pass: [], last: null, release: null, call: null, park: null } };
       const hp = cleanPose(msg.heli, HELI_HOME);
       r.dummies = []; r.dummySeq = 1;
       r.heli = Object.assign(hp, { pilot: null, rope: 0, down: false, captives: [], dummies: [], bridge: msg.heli && msg.heli.bridge ? cleanPose(msg.heli.bridge, hp) : null,
@@ -506,6 +508,19 @@ function handle(peer, msg) {
       if (!room.glim) room.glim = new Map();
       room.glim.set(idxOf(x, y, z), b);
       broadcast(room, { t: 'glimedit', x, y, z, b, by: peer.id }, peer.id);
+      return;
+    }
+    // a portal to the Glimmer lit by one person is lit for everyone in the room
+    case 'portal': {
+      if (!room) return;
+      const { x, y, z, ax } = msg;
+      if (![x, y, z].every(Number.isInteger) || (ax !== 'x' && ax !== 'z')) return;
+      if (x < 0 || z < 0 || x >= W || z >= D || y < 1 || y >= H) return;
+      if (!room.portals) room.portals = [];
+      if (room.portals.some((q) => q.x === x && q.y === y && q.z === z && q.ax === ax)) return;
+      if (room.portals.length >= 40) room.portals.shift();
+      room.portals.push({ x, y, z, ax });
+      broadcast(room, { t: 'portal', x, y, z, ax, by: peer.id }, peer.id);
       return;
     }
     case 'role': {
