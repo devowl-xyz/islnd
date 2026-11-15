@@ -207,6 +207,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   check('home again, the host finds the guest’s island build', (await host.evaluate((q) => window.__isle.get(q[0], 13, q[1]), [ix, iz])) === 8);
   check('and the Glimmer’s blocks stayed in the Glimmer', (await host.evaluate((q) => window.__isle.get(q[0], q[1], q[2]), [gx, gy, gz])) !== 8);
   await guest.evaluate((q) => window.__isle.setBlock(q[0], 13, q[1], 0), [ix, iz]);
+  // the lilac car: others see you riding in it
+  await host.evaluate(() => { const I = window.__isle, P = I.player; I.setSkin({ pet: 'mochi' }); I.fr.win(); P.x = 90.5; P.z = 92.5; P.y = 13; P.fly = false; });
+  await host.evaluate(() => window.__isle.car.call());
+  await host.waitForFunction(() => window.__isle.car.state().ride, null, { timeout: 20000 }).catch(() => {});
+  await guest.waitForFunction(() => { const v = window.__isle.peerVis().Hana; return v && v.car; }, null, { timeout: 20000 }).catch(() => {});
+  check('others see you riding in the lilac car', await guest.evaluate(() => { const v = window.__isle.peerVis().Hana; return !!v && v.car; }), await host.evaluate(() => window.__isle.car.state()));
+  await host.evaluate(() => window.__isle.car.out()); await host.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
   // the rope: pull someone along, they can untie themselves; /tie yourself to someone
   await host.evaluate(() => { const I = window.__isle; I.gear.setMats({ wood: 4 }); I.gear.craft('rope'); });
   if ((await host.evaluate(() => window.__isle.gear.state().inHand)) !== 'rope') { await host.keyboard.press('Digit0'); await wait(200); }

@@ -2087,7 +2087,39 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.glim.enter()); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
   check('and what you built in the Glimmer is still there next time', (await a.evaluate((g) => window.__isle.get(g.cx + 4, Math.floor(g.spawn.y), g.cz - 4), G)) === 8);
   await a.evaluate(() => window.__isle.glim.leave()); await wait(1500);
-    // ----- blocky mode -----
+    // ----- the French island in the Glimmer, and the lilac car -----
+  await a.evaluate(() => window.__isle.glim.enter()); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  const FRS = await a.evaluate(() => window.__isle.fr.spot());
+  check('the Glimmer has a French island with a little school', !!FRS && await a.evaluate((f) => { const I = window.__isle, pk = I.blockId('PINK'); for (let y = f.top; y > f.top - 4; y--) if (I.get(f.cx, y, f.cz + 3) === pk) return true; return false; }, FRS), FRS);
+  await a.evaluate((f) => { const P = window.__isle.player; P.fly = false; P.vx = P.vy = P.vz = 0; P.x = f.x + 1; P.y = f.y; P.z = f.z + 0.5; }, FRS); await wait(500);
+  await a.keyboard.press('KeyE'); await wait(400);
+  check('E at the lectern starts a French quiz', await a.evaluate(() => { const el = document.getElementById('french'); return !!el && !el.hidden && el.querySelectorAll('[data-opt]').length === 4; }));
+  const frs0 = await a.evaluate(() => window.__isle.fr.stats());
+  await a.evaluate(() => { const q = window.__isle.fr.q(); window.__isle.fr.answer(q.ans); });
+  check('a right answer counts', (await a.evaluate(() => window.__isle.fr.stats().total)) === frs0.total + 1);
+  await a.evaluate(() => { const q = window.__isle.fr.q(); window.__isle.fr.answer((q.ans + 1) % 4); });
+  check('a wrong one doesn’t', (await a.evaluate(() => window.__isle.fr.stats().wrong)) === frs0.wrong + 1 && (await a.evaluate(() => window.__isle.fr.stats().total)) === frs0.total + 1);
+  const fair = await a.evaluate(() => { const I = window.__isle; let bad = null; const sib = { lorsque: 'quand', quand: 'lorsque', 'parce que': 'car', car: 'parce que' }; for (let k = 0; k < 80 && !bad; k++) { const q = I.fr.q(); if (new Set(q.opts).size !== 4) bad = q; if (!q.toEn && sib[q.word] && q.opts.indexOf(sib[q.word]) >= 0) bad = q; if (q.toEn && q.opts.filter((o) => o === q.opts[q.ans]).length > 1) bad = q; I.fr.answer(q.ans); } return bad; });
+  check('it never offers two right answers (lorsque and quand, parce que and car)', fair === null, fair);
+  check('both ways round: French to English and English to French', await a.evaluate(() => { const I = window.__isle; let en = 0, frn = 0; for (let k = 0; k < 30; k++) { const q = I.fr.q(); if (q.toEn) en++; else frn++; I.fr.answer(q.ans); } return en > 0 && frn > 0; }));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'none' }); I.fr.cheat(3); const q = I.fr.q(); I.fr.answer(q.ans); });
+  check('only Biscuit’s and Mochi’s owners earn the car', !(await a.evaluate(() => window.__isle.fr.stats().won)));
+  await a.evaluate(() => { const I = window.__isle; I.setSkin({ pet: 'biscuit' }); const q = I.fr.q(); I.fr.answer(q.ans); });
+  check('practise lots and Biscuit’s owner earns the lilac car', await a.evaluate(() => window.__isle.fr.stats().won));
+  await a.evaluate(() => window.__isle.fr.close());
+  await a.evaluate(() => window.__isle.glim.leave()); await a.waitForFunction(() => !window.__isle.glim.travelling(), null, { timeout: 15000 }).catch(() => {});
+  await play(a);
+  await put(a, 100.5, 13, 92.5, 0); await wait(400);
+  await a.keyboard.press('KeyL'); await wait(300);
+  check('L calls the lilac car', (await a.evaluate(() => window.__isle.car.state().on)));
+  await a.waitForFunction(() => window.__isle.car.state().ride, null, { timeout: 20000 }).catch(() => {});
+  check('the pink cat drives up and you hop in the back, and it asks where to', await a.evaluate(() => window.__isle.car.state().ride && window.__isle.car.state().menu && !document.getElementById('carmenu').hidden));
+  await a.evaluate(() => window.__isle.car.go(0));
+  await a.waitForFunction(() => !window.__isle.car.state().ride, null, { timeout: 40000 }).catch(() => {});
+  const cs = await a.evaluate(() => window.__isle.car.state());
+  check('and drives you to the meadow', cs.trips === 1 && Math.hypot((await a.evaluate(() => window.__isle.player.x)) - 80.5, (await a.evaluate(() => window.__isle.player.z)) - 96.5) < 5, [cs, await a.evaluate(() => [window.__isle.player.x, window.__isle.player.z])]);
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'none' }));
+  // ----- blocky mode -----
   const bk = await a.evaluate(() => window.__isle.blocky());
   check('blocky mode is on by default and has made the round shapes blocky', bk.on && bk.stats.spheres > 20 && bk.stats.cyl > 20, bk);
   // ----- the rope -----
