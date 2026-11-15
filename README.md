@@ -611,7 +611,7 @@ Only player edits are sent and saved. Flow and falling sand are worked out again
   1. Make a project at supabase.com.
   2. In its SQL editor, run `supabase/setup.sql` (it makes the table and its rules).
   3. In Authentication, Sign In / Providers, Email, turn **off** "Confirm email".
-  4. The project URL is already in `const SUPABASE={url:'https://clwdxthwdwmlshbgynuh.supabase.co',key:''}` near the top of the accounts code in `public/index.html`; put its public anon key in `key` (Project Settings, API, "anon public"; it's meant to be public, and the table's rules keep saves private). Until the key is in, accounts use the game server or the page's database as before.
+  4. The project URL and its publishable key are already set in `const SUPABASE={url:'https://clwdxthwdwmlshbgynuh.supabase.co',key:'sb_publishable_…'}` near the top of the accounts code in `public/index.html` (a publishable key is meant to be public; the table's rules keep saves private). To use a different project, change both, or set `window.ISLND_SUPABASE={url,key}` before the game loads.
 - With neither (an offline copy of the file), the Account section says accounts need the game server or the published page.
 
 **The chase camera in planes.** In third person (**V**), the Island Shuttle, the Owl Hopper and the Concorde Express now get a chase camera behind and above the plane, like the jet and the helicopter, instead of a camera stuck inside the cabin walls.

@@ -45,7 +45,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.waitForFunction(() => { const q = window.__isle.hop.owlPose(); return q && q.parked && q.ground; }, null, { timeout: 180000 }).catch(() => {});
   await a.evaluate(() => { const I = window.__isle, w = I.hop.owlWorld(0, 0, 0), P = I.player; P.fly = true; P.x = w.x + 3; P.y = w.y + 1; P.z = w.z; I.hop.owlBoard(); }); await wait(500);
   await a.keyboard.press('KeyF'); await wait(300);
+  await a.waitForFunction(() => { const q = window.__isle.ap.plane(); return !!q && q.ground; }, null, { timeout: 15000 }).catch(() => {});
   check('take the Owl Hopper’s controls', (await pl() || {}).kind === 'hop');
+  await wait(400);
+  check('the Hopper’s hint mentions J for the autopilot', /<b>J<\/b> autopilot/.test(await a.evaluate(() => document.getElementById('jethint').innerHTML)), await a.evaluate(() => document.getElementById('jethint').textContent));
   r = await run(120000);
   check('J takes the Owl Hopper off', r.start.phase === 'takeoff' && r.end.tookoff === 2 && !!r.plane && r.plane.y - r.plane.g > 15, r);
   await wait(2500);
@@ -56,6 +59,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   // ----- Bird Air Express, from one of its docks -----
   await a.waitForFunction(() => { const q = window.__isle.express.pose(); return q && q.parked; }, null, { timeout: 180000 }).catch(() => {});
   await a.evaluate(() => window.__isle.express.drive()); await wait(500);
+  check('and so does the Express’s', /<b>J<\/b> autopilot/.test(await a.evaluate(() => document.getElementById('jethint').innerHTML)), await a.evaluate(() => document.getElementById('jethint').textContent));
   r = await run(120000);
   check('J takes Bird Air Express off from its dock', r.start.phase === 'takeoff' && r.end.tookoff === 3 && !!r.plane && r.plane.y - r.plane.g > 20, r);
   await wait(2500);

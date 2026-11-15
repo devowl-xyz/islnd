@@ -730,7 +730,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>French island</dt><dd>In the Glimmer. E at the lectern to practise.</dd>
         <dt>Lilac car</dt><dd>Earn it learning French (Biscuit & Mochi). L to call it.</dd>
         <dt>Wisps</dt><dd>Emberwisps shoot fire (hit it back). Feed a Galewisp to ride it. Tidewisps pull you to the sea at night.</dd>
-        <dt>Autopilot</dt><dd>J while flying a plane: takes off or lands for you.</dd>
+        <dt>Autopilot</dt><dd>J (or /autopilot) while flying the jumbo, Bird Air Express or the Owl Hopper: on a runway it takes off and climbs out; in the air it flies a pattern and lands on the nearest runway. J or W/S takes back over.</dd>
         <dt>Totem of undying</dt><dd>Only in the lab’s secret room, by the gold owl. Saves you once.</dd>
         <dt>Potions</dt><dd>Brew in the grid with a bottle. Drink from I, or /drink.</dd>
         <dt>Food</dt><dd>Dig grass for berries, wheat, carrots. Bake bread, pie, cake.</dd>
@@ -6991,9 +6991,9 @@ function updateJetHint(){
   else if(playing&&!P.sleep&&gowlNear()&&isOwlOwner()&&mySkin.pet!=='slinky')h=performance.now()<gowl.ready?'🦉 The golden owl is recharging…':'<b>E</b> 🦉 Make a wish on the golden owl';
   else if(playing&&!P.sleep&&vaultMapNear()&&!vaultOpen()&&isOwlOwner()&&mySkin.pet!=='slinky')h='<b>E</b> 🗺️ The map looks loose…';
   else if(playing&&!P.sleep&&vaultExitNear()&&!vaultOpen())h='<b>E</b> 🚪 Open the door';
-  else if(playing&&!P.sleep&&express.ride)h=express.ride.pilot?(express.fly?'<b>W</b>/<b>S</b> throttle '+Math.round(express.fly.thr*100)+'%'+(express.fly.thr>1?' ✨ SPARK DUST':'')+' · mouse steers · <b>Space</b>/<b>Shift</b> up and down · ':'')+'<b>E</b> '+(express.fly&&express.fly.ground?'✈️ Climb out of the cockpit':'🪂 Bail out'):'<b>E</b> 🪂 Jump out of Bird Air Express';
+  else if(playing&&!P.sleep&&express.ride)h=express.ride.pilot?(express.fly?(ap.on?apHint():'<b>W</b>/<b>S</b> throttle '+Math.round(express.fly.thr*100)+'%'+(express.fly.thr>1?' ✨ SPARK DUST':'')+' · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>J</b> autopilot · '):'')+'<b>E</b> '+(express.fly&&express.fly.ground?'✈️ Climb out of the cockpit':'🪂 Bail out'):'<b>E</b> 🪂 Jump out of Bird Air Express';
   else if(playing&&!P.sleep&&target&&target.b>=B.LEVER&&target.b<=B.BUTTON_ON)h='<b>Right-click</b> '+(target.b<=B.LEVER_ON?'🔴 Flip the lever':'🔴 Press the button');
-  else if(hop.ride&&hop.ride.pilot){const f=OWLH.fly;h='🦉 <b>W</b>/<b>S</b> throttle '+Math.round((f?f.thr:0)*100)+'% · steer where you look · look up to climb · <b>E</b> '+(f&&f.ground&&f.spd<4?'get out':'bail out');}
+  else if(hop.ride&&hop.ride.pilot){const f=OWLH.fly;h='🦉 '+(ap.on?apHint():'<b>W</b>/<b>S</b> throttle '+Math.round((f?f.thr:0)*100)+'% · steer where you look · look up to climb · <b>J</b> autopilot · ')+'<b>E</b> '+(f&&f.ground&&f.spd<4?'get out':'bail out');}
   else if(hop.ride){const L=hop.ride.line,q=planePose(L,nowS());h=L.icon+' '+L.name+(q&&q.next?' to '+q.next:'')+' · <b>E</b> '+(q&&(q.parked||q.landing)?'get off':'jump out')+(L===OWLH&&q&&q.parked&&(isOwlOwner()||infil())?' · <b>F</b> take the controls':'');}
   else if(hopNear()){const L=planeNear(),q=planePose(L,nowS());h=planeMay(L)?L.icon+' <b>E</b> board the '+L.name+' to '+q.next+' · leaves in '+Math.max(0,Math.ceil(q.leaves))+'s':'🦉 The Owl Hopper: owl owners only';}
   else if(hb.ride)h='🎈 <b>Space</b> burner · <b>Shift</b> vent · <b>WASD</b> nudge · <b>E</b> get out';
@@ -7050,7 +7050,7 @@ function updateJetHint(){
   else if(playing&&!P.sleep&&nearSki()>=0&&!nearJet())h='<b>E</b> to ride the jet ski';
   else if(playing&&!P.sleep&&cableNear()&&!nearJet()){const cn=cableNear();h=cn.k>=0?'<b>E</b> to ride the cable car '+(cn.end==='top'?'down to Biscuit and Mochi’s cottage':'up to the summit')+' · leaves in '+Math.ceil(cn.st.left)+' s':'The next cable car cabin comes in '+Math.ceil(cn.soon)+' s';}
   else if(playing&&nearHeli()&&!jet.seat)h=isOwlOwner()?(heli.pilot===null?'<b>E</b> to fly the helicopter':heliName(heli.pilot)+' is flying the helicopter'):'Only Hoot’s and Snowy’s owners can fly the helicopter';
-  else if(jet.seat==='pilot')h=(ap.on?'🛩️ <b>Autopilot</b> '+(ap.phase==='takeoff'?(ap.stage==='turn'?'lining up':ap.stage==='roll'?'take-off roll':'climbing out'):({approach:'joining the approach',final:'on final',flare:'flare',rollout:'braking'}[ap.stage]||'landing'))+' · <b>J</b> or <b>W</b>/<b>S</b> to take over · ':'<b>W</b>/<b>S</b> throttle '+Math.round(jet.thr*100)+'% · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>J</b> autopilot · ')+'<b>E</b> leave';
+  else if(jet.seat==='pilot')h=(ap.on?apHint():'<b>W</b>/<b>S</b> throttle '+Math.round(jet.thr*100)+'% · mouse steers · <b>Space</b>/<b>Shift</b> up and down · <b>J</b> autopilot · ')+'<b>E</b> leave';
   else if(jet.seat){const tx=jetStatusText(jetStatus(nowS()));h=jet.walk?jumboHint()+(tx?' · '+tx:''):(tx||'Enjoy the flight')+' · <b>E</b> to leave';}
   else if(playing&&fishing)h=fishing.phase==='bite'?'<b>Q</b> \u2014 a bite! Reel it in!':'Waiting for a bite\u2026 <b>Q</b> to reel in';
   else if(playing&&(owlEyes||frost))h=(owlEyes?'Owl Eyes':'Frost Wings')+' \u00b7 '+Math.max(0,Math.ceil(OWL_T-(performance.now()-(owlEyes||frost).t0)/1000))+' s left';
@@ -18659,7 +18659,7 @@ const acct={user:null,token:null,busy:false,msg:'',last:'',db:null,timer:null};
    never used for mail), and each player's save is one row of the islnd_saves table that only they can read or
    write (see supabase/setup.sql) */
 /* the project; its public anon key goes in 'key' (Supabase: Project Settings → API → anon public) */
-const SUPABASE={url:'https://clwdxthwdwmlshbgynuh.supabase.co',key:''};
+const SUPABASE={url:'https://clwdxthwdwmlshbgynuh.supabase.co',key:'sb_publishable_NUHkSRH9lG4ng0THhvQXVg_7HXEdBzc'};
 function supa(){const o=window.ISLND_SUPABASE||SUPABASE;return o&&o.url&&o.key?{url:String(o.url).replace(/\/+$/,''),key:String(o.key)}:null;}
 function acctMode(){if(supa())return'supabase';if(NET_OK)return'server';return window.claude&&typeof window.claude.use==='function'?'db':'none';}
 function acctStoreMe(){try{if(acct.user)localStorage.setItem(ACCT_KEY,JSON.stringify({user:acct.user,token:acct.token,refresh:acct.refresh||null,uid:acct.uid||null,mode:acctMode()}));else localStorage.removeItem(ACCT_KEY);}catch(e){}}
@@ -20448,7 +20448,12 @@ function apProfile(td,dir,rest,L,gap,half){
 /* the highest thing in a corridor as wide as the wings, from 'from' to 'to' blocks ahead along dir */
 function apCorridor(x,z,dir,from,to,half){
   let m=0;const sx=-dir[1],sz=dir[0];
-  for(let k=from;k<=to;k+=2)for(let l=-half;l<=half;l+=2.5)m=Math.max(m,groundAt(x+dir[0]*k+sx*l,z+dir[1]*k+sz*l));
+  for(let k=from;k<=to;k+=2)for(let l=-half;l<=half;l+=2.5){
+    const cx=x+dir[0]*k+sx*l,cz=z+dir[1]*k+sz*l,g=groundAt(cx,cz);m=Math.max(m,g);
+    /* and the tops of anything solid standing on it (trees, sheds, walls), a little way up, so the climb clears them too */
+    const X=Math.floor(cx),Z=Math.floor(cz);
+    for(let y=Math.min(H-1,Math.floor(g)+24);y>Math.floor(g);y--){if(solidB(get(X,y,Z))){m=Math.max(m,y+1);break;}}
+  }
   return m;
 }
 function apHalf(kind){return kind==='hop'?9:11;}
@@ -20463,6 +20468,8 @@ function apPattern(f){
 }
 /* the way to steer to come back on to the centre line, aiming 'look' blocks ahead along it */
 function apCentre(f,td,u,along,look){const a=along-look,ax=td[0]-u[0]*a,az=td[1]-u[1]*a,dx=ax-f.x,dz=az-f.z,l=Math.hypot(dx,dz)||1;return[dx/l,dz/l];}
+/* the hint-bar line while the autopilot is flying: what it's doing, and how to take over */
+function apHint(){return'🛩️ <b>Autopilot</b> '+(ap.phase==='takeoff'?(ap.stage==='turn'?'lining up':ap.stage==='roll'?'take-off roll':'climbing out'):({approach:'joining the approach',final:'on final',flare:'flare',rollout:'braking'}[ap.stage]||'landing'))+' · <b>J</b> or <b>W</b>/<b>S</b> to take over · ';}
 function apToggle(){
   if(ap.on){apOff('🛬 Autopilot off. You have control.');return true;}
   const pl=apPlane();if(!pl){toast('🛩️ The autopilot works when you’re flying the jumbo, Bird Air Express or the Owl Hopper.');return false;}
