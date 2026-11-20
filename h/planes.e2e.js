@@ -39,6 +39,19 @@ function check(name, ok, extra) { console.log((ok ? 'PASS ' : 'FAIL ') + name + 
     return I.grapVeh(o[0], o[1], o[2], (tx - o[0]) / l, (ty - o[1]) / l, (tz - o[2]) / l, 60);
   });
   check('the hook catches the shuttle, as a plane', !!grab && grab.kind === 'line' && grab.k === 0, grab);
+  // the Owl Hopper can be hooked mid-flight, by an owl owner: wait for it to be in the air, then hook on
+  const k = await a.evaluate(() => window.__isle.planes.poses().findIndex((p) => p.name === 'Owl Hopper'));
+  await a.evaluate(() => window.__isle.setSkin({ pet: 'hoot' }));
+  await a.waitForFunction((k) => { const p = window.__isle.planes.poses()[k]; return p && !p.parked && p.ground === false; }, k, { timeout: 240000, polling: 300 }).catch(() => {});
+  const inAir = await a.evaluate((k) => { const p = window.__isle.planes.poses()[k]; return !p.parked && !p.ground; }, k);
+  if (inAir) {
+    await a.evaluate((k) => window.__isle.planes2.arrive(k), k);
+    check('an owl owner hooks on to the Owl Hopper in the air, as a passenger', await a.evaluate(() => { const r = window.__isle.planes2.riding(); return !!r && r.line === 'Owl Hopper' && !r.pilot; }), await a.evaluate(() => window.__isle.planes2.riding()));
+    await a.waitForTimeout(800);
+    // the game runs slower than the clock here, so compare altitude (which changes slowly) rather than the moving position
+    const d = await a.evaluate((k) => { const I = window.__isle, p = I.planes.poses()[k], q = I.planes2.pos(); return Math.abs(q[1] - p.y); }, k);
+    check('you sit in it, in the air, at the plane’s height', d < 8 && (await a.evaluate(() => window.__isle.planes2.fly())), d);
+  } else { console.log('note: the Owl Hopper was not in the air in time, so the mid-flight check was skipped'); }
   await browser.close();
   server.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');

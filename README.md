@@ -356,7 +356,7 @@ A door next to power swings open, and shuts again when the power goes. Circuits 
 
 **More planes.** Two new ones join the timetable. The **Island Seaplane** is a gold-and-white biplane on floats that flies from the sea off West Bay to the Mini Isle, landing on the water. The **Sky Dart** is a small red jet that flies between the Sky Palace and Owl Island. Both carry anyone, the same way as the shuttle.
 
-**The grappling hook catches planes.** Every plane on the timetable now counts as something the grappling hook can latch on to, the Island Shuttle, the Owl Hopper, the Island Sightseer, the seaplane and the Sky Dart, as well as the jet, the Bird Air Express and the helicopter. Hook a plane that's parked or down and you're reeled in and climb aboard; hook one in the air and you let go and float down. `h/planes.e2e.js` checks the timetable and the hook.
+**The grappling hook catches planes.** Every plane on the timetable now counts as something the grappling hook can latch on to, the Island Shuttle, the Owl Hopper, the Island Sightseer, the seaplane and the Sky Dart, as well as the jet, the Bird Air Express and the helicopter. Hook a plane that's parked or down and you're reeled in and climb aboard. Hook one in the air and you let go and float down, with one exception: owl owners can hook on to the **Owl Hopper** mid-flight and ride along as a passenger (press **E** to get off, which bails you out by parachute). `h/planes.e2e.js` checks the timetable and the hook.
 
 **The Island Sightseer.** A second biplane, in gold, flies the same North Shore to Mini Isle route as the Island Shuttle, half a timetable behind it, so you'll often see one going each way. Anyone can board it, the same way as the shuttle.
 
