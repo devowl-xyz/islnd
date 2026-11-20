@@ -453,6 +453,8 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **Hunger (survival).** Five drumsticks sit above your hearts, in halves. They go down slowly as time passes, and faster as you walk, jump and dig. Well fed (four drumsticks or more) your hearts come back, each one costing a little food; below that they don't; and with nothing left you starve, losing half a heart every four seconds down to one heart (the drumsticks shake when you're low). Eat from your inventory (**I**, or **B** then **Crafting**): click a food under **Food**, or type **/eat**, which picks the biggest food that won't go to waste (and never your golden apple unless you ask: **/eat golden apple**). Every fish you catch goes in your bag.
 
+**Drowning (survival).** Water isn't a swimming pool you can stay in for ever. Your head is a bubble meter of ten seconds of air: while your head is under water it drains, and when it's empty you lose a heart every two seconds until you get your head out. The air comes back quickly once you're up. Submarines, vehicles, flying and the balloon are safe, and creative mode never drowns. `h/drown.e2e.js` checks it.
+
 | Food | Drumsticks | Where from |
 |---|---|---|
 | Berries, raw fish, a potato, a cookie | ½ | berries, wheat, carrots and potatoes turn up when you dig grass (and carrots and potatoes in soil); fish from fishing |
