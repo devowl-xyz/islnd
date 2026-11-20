@@ -278,7 +278,7 @@ Anyone else trying to swim in is kept out.
 - **Redstone lamp:** lights up when powered.
 - **NOT gate:** on unless its back is powered. It points the way you face when you place it, and powers the block in front.
 - **Delay:** passes the signal from its back to its front a moment later.
-- **TNT:** a second and a half after it's powered, it blows a hole about five blocks across and throws you if you're close. It sets off any TNT it reaches, and never touches bedrock, the meadow floor, or anywhere you aren't allowed to build.
+- **TNT:** a second and a half after it's powered, it blows a hole about five blocks across and throws you if you're close. It sets off any TNT it reaches. It can blow up bases (a campsite, a cottage, a den, the Hidden Hollow, team bases, the bunker), but never the owl labs (the lab, its annex, its secret room, the vault and the shaft), and it never touches bedrock, water, lava, the meadow floor, a locked spot, or another player's room.
 - **Note block:** plays a note when powered. The block under it picks the pitch.
 
 A door next to power swings open, and shuts again when the power goes. Circuits tick ten times a second. NOT gates and delays make clocks, and wire is an OR. In a room only lever flips and button presses are sent; everyone's screen works out the rest from them, so everyone sees the same circuit. Anyone can flip a lever or press a button anywhere, just like opening a door. Lava and redstone are now kept when you reload, like every other block.
