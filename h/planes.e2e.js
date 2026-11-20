@@ -25,6 +25,8 @@ function check(name, ok, extra) { console.log((ok ? 'PASS ' : 'FAIL ') + name + 
   check('the seaplane and the Sky Dart have routes', !!sea && !!sky && sea.leg !== null && sky.leg !== null, [sea, sky]);
   check('the Sightseer is on the other half of the route from the shuttle', !!sight && !!shuttle && (sight.x !== shuttle.x || sight.z !== shuttle.z), [sight, shuttle]);
   check('it flies the same stops (North Shore and the Mini Isle legs)', !!sight && sight.leg !== null, sight);
+  const fl = await a.evaluate(() => ({ bottom: window.__isle.planes2.floatBottom(), water: window.__isle.planes2.water() }));
+  check('the seaplane floats: its floats rest on the water', Math.abs(fl.bottom - fl.water) < 0.01, fl);
   const sea2 = await a.evaluate(() => { const I = window.__isle; let wet = 0, n = 0; for (let x = 102; x <= 138; x += 4) for (let z = 172; z <= 176; z += 2) { n++; if (I.get(x, 10, z) === I.B.WATER) wet++; } return { wet, n }; });
   check('the seaplane alights on open water off West Bay', sea2.wet >= sea2.n * 0.9, sea2);
   // a plane is grappleable: put yourself by the shuttle, then aim the hook at where it is right now
