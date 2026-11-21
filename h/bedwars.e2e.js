@@ -37,12 +37,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (cry) await a.evaluate((c) => window.__isle.bw.mine(c[0], c[1], c[2]), cry);
   await wait(200);
   check('mining a crystal counts one', cry && (await a.evaluate(() => window.__isle.bw.state())).crystals === before + 1, [before, await a.evaluate(() => window.__isle.bw.state())]);
+  // the empty teams are bots: they take crystals too, so you race them
+  await a.waitForFunction(() => window.__isle.bw.state().bots >= 1, null, { timeout: 150000, polling: 300 }).catch(() => {});
+  check('the bots take crystals off the floor', (await a.evaluate(() => window.__isle.bw.state())).bots >= 1, await a.evaluate(() => window.__isle.bw.state().bots));
   // the round ends when the time is up, and keeps your best
   await a.evaluate(() => window.__isle.bw.set(0.5));
   await a.waitForFunction(() => window.__isle.bw.state().on === false, null, { timeout: 90000, polling: 200 }).catch(() => {});
   const end = await a.evaluate(() => window.__isle.bw.state());
   check('the round ends, and your best is kept', end.on === false && end.best >= 1, end);
   check('your team’s record is kept', (end.teamBest.water || 0) >= 1, end.teamBest);
+  check('the round ranks all four teams, and a winner is recorded', Array.isArray(end.ranking) && end.ranking.length === 4 && Object.keys(end.wins).length >= 1, end.ranking);
   await browser.close();
   server.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
