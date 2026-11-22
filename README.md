@@ -479,6 +479,8 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **The Bedwars start screen.** Type **/bedwars** (no words) to open the start screen: pick your team with the Join buttons, see every team's bots, and start or stop a round. The arena is bigger now, its islands are further apart, and every island is bigger; the trees, rocks, houses and crystals sit further out towards their edges. There's one crystal on each island; breaking it starts a ten second wait before it grows back.
 
+**Bots feel hits and falls.** A hit makes a bot flash red and get pushed back, away from whoever hit it. A knocked-out bot topples over, sinks into the void spinning, and throws a burst of its team's colour where it fell. The bots are also a bit smaller now.
+
 **Bots fight each other.** When a bot sees a bot from another team within about seven blocks, it goes for it and hits it once a second. Three hits knock it out, and it falls into the void. Each team's knockouts are counted, so a team's bots can win kills as well as crystals.
 
 **Bots, bigger and killable.** The bots are now twice the size, and each team's bot has its own shape: **Fire** has a flame crown, **Water** a fin and tail, **Earth** is a stone golem, and **Air** has white wings. Left-click a bot to hit it: three hits knock it out, and it falls into the void, then comes back on its island after a while. A bot walking over empty air lays a bridge of skystone under itself, so the islands get joined up.

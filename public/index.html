@@ -11073,7 +11073,7 @@ function bwSetBots(k,n){if(!cmdAdmin()){sysChat('Only the host and admins can ch
    wherever there's nothing under them, and mine crystals. You can knock them out; a knocked-out bot falls into the void and
    comes back on its island after a while */
 const BW_TEAM_COL={fire:0xd6322d,water:0x2468ce,earth:0x34aa48,air:0xeef0f5};
-const BW_BOT_SCALE=2.2,BW_BOT_HP=3,BW_BOT_BACK=8;
+const BW_BOT_SCALE=1.5,BW_BOT_HP=3,BW_BOT_BACK=8;
 BW.botList=[];BW.botCount={fire:0,water:1,earth:1,air:1};BW.botKills={};
 /* the shape of each team's bot: fire has a flame crown, water a fin and tail, earth is a stone golem, air has wings */
 function bwBotShape(k,g,add,col){
@@ -11092,9 +11092,9 @@ function bwMakeBot(k){
   const arm=add(0.2,0.7,0.2,0.5,1.5,0,col);
   g.scale.setScalar(BW_BOT_SCALE);
   const lab=makeLabel('🤖 Bot '+((BW_TEAMS.filter(function(x){return x.k===k;})[0]||{}).name||k));lab.position.set(0,3.8,0);lab.scale.set(2.8,0.7,1);g.add(lab);
-  g.traverse(function(o){o.layers.enable(1);});
+  const meshes=[];g.traverse(function(o){o.layers.enable(1);if(o.isMesh&&o.material&&o.material.emissive)meshes.push(o);});
   scene.add(g);
-  return{team:k,g:g,arm:arm,legA:legA,legB:legB,label:lab,x:0,y:0,z:0,target:null,phase:'idle',t:0,wait:1+Math.random()*3,hp:BW_BOT_HP,dead:false,backT:0};
+  return{team:k,g:g,meshes:meshes,arm:arm,legA:legA,legB:legB,label:lab,x:0,y:0,z:0,target:null,phase:'idle',t:0,wait:1+Math.random()*3,hp:BW_BOT_HP,dead:false,backT:0,flashT:0,kbT:0,kbX:0,kbZ:0,fallT:0};
 }
 /* keep one bot figure per bot the teams have, adding or removing them as the bot counts change */
 function bwSyncBots(){
@@ -11108,7 +11108,7 @@ function bwSyncBots(){
 function bwBotRespawn(b,first){
   const il=bwIsland(b.team);
   b.x=il.x+0.5+(Math.random()-0.5)*4;b.z=il.z+0.5+(Math.random()-0.5)*4;b.y=BW.y+1;
-  b.hp=BW_BOT_HP;b.dead=false;b.target=null;b.phase='idle';b.t=0;b.wait=first?1+Math.random()*3:1;b.backT=0;
+  b.hp=BW_BOT_HP;b.dead=false;b.target=null;b.phase='idle';b.t=0;b.wait=first?1+Math.random()*3:1;b.backT=0;b.fallT=0;b.kbT=0;
   b.g.rotation.set(0,0,0);
 }
 /* a crystal spot with a crystal in it, not already taken by another bot */
@@ -11122,12 +11122,24 @@ function bwBridgeUnder(b){
   const x=Math.floor(b.x),z=Math.floor(b.z),y=BW.y;
   if(!solidB(get(x,y,z))&&bwInArena(x,y,z)){writeCell(y*SLAB+z*W+x,B.SKYSTONE);}
 }
-function bwDamageBot(b,by){
+/* a hit: the bot flashes red and is pushed away from whoever hit it */
+function bwHitFx(b,from){
+  b.flashT=0.3;
+  if(from){const dx=b.x-from.x,dz=b.z-from.z,l=Math.hypot(dx,dz)||1;b.kbX=dx/l*2.2;b.kbZ=dz/l*2.2;b.kbT=0.3;}
+}
+/* a knockout: a burst in the team's colour, where it fell */
+function bwPuff(b){
+  try{if(!fwPts)fwInit();const c=BW_TEAM_COL[b.team]||0xffffff,rgb=[((c>>16)&255)/255,((c>>8)&255)/255,(c&255)/255];
+    for(let i=0;i<18;i++){const a=Math.random()*6.283,v=1+Math.random()*2.5;fwSpark(b.x,b.y+1,b.z,Math.cos(a)*v,1+Math.random()*2,Math.sin(a)*v,rgb,0.8+Math.random()*0.6,2);}
+  }catch(e){}
+}
+function bwDamageBot(b,by,from){
   if(b.dead||!BW.on)return false;
   b.hp-=1;
+  bwHitFx(b,from||(by?{x:by.x,z:by.z}:null));
   if(b.hp>0){if(!by)toast('🤖 Hit the '+b.team+' bot!');return true;}
-  /* knocked out: it falls into the void, then comes back later */
-  b.dead=true;b.backT=BW_BOT_BACK;b.target=null;b.phase='fall';
+  /* knocked out: it topples, sinks into the void, then comes back later */
+  b.dead=true;b.backT=BW_BOT_BACK;b.target=null;b.phase='fall';b.fallT=0;bwPuff(b);
   if(by){BW.botKills[by.team]=(BW.botKills[by.team]||0)+1;toast('🤖 A '+by.team+' bot knocked out a '+b.team+' bot!');}
   else toast('🤖 A '+b.team+' bot is knocked out and falls into the void!');
   return true;
@@ -11152,15 +11164,22 @@ function bwHitBot(){
     if(Math.hypot(px,py,pz)<1.6&&t<bt){bt=t;best=b;}
   });
   if(!best)return false;
-  return bwDamageBot(best);
+  return bwDamageBot(best,null,{x:cam.x,z:cam.z});
 }
 function bwBotTick(dt){
   BW.botList.forEach(function(b){
     b.g.visible=BW.on;
     if(!BW.on)return;
+    /* the red flash after a hit, and the push away from it */
+    if(b.flashT>0){b.flashT-=dt;}
+    const flash=b.flashT>0;b.meshes.forEach(function(m){m.material.emissive.setHex(flash?0x9a1010:0);});
+    if(b.kbT>0){b.kbT-=dt;const k=Math.max(0,b.kbT/0.3);b.x+=b.kbX*k*dt*4;b.z+=b.kbZ*k*dt*4;}
     if(b.phase==='fall'){
-      b.y-=dt*12;b.g.position.set(b.x,b.y,b.z);
-      b.g.rotation.x+=dt*4;
+      /* topple over, then sink into the void, spinning */
+      b.fallT+=dt;
+      b.g.rotation.z=Math.min(1.5,b.fallT*4);
+      if(b.fallT>0.3)b.y-=dt*(3+b.fallT*6);
+      b.g.position.set(b.x,b.y,b.z);
       if(b.y<BW.y-16){b.g.visible=false;b.backT-=0;b.phase='back';}
       return;
     }
