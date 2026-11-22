@@ -467,6 +467,8 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **Slabs and corner stairs.** A slab placed on the side of a block sits in the bottom half of its cell, as before. Place one on the *underside* of a block and it sits in the top half (a top slab). Put a slab on the top of a matching slab and the two make a whole block (a double slab), or craft one from two slabs. Corner stairs are L-shaped pieces with a raised quarter in the corner, four ways round, in wood (three planks in an L) or stone (three stone in an L). `h/slabs-corners.e2e.js` checks them.
 
+**Mining and placing have animations.** Each hit on a block throws a few flecks of its colour out of it (and a bigger burst when it breaks), and placing one puffs a few flecks out of the new block. `h/animations.e2e.js` checks it.
+
 **Bedrock can be dug, and placed.** Bedrock used to be unbreakable. Now it's the toughest block you can dig: bare-handed it takes about 38 seconds per block (quicker with a better tool, and instant in creative), and you can pick it up from the picker and place it as a very strong building block. Only the very bottom layer of the world stays unbreakable.
 
 **The sponge soaks up liquid.** Put a sponge (craft two from two sand) in your hotbar, point it at water or lava and hold the mouse button down, then sweep it across the pool: every drop of water or lava within two blocks of where you point disappears. It never touches solid blocks.
