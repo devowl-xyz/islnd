@@ -37,6 +37,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => { const I = window.__isle; I.tnt.place(55, 20, 40, I.B.STONE); });
   const corner = await a.evaluate(() => window.__isle.slab.place(55, 20, 40, 0, 1, 0, window.__isle.B.CORNER_STONE));
   check('a corner stair sits on top, in one of its four ways round', corner[1] >= 191 && corner[1] <= 194, corner);
+  // the new shapes are drawn with their own shape, not as full cubes
+  const shapes = await a.evaluate(() => { const I = window.__isle; const out = [I.slab.shape(I.B.SLAB_WOOD_TOP), I.slab.shape(I.B.SLAB_STONE_TOP)]; for (let k = 0; k < 8; k++) out.push(I.slab.shape(I.B.CORNER_WOOD + k)); return out; });
+  check('top slabs and corner stairs are drawn as their own shapes', shapes.every((s) => s === true), shapes);
   await browser.close();
   server.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
