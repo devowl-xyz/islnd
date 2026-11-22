@@ -39,6 +39,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (cry) await a.evaluate((c) => window.__isle.bw.mine(c[0], c[1], c[2]), cry);
   await wait(200);
   check('mining a crystal counts one', cry && (await a.evaluate(() => window.__isle.bw.state())).crystals === before + 1, [before, await a.evaluate(() => window.__isle.bw.state())]);
+  // the bots are figures on the islands: they go and mine crystals
+  const figs = await a.evaluate(() => window.__isle.bw.bots());
+  check('the bots are there as figures on the islands', figs >= 3, figs);
+  await a.evaluate(() => window.__isle.bw.step(30, 0.5));
+  const took = await a.evaluate(() => window.__isle.bw.state().bots);
+  check('the bots fly over and take crystals', took >= 1, took);
   // a crystal that's broken comes back after ten seconds
   const gone = await a.evaluate(() => window.__isle.bw.spots().filter((s) => s.t > 0).length);
   check('a broken island crystal waits ten seconds before it grows back', gone >= 1, gone);
