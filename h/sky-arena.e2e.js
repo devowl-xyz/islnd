@@ -23,7 +23,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/bedwars team fire'));
   await a.evaluate(() => window.__isle.cmd('/bedwars'));
   await wait(300);
-  const cry = await a.evaluate(() => { const I = window.__isle; for (let x = 120; x < 168; x++) for (let z = 120; z < 168; z++) if (I.get(x, 61, z) === I.B.CRYSTAL) return [x, 61, z]; return null; });
+  const cry = await a.evaluate(() => { const I = window.__isle; for (let x = 176; x < 224; x++) for (let z = 176; z < 224; z++) if (I.get(x, 61, z) === I.B.CRYSTAL) return [x, 61, z]; return null; });
   const before = await a.evaluate(() => window.__isle.bw.state().crystals);
   if (cry) await a.evaluate((c) => window.__isle.bw.mine(c[0], c[1], c[2]), cry);
   await wait(200);
