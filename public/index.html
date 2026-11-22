@@ -741,6 +741,7 @@ body{font:400 14px/1.45 var(--body);letter-spacing:-.01em}
         <dt>Throwing knives</dt><dd>Left click to throw. Walk over them to pick up.</dd>
         <dt>Spear</dt><dd>Reaches further. Hold right click to throw it.</dd>
         <dt>Bow</dt><dd>Hold right click to draw, let go to shoot.</dd>
+        <dt>The Glimmer</dt><dd>No map there. The Map button and M do nothing: you find your own way.</dd>
         <dt>Bedwars</dt><dd>/bedwars starts a three-minute crystal round out at sea. Mine crystals; the beds can’t be broken. /bedwars stop ends it early.</dd>
         <dt>Elemental teams</dt><dd>/bedwars team fire, water, earth or air picks your team. The other three teams are bots that race you for crystals. Each team keeps its own record.</dd>
         <dt>Drowning</dt><dd>Survival only: keep your head out of the water. Ten seconds of air, then you lose a heart every two seconds.</dd>
@@ -9287,6 +9288,8 @@ function atcClick(e){
   drawMap();atcPanel();
 }
 function toggleMap(v){
+  /* the Glimmer has no map: you find your own way there */
+  if(dim.on&&v!==false){if(mapOpen){mapOpen=false;const e0=$('map');if(e0)e0.hidden=true;}toast('🗺️ The Glimmer has no map. You’ll have to find your own way.');return;}
   mapOpen=v===undefined?!mapOpen:v;
   if(!mapOpen&&atcOn){atcOn=false;atcRoute=[];atcPanel();}
   const el=$('map');if(!el)return;
