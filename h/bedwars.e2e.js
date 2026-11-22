@@ -25,14 +25,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.cmd('/bedwars'));
   await wait(400);
   check('/bedwars starts a round', (await a.evaluate(() => window.__isle.bw.state())).on === true, await a.evaluate(() => window.__isle.bw.state()));
-  const crystals = await a.evaluate(() => { const I = window.__isle; let n = 0; for (let x = 20; x < 50; x++) for (let z = 122; z < 152; z++) if (I.get(x, 11, z) === I.B.CRYSTAL) n++; return n; });
+  const crystals = await a.evaluate(() => { const I = window.__isle; let n = 0; for (let x = 120; x < 168; x++) for (let z = 120; z < 168; z++) if (I.get(x, 61, z) === I.B.CRYSTAL) n++; return n; });
   check('there are crystals on the arena floor', crystals >= 20, crystals);
+  check('the four islands are in the sky, one per element', (await a.evaluate(() => window.__isle.bw.islands())).join() === 'fire,water,earth,air');
+  check('the water team’s power is on in the round', await a.evaluate(() => window.__isle.bw.powerOn('water')) === true);
   check('there are beds at either end', await a.evaluate(() => { const I = window.__isle; return I.get(...I.bw.bedAt()) === I.B.BED; }));
   await a.evaluate(() => { const I = window.__isle, c = I.bw.bedAt(); I.bw.mine(c[0], c[1], c[2]); });
   await wait(200);
   check('a bed can’t be broken', await a.evaluate(() => { const I = window.__isle, c = I.bw.bedAt(); return I.get(c[0], c[1], c[2]) === I.B.BED; }));
   // mine a crystal: find one and break it
-  const cry = await a.evaluate(() => { const I = window.__isle; for (let x = 20; x < 50; x++) for (let z = 122; z < 152; z++) if (I.get(x, 11, z) === I.B.CRYSTAL) return [x, 11, z]; return null; });
+  const cry = await a.evaluate(() => { const I = window.__isle; for (let x = 120; x < 168; x++) for (let z = 120; z < 168; z++) if (I.get(x, 61, z) === I.B.CRYSTAL) return [x, 61, z]; return null; });
   const before = (await a.evaluate(() => window.__isle.bw.state())).crystals;
   if (cry) await a.evaluate((c) => window.__isle.bw.mine(c[0], c[1], c[2]), cry);
   await wait(200);
