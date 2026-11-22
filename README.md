@@ -461,6 +461,10 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **The Glimmer has no map.** The Map button and the M key don't open the map inside the Glimmer, so you have to find your own way round. The island's map still works as before. `h/glimmer-mapless.e2e.js` checks it.
 
+**Bedrock can be dug, and placed.** Bedrock used to be unbreakable. Now it's the toughest block you can dig: bare-handed it takes about 38 seconds per block (quicker with a better tool, and instant in creative), and you can pick it up from the picker and place it as a very strong building block. Only the very bottom layer of the world stays unbreakable.
+
+**The sponge soaks up liquid.** Put a sponge (craft two from two sand) in your hotbar, point it at water or lava and hold the mouse button down, then sweep it across the pool: every drop of water or lava within two blocks of where you point disappears. It never touches solid blocks.
+
 **Bedwars.** Type **/bedwars** and you're dropped into a crystal arena on a bedrock floor out at sea, off the island's south-west. You have three minutes. Crystals lie about the floor and grow back every couple of seconds; mine as many as you can. The two beds at either end can't be broken, so the crystals are the only thing to dig. When the time's up (or **/bedwars stop**), your count is shown against your best, which is kept in your browser.
 
 **Elemental teams.** Pick one of four teams with **/bedwars team fire**, **water**, **earth** or **air**. Each round is recorded for your team, and every team keeps its own best. The other three teams are **bots**, so every round is a four-way race: each bot takes a crystal off the floor every few seconds, and you compete with them for the crystals. When the time's up, the four teams are ranked by crystals and the winner's win is recorded. The bots have no models in the arena; they're a score, not characters. `h/bedwars.e2e.js` checks it.
