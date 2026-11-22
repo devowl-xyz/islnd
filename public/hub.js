@@ -523,6 +523,18 @@ function handle(peer, msg) {
       broadcast(room, { t: 'portal', x, y, z, ax, by: peer.id }, peer.id);
       return;
     }
+    case 'bwteam': {
+      /* the host or an admin puts a player on a Bedwars team */
+      if (!room) return;
+      if (peer.id !== room.hostId && !peer.admin) return;
+      const target = room.peers.get(msg.peer);
+      if (!target) return;
+      if (!['fire', 'water', 'earth', 'air'].includes(msg.team)) return;
+      if (!room.bwTeams) room.bwTeams = {};
+      room.bwTeams[target.id] = msg.team;
+      broadcast(room, { t: 'bwteam', peer: target.id, team: msg.team, by: peer.id });
+      return;
+    }
     case 'role': {
       if (!room || peer.id !== room.hostId) return;
       const target = room.peers.get(msg.peer);

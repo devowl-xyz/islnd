@@ -5638,6 +5638,13 @@ function leftRoom(reason){
 }
 function onNet(m){
   switch(m.t){
+    case 'bwteam':{
+      /* the host or an admin put someone on a Bedwars team */
+      BW.roster=BW.roster||{};
+      if(m.peer===net.you){bwSetTeam(m.team);}else{BW.roster[m.peer]=m.team;}
+      bwAutoBots();bwPanelRender();
+      break;
+    }
     case 'hosted':{
       enteredRoom(m,true);
       /* the room starts as a copy of the host's island, lit portals and all */
@@ -11053,7 +11060,12 @@ BW.bots={};BW.wins={};try{BW.wins=JSON.parse(localStorage.getItem(BW.key+'-wins'
 /* the bots: each team that isn't yours starts with one bot (admins can change how many each team has). Bots take a crystal
    from an island now and then, and it counts for their team */
 BW.botCount={};BW.botScore={};BW.botT=0;BW.botNext=4;
-function bwResetBots(){BW.botCount={};BW.botScore={};BW.botT=0;BW.botNext=4;BW_TEAMS.forEach(function(x){BW.botCount[x.k]=x.k===BW.team?0:1;BW.botScore[x.k]=0;});}
+BW.roster={};
+/* how many players (you included) are on a team: you, and the room's members the host or an admin put there */
+function bwHumans(k){let n=k===BW.team?1:0;if(inRoom())net.peers.forEach(function(p,id){if(id!==net.you&&BW.roster[id]===k)n++;});return n;}
+/* the bots top every team up to the biggest team, so no team is empty or short. Admins can still change them by hand */
+function bwAutoBots(){const fill=Math.max(1,...BW_TEAMS.map(function(x){return bwHumans(x.k);}));BW_TEAMS.forEach(function(x){BW.botCount[x.k]=Math.max(0,fill-bwHumans(x.k));});}
+function bwResetBots(){BW.botScore={};BW.botT=0;BW.botNext=4;BW.botCount={};BW_TEAMS.forEach(function(x){BW.botScore[x.k]=0;});bwAutoBots();}
 function bwTotalBots(){return Object.keys(BW.botCount).reduce(function(s,k){return s+BW.botCount[k];},0);}
 function bwSetBots(k,n){if(!cmdAdmin()){sysChat('Only the host and admins can change the bots.');return false;}if(!(k in BW.botCount)){sysChat('The teams are fire, water, earth and air.');return false;}BW.botCount[k]=Math.max(0,Math.min(3,n|0));bwPanelRender();return true;}
 function bwBotTick(dt){
@@ -11098,7 +11110,9 @@ function bwPanelRender(){
     const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin:4px 0;flex-wrap:wrap';
     const name=document.createElement('b');name.style.cssText='width:110px';
     name.textContent=x.icon+' '+x.name+(x.k===BW.team?' (you)':'');row.appendChild(name);
-    row.appendChild(bwPanelBtn(x.k===BW.team?'You’re here':'Join',function(){bwSetTeam(x.k);bwPanelRender();},BW.on||x.k===BW.team));
+    const who=[];if(x.k===BW.team)who.push('you');if(inRoom())net.peers.forEach(function(p,id){if(id!==net.you&&BW.roster[id]===x.k)who.push(p.name||'someone');});
+    const wl=document.createElement('span');wl.style.cssText='min-width:110px;font-weight:600;color:#333';wl.textContent=who.length?who.join(', '):'nobody yet';row.appendChild(wl);
+    row.appendChild(bwPanelBtn(x.k===BW.team?'You’re here':'Join',function(){bwChooseTeam(x.k);},BW.on||x.k===BW.team||(inRoom()&&!cmdAdmin())));
     const n=BW.botCount[x.k]||0;
     const txt=document.createElement('span');txt.style.cssText='min-width:80px';txt.textContent=n+' bot'+(n===1?'':'s');row.appendChild(txt);
     row.appendChild(bwPanelBtn('−',function(){bwSetBots(x.k,n-1);},BW.on||!cmdAdmin()||n<=0));
@@ -11106,9 +11120,25 @@ function bwPanelRender(){
     el.appendChild(row);
   });
   const foot=document.createElement('div');foot.style.cssText='margin-top:10px;display:flex;gap:6px;flex-wrap:wrap';
+  if(inRoom()){
+    const mh=document.createElement('div');mh.style.cssText='margin-top:10px;font-weight:900';mh.textContent='Players in the room';el.appendChild(mh);
+    net.peers.forEach(function(p,id){
+      if(id===net.you)return;
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin:3px 0;flex-wrap:wrap';
+      const nm=document.createElement('b');nm.style.cssText='width:120px';nm.textContent=p.name||'Someone';row.appendChild(nm);
+      const cur=BW.roster[id];const cl=document.createElement('span');cl.style.cssText='min-width:80px';cl.textContent=cur?(BW_TEAMS.filter(function(x){return x.k===cur;})[0]||{}).name:'no team';row.appendChild(cl);
+      BW_TEAMS.forEach(function(x){row.appendChild(bwPanelBtn(x.name,function(){netSend({t:'bwteam',peer:id,team:x.k});},!cmdAdmin()||cur===x.k));});
+      el.appendChild(row);
+    });
+  }
   foot.appendChild(BW.on?bwPanelBtn('Stop round',function(){bwEnd('Round stopped.');bwPanelRender();}):bwPanelBtn('Start round',function(){bwPanelOpen=false;bwPanelRender();bwStart();}));
   foot.appendChild(bwPanelBtn('Close',function(){bwPanelToggle(false);}));
   el.appendChild(foot);
+}
+/* put a team member on a team: in a room the host and admins do it for everyone; alone, you choose your own */
+function bwChooseTeam(k){
+  if(inRoom()){if(!cmdAdmin()){toast('Only the host and admins put people on teams.');return;}netSend({t:'bwteam',peer:net.you,team:k});return;}
+  bwSetTeam(k);bwAutoBots();bwPanelRender();
 }
 function bwPanelToggle(v){
   bwPanelOpen=v===undefined?!bwPanelOpen:v;
