@@ -18983,9 +18983,14 @@ async function supaAuth(path,body){
   }
   return r.j||{};
 }
+/* the player's id, read from the login token itself, so a save always matches the login the database checks */
+function uidFromToken(){
+  try{const p=String(acct.token||'').split('.')[1];if(!p)return null;const b=p.replace(/-/g,'+').replace(/_/g,'/');const j=JSON.parse(decodeURIComponent(escape(atob(b))));return j.sub||null;}catch(e){return null;}
+}
+function syncUid(){const u=uidFromToken();if(u)acct.uid=u;return acct.uid;}
 function supaSession(j){
   if(!j||!j.access_token)throw new Error('Supabase made the account but didn’t log it in. The game’s owner should turn off “Confirm email” in Supabase (Authentication, Sign In / Providers, Email).');
-  acct.token=j.access_token;acct.refresh=j.refresh_token||null;acct.uid=j.user&&j.user.id||acct.uid;
+  acct.token=j.access_token;acct.refresh=j.refresh_token||null;acct.uid=j.user&&j.user.id||acct.uid;syncUid();
 }
 /* a call as the logged-in player; an expired session is renewed once */
 async function supaRest(path,opt){
@@ -18999,9 +19004,11 @@ async function supaRest(path,opt){
 }
 async function supaPush(str){
   const pk=await acctZip(str);
+  syncUid();
   await supaRest('islnd_saves?on_conflict=user_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:acct.uid,username:acct.user,data:pk.data,z:pk.z,updated_at:new Date().toISOString()})});
 }
 async function supaPull(){
+  syncUid();
   const rows=await supaRest('islnd_saves?select=data,z&user_id=eq.'+encodeURIComponent(acct.uid),{method:'GET'});
   const r=Array.isArray(rows)?rows[0]:null;if(!r||!r.data)return null;
   return JSON.parse(await acctUnzip(r.z||'',r.data));
