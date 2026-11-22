@@ -65,6 +65,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(1500);
   check('the annex plug opens for a recruited owl', (await door(2)) === true, await door(2));
 
+  // the den's gadgets: a recruited owl standing by one can use it
+  const stand = (x, y, z) => a.evaluate(([x, y, z]) => { const I = window.__isle; I.player.fly = false; I.player.x = x; I.player.y = y; I.player.z = z; I.player.vx = I.player.vy = I.player.vz = 0; }, [x, y, z]);
+  await stand(44.5, 2.1, 241.5);
+  await wait(900);
+  check('a recruited owl finds the sprint gadget in the den', (await a.evaluate(() => window.__isle.fox.gadget.near())) === 'foxrun');
+  await a.evaluate(() => window.__isle.fox.gadget.use());
+  check('the sprint gadget turns on the fox sprint', (await a.evaluate(() => window.__isle.fox.gadget.state())).speed === true);
+  await stand(48.5, 2.1, 247.5);
+  await wait(900);
+  check('the buried treasure gadget is found by the coins', (await a.evaluate(() => window.__isle.fox.gadget.near())) === 'foxcoins');
+  await a.evaluate(() => window.__isle.fox.gadget.use());
+  check('the buried treasure starts its timer', (await a.evaluate(() => window.__isle.fox.gadget.state())).coinsAt > 0);
+  await stand(60.5, 14, 254.5);
+  await wait(600);
+  check('outside the den no fox gadget is near', (await a.evaluate(() => window.__isle.fox.gadget.near())) === null);
+
   await browser.close();
   server.close();
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
