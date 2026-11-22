@@ -479,6 +479,8 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **The Bedwars start screen.** Type **/bedwars** (no words) to open the start screen: pick your team with the Join buttons, see every team's bots, and start or stop a round. The arena is bigger now, its islands are further apart, and every island is bigger; the trees, rocks, houses and crystals sit further out towards their edges. There's one crystal on each island; breaking it starts a ten second wait before it grows back.
 
+**Bedwars is bigger, and played in survival.** The arena is larger, with the islands much further apart. Everyone plays in survival during a round (hearts and hunger are filled when it starts), and your mode is put back afterwards. Each team's island has a **generator**: a gold block with a glowing lamp beside its crystal, which brings the crystal back in five seconds instead of ten.
+
 **Bots feel hits and falls.** A hit makes a bot flash red and get pushed back, away from whoever hit it. A knocked-out bot topples over, sinks into the void spinning, and throws a burst of its team's colour where it fell. The bots are also a bit smaller now.
 
 **Bots fight each other.** When a bot sees a bot from another team within about seven blocks, it goes for it and hits it once a second. Three hits knock it out, and it falls into the void. Each team's knockouts are counted, so a team's bots can win kills as well as crystals.
