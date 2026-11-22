@@ -45,6 +45,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await a.evaluate(() => window.__isle.bw.step(30, 0.5));
   const took = await a.evaluate(() => window.__isle.bw.state().bots);
   check('the bots fly over and take crystals', took >= 1, took);
+  // a bot walking over empty air lays a bridge under itself
+  await a.evaluate(() => window.__isle.bw.moveBot(0, 164.5, 164.5));
+  await a.evaluate(() => window.__isle.bw.step(2, 0.25));
+  check('a bot walking over empty air lays a bridge of skystone', await a.evaluate(() => window.__isle.get(164, window.__isle.bw.bedAt()[1] - 1, 164)) === 196 || await a.evaluate(() => window.__isle.bw.underBot(0)) === 196);
+  // a bot can be knocked out: three hits, and it falls, then comes back
+  await a.evaluate(() => { const I = window.__isle; I.bw.hurtBot(0); I.bw.hurtBot(0); I.bw.hurtBot(0); });
+  check('three hits knock a bot out', await a.evaluate(() => window.__isle.bw.botAt(0).dead) === true);
+  await a.evaluate(() => window.__isle.bw.step(14, 0.5));
+  check('a knocked-out bot comes back on its island', await a.evaluate(() => { const b = window.__isle.bw.botAt(0); return b && !b.dead && b.hp === 3; }));
   // a crystal that's broken comes back after ten seconds
   const gone = await a.evaluate(() => window.__isle.bw.spots().filter((s) => s.t > 0).length);
   check('a broken island crystal waits ten seconds before it grows back', gone >= 1, gone);
