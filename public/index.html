@@ -11086,7 +11086,7 @@ function bwPanelEl(){
   }
   return el;
 }
-function bwPanelBtn(label,fn,disabled){const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=!!disabled;b.style.cssText='margin:3px;padding:6px 10px;font:700 14px system-ui,sans-serif;border:3px solid #111;background:'+(disabled?'#ddd':'#fff')+';cursor:'+(disabled?'default':'pointer');b.addEventListener('click',function(e){e.stopPropagation();if(!disabled)fn();});return b;}
+function bwPanelBtn(label,fn,disabled){const b=document.createElement('button');b.type='button';b.textContent=label;b.disabled=!!disabled;b.style.cssText='margin:3px;padding:6px 10px;font:700 14px system-ui,sans-serif;color:'+(disabled?'#777':'#111')+';border:3px solid #111;background:'+(disabled?'#ddd':'#fff')+';cursor:'+(disabled?'default':'pointer');b.addEventListener('click',function(e){e.stopPropagation();if(!disabled)fn();});return b;}
 function bwPanelRender(){
   const el=bwPanelEl();el.hidden=!bwPanelOpen;if(!bwPanelOpen)return;
   el.innerHTML='';
@@ -11148,13 +11148,13 @@ function bwHouse(x,y,z){
 }
 /* the decoration each element brings to its island */
 function bwDecor(theme,cx,cz,y,rad,seed){
-  const r=mulberry32(seed),at=function(){const a=r()*6.283,d=r()*(rad-3);return[Math.round(cx+Math.cos(a)*d),Math.round(cz+Math.sin(a)*d)];};
-  if(theme==='earth'){for(let i=0;i<3;i++){const p=at();bwTree(p[0],y,p[1]);}}
+  const r=mulberry32(seed),at=function(){const a=r()*6.283,d=rad*0.5+r()*(rad-rad*0.5-1.5);return[Math.round(cx+Math.cos(a)*d),Math.round(cz+Math.sin(a)*d)];};
+  if(theme==='earth'){for(let i=0;i<5;i++){const p=at();bwTree(p[0],y,p[1]);}}
   if(theme==='fire'){for(let i=0;i<3;i++){const p=at();for(let k=1;k<=3;k++)bwSet(p[0],y+k,p[1],B.OBSIDIAN);bwSet(p[0],y+4,p[1],B.GLOW+2);}}
   if(theme==='water'){for(let i=0;i<2;i++){const p=at();for(let k=1;k<=3;k++)bwSet(p[0],y+k,p[1],B.ICE);}}
   if(theme==='air'){for(let i=0;i<2;i++){const p=at();for(let k=1;k<=4;k++)bwSet(p[0],y+k,p[1],B.SKYSTONE);bwSet(p[0],y+5,p[1],B.STARLAMP);}}
-  for(let i=0;i<4;i++){const p=at();bwSet(p[0],y+1,p[1],theme==='fire'?B.MAGMA:theme==='water'?B.SAND:B.STONE);}
-  if(rad>=6)bwHouse(cx+1,y,cz-3);
+  for(let i=0;i<8;i++){const p=at();bwSet(p[0],y+1,p[1],theme==='fire'?B.MAGMA:theme==='water'?B.SAND:B.STONE);}
+  if(rad>=9){const h=at();bwHouse(h[0],y,h[1]);}
 }
 function bwIslandFor(k){return BW_ISLANDS.filter(function(q){return q.k===k;})[0];}
 /* the crystals: one on each island, in a fixed spot; breaking it starts a 10 second wait before it grows back */
@@ -11166,18 +11166,18 @@ function bwBuild(){
   for(let x=BW.x0;x<BW.x0+BW.S;x++)for(let z=BW.z0;z<BW.z0+BW.S;z++)for(let y=BW.y-14;y<=BW.y+6;y++)writeCell(y*SLAB+z*W+x,0);
   /* the middle island, bigger than the rest */
   const mx=BW.x0+48,mz=BW.z0+48;
-  bwFloat(mx,mz,BW.y,14,B.GRASS,B.DIRT,8801);
-  bwDecor('earth',mx,mz,BW.y,14,8802);
+  bwFloat(mx,mz,BW.y,20,B.GRASS,B.DIRT,8801);
+  bwDecor('earth',mx,mz,BW.y,20,8802);
   /* the four elemental islands, each in its element's look */
   const themes={fire:{top:B.BASALT,under:B.DEEP},water:{top:B.SAND,under:B.SANDSTONE},earth:{top:B.GRASS,under:B.DIRT},air:{top:B.SNOW,under:B.CLOUD}};
   BW_ISLANDS.forEach(function(q,i){
     const cx=BW.x0+q.dx,cz=BW.z0+q.dz,th=themes[q.k];
-    bwFloat(cx,cz,BW.y,9,th.top,th.under,8810+i);
-    bwDecor(q.k,cx,cz,BW.y,9,8820+i);
+    bwFloat(cx,cz,BW.y,13,th.top,th.under,8810+i);
+    bwDecor(q.k,cx,cz,BW.y,13,8820+i);
     bwSet(cx,BW.y+1,cz,B.BED);
   });
   /* one crystal spot on each island, kept clear */
-  const spotAt=[{x:mx+6,z:mz+4}].concat(BW_ISLANDS.map(function(q){return{x:BW.x0+q.dx-5,z:BW.z0+q.dz+4};}));
+  const spotAt=[{x:mx+12,z:mz+10}].concat(BW_ISLANDS.map(function(q){return{x:BW.x0+q.dx-7,z:BW.z0+q.dz+7};}));
   BW.spots=spotAt.map(function(p){const s={x:p.x,y:BW.y+1,z:p.z,t:0};writeCell(s.y*SLAB+s.z*W+s.x,0);bwPlaceSpot(s);return s;});
 }
 function bwStart(){

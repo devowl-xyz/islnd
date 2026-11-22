@@ -477,7 +477,7 @@ In both modes whatever you break goes into your inventory: the block itself (gra
 
 **The sky is its own dimension.** It has its own messages (no Glimmer talk there), a temple of skystone with a starlamp, a beacon tower, a skystone bridge to the next island out, and a cloud house on each small island. Two blocks belong to the sky: **skystone**, a pale blue stone for building, and **starlamp**, a lamp that glows.
 
-**The Bedwars start screen.** Type **/bedwars** (no words) to open the start screen: pick your team with the Join buttons, see every team's bots, and start or stop a round. The arena is bigger now, its islands are further apart, and the middle island is bigger too. There's one crystal on each island; breaking it starts a ten second wait before it grows back.
+**The Bedwars start screen.** Type **/bedwars** (no words) to open the start screen: pick your team with the Join buttons, see every team's bots, and start or stop a round. The arena is bigger now, its islands are further apart, and every island is bigger; the trees, rocks, houses and crystals sit further out towards their edges. There's one crystal on each island; breaking it starts a ten second wait before it grows back.
 
 **Bots fill the teams.** Every team that isn't yours starts with one bot. A bot mines a crystal from an island now and then, and it counts for its team. Admins can change the bots: **/bedwars bots fire 2** sets Fire to two bots (up to three), and the start screen has + and − buttons for admins. Outside a room, you're always the admin. Inside a room, moving *real* players between teams isn't synced yet: the room's teams and scores still need building.
 
