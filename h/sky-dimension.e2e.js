@@ -27,6 +27,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await wait(300);
   const st = await a.evaluate(() => window.__isle.skyDim.state());
   check('you go up into the sky', st.on === true && st.kind === 'sky', st);
+  const blocks = await a.evaluate(() => { const I = window.__isle; return { skystone: I.skyDim.count(I.B.SKYSTONE), starlamp: I.skyDim.count(I.B.STARLAMP), cloud: I.skyDim.count(I.B.CLOUD) }; });
+  check('the sky has its own blocks, skystone and starlamp, in its structures', blocks.skystone > 60 && blocks.starlamp >= 3, blocks);
   const sp = await a.evaluate(() => window.__isle.skyDim.spawn());
   check('you stand on the big cloud island', sp && Math.abs(sp.y - 45) < 1, sp);
   await a.evaluate(() => window.__isle.skyDim.leave());
